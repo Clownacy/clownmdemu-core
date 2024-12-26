@@ -282,7 +282,7 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 	else if (address == 0xA12004)
 	{
 		/* CDC mode */
-		LogMessage("MAIN-CPU attempted to read from CDC mode register at 0x%" CC_PRIXLEAST32, clownmdemu->m68k->program_counter);
+		value = CDC_Mode(&clownmdemu->state->mega_cd.cd.cdc, cc_false);
 	}
 	else if (address == 0xA12006)
 	{
@@ -292,7 +292,7 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 	else if (address == 0xA12008)
 	{
 		/* CDC host data */
-		LogMessage("MAIN-CPU attempted to read from CDC host data register at 0x%" CC_PRIXLEAST32, clownmdemu->m68k->program_counter);
+		value = CDC_HostData(&clownmdemu->state->mega_cd.cd.cdc, cc_false);
 	}
 	else if (address == 0xA1200C)
 	{

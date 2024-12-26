@@ -43,17 +43,17 @@ static void CDSectorTo68kRAM(const ClownMDEmu_Callbacks* const callbacks, cc_u16
 {
 	const cc_u8l* const sector_bytes = callbacks->cd_sector_read((void*)callbacks->user_data);
 
-	BytesTo68kRAM(ram, sector_bytes, 0x800);
+	BytesTo68kRAM(ram, sector_bytes, CDC_SECTOR_SIZE);
 }
 
 static void CDSectorsTo68kRAM(const ClownMDEmu_Callbacks* const callbacks, cc_u16l* const ram, const cc_u32f start, const cc_u32f length)
 {
 	cc_u32f i;
 
-	callbacks->cd_seeked((void*)callbacks->user_data, start / 0x800);
+	callbacks->cd_seeked((void*)callbacks->user_data, start / CDC_SECTOR_SIZE);
 
-	for (i = 0; i < CC_DIVIDE_CEILING(length, 0x800); ++i)
-		CDSectorTo68kRAM(callbacks, &ram[i * 0x800 / 2]);
+	for (i = 0; i < CC_DIVIDE_CEILING(length, CDC_SECTOR_SIZE); ++i)
+		CDSectorTo68kRAM(callbacks, &ram[i * CDC_SECTOR_SIZE / 2]);
 }
 
 ClownMDEmu_Constant ClownMDEmu_Constant_Initialise(void)
@@ -216,10 +216,7 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State* const state)
 	for (i = 0; i < CC_COUNT_OF(state->mega_cd.communication.status); ++i)
 		state->mega_cd.communication.status[i] = 0;
 
-	state->mega_cd.cd.current_sector = 0;
-	state->mega_cd.cd.total_buffered_sectors = 0;
-	state->mega_cd.cd.cdc_delay = 0;
-	state->mega_cd.cd.cdc_ready = cc_false;
+	CDC_Initialise(&state->mega_cd.cd.cdc);
 	
 	for (i = 0; i < CC_COUNT_OF(state->mega_cd.irq.enabled); ++i)
 		state->mega_cd.irq.enabled[i] = cc_false;
@@ -482,10 +479,10 @@ void ClownMDEmu_Reset(const ClownMDEmu* const clownmdemu, const cc_bool cd_boot)
 
 		/* Load additional Initial Program data if necessary. */
 		if (ip_start != 0x200 || ip_length != 0x600)
-			CDSectorsTo68kRAM(clownmdemu->callbacks, &clownmdemu->state->mega_cd.word_ram.buffer[0x600 / 2], 0x800, 32 * 0x800);
+			CDSectorsTo68kRAM(clownmdemu->callbacks, &clownmdemu->state->mega_cd.word_ram.buffer[0x600 / 2], ip_start, 32 * CDC_SECTOR_SIZE);
 
 		/* This is what the Mega CD's BIOS does. */
-		memcpy(clownmdemu->state->m68k.ram, clownmdemu->state->mega_cd.word_ram.buffer, 0x8000);
+		memcpy(clownmdemu->state->m68k.ram, clownmdemu->state->mega_cd.word_ram.buffer, sizeof(clownmdemu->state->m68k.ram) / 2);
 
 		/* Read Sub Program. */
 		CDSectorsTo68kRAM(clownmdemu->callbacks, &clownmdemu->state->mega_cd.prg_ram.buffer[0x6000 / 2], sp_start, sp_length);

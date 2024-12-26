@@ -6,6 +6,7 @@
 
 #include "clowncommon/clowncommon.h"
 
+#include "cdc.h"
 #include "clown68000/interpreter/clown68000.h"
 #include "controller.h"
 #include "fm.h"
@@ -221,9 +222,7 @@ typedef struct ClownMDEmu_State
 
 		struct
 		{
-			cc_u32l current_sector, total_buffered_sectors;
-			cc_u8l cdc_delay;
-			cc_bool cdc_ready;
+			CDC cdc;
 		} cd;
 
 		struct
@@ -263,7 +262,7 @@ typedef struct ClownMDEmu_Callbacks
 	void (*pcm_audio_to_be_generated)(void *user_data, const struct ClownMDEmu *clownmdemu, size_t total_frames, void (*generate_pcm_audio)(const struct ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames));
 	void (*cdda_audio_to_be_generated)(void *user_data, const struct ClownMDEmu *clownmdemu, size_t total_frames, void (*generate_cdda_audio)(const struct ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames));
 	void (*cd_seeked)(void *user_data, cc_u32f sector_index);
-	const cc_u8l* (*cd_sector_read)(void *user_data);
+	CDC_SectorReadCallback cd_sector_read;
 	cc_bool (*cd_track_seeked)(void *user_data, cc_u16f track_index, ClownMDEmu_CDDAMode mode);
 	size_t (*cd_audio_read)(void *user_data, cc_s16l *sample_buffer, size_t total_frames);
 } ClownMDEmu_Callbacks;

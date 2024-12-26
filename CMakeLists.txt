@@ -13,6 +13,8 @@ add_library(clownmdemu-core STATIC
 	"bus-sub-m68k.h"
 	"bus-z80.c"
 	"bus-z80.h"
+	"cdc.c"
+	"cdc.h"
 	"clowncommon/clowncommon.h"
 	"clownmdemu.c"
 	"clownmdemu.h"

@@ -9,25 +9,6 @@
 #include "bus-main-m68k.h"
 #include "log.h"
 
-static cc_u8f To2DigitBCD(const cc_u8f value)
-{
-	const cc_u8f lower_digit = value % 10;
-	const cc_u8f upper_digit = (value / 10) % 10;
-	return (upper_digit << 4) | (lower_digit << 0);
-}
-
-static cc_u32f GetCDSectorHeader(const ClownMDEmu* const clownmdemu)
-{
-	const cc_u32f frames = To2DigitBCD(clownmdemu->state->mega_cd.cd.current_sector % 75);
-	const cc_u32f seconds = To2DigitBCD((clownmdemu->state->mega_cd.cd.current_sector / 75) % 60);
-	const cc_u32f minutes = To2DigitBCD(clownmdemu->state->mega_cd.cd.current_sector / (75 * 60));
-
-	return ((cc_u32f)0x01 << (8 * 0))
-	     | (frames  << (8 * 1))
-	     | (seconds << (8 * 2))
-	     | (minutes << (8 * 3));
-}
-
 static cc_u16f MCDM68kReadWord(const void* const user_data, const cc_u32f address, const CycleMegaCD target_cycle)
 {
 	assert(address % 2 == 0);
@@ -50,19 +31,17 @@ static void MCDM68kWriteWord(const void* const user_data, const cc_u32f address,
 	MCDM68kWriteCallbackWithCycle(user_data, (address & 0xFFFFFF) / 2, cc_true, cc_true, value, target_cycle);
 }
 
-static void MCDM68kWriteLongword(const void* const user_data, const cc_u32f address, const cc_u32f value, const CycleMegaCD target_cycle)
+static void ROMSEEK(const ClownMDEmu* const clownmdemu, const ClownMDEmu_Callbacks* const frontend_callbacks, const cc_u32f starting_sector, const cc_u32f total_sectors)
 {
-	assert(value <= 0xFFFFFFFF);
-	MCDM68kWriteWord(user_data, address + 0, value >> 16, target_cycle);
-	MCDM68kWriteWord(user_data, address + 2, value & 0xFFFF, target_cycle);
+	CDC_Stop(&clownmdemu->state->mega_cd.cd.cdc);
+	CDC_Seek(&clownmdemu->state->mega_cd.cd.cdc, frontend_callbacks->cd_sector_read, frontend_callbacks->user_data, starting_sector, total_sectors);
+	frontend_callbacks->cd_seeked((void*)frontend_callbacks->user_data, starting_sector);
 }
 
-static void ROMSEEK(const ClownMDEmu* const clownmdemu, const void* const user_data, const ClownMDEmu_Callbacks* const frontend_callbacks, const CycleMegaCD target_cycle)
+static void CDCSTART(const ClownMDEmu* const clownmdemu, const ClownMDEmu_Callbacks* const frontend_callbacks)
 {
-	const cc_u32f starting_sector = MCDM68kReadLongword(user_data, clownmdemu->mcd_m68k->address_registers[0] + 0, target_cycle);
-
-	frontend_callbacks->cd_seeked((void*)frontend_callbacks->user_data, starting_sector);
-	clownmdemu->state->mega_cd.cd.current_sector = starting_sector;
+	clownmdemu->state->mega_cd.cdda.playing = cc_false;
+	CDC_Start(&clownmdemu->state->mega_cd.cd.cdc, frontend_callbacks->cd_sector_read, frontend_callbacks->user_data);
 }
 
 /* TODO: Move this to its own file? */
@@ -78,11 +57,7 @@ static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const
 		case 0x02:
 			/* MSCSTOP */
 			/* TODO: Make this actually stop and not just pause. */
-		case 0x89:
-			/* CDCSTOP */
-			clownmdemu->state->mega_cd.cdda.playing = cc_false;
-			break;
-
+			/* Fallthrough */
 		case 0x03:
 			/* MSCPAUSEON */
 			clownmdemu->state->mega_cd.cdda.paused = cc_true;
@@ -109,90 +84,100 @@ static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const
 			break;
 		}
 
+		case 0x17:
+		{
+			/* ROMREAD */
+			const cc_u32f starting_sector = MCDM68kReadLongword(user_data, clownmdemu->mcd_m68k->address_registers[0] + 0, target_cycle);
+
+			ROMSEEK(clownmdemu, frontend_callbacks, starting_sector, 0);
+			CDCSTART(clownmdemu, frontend_callbacks);
+		}
+
 		case 0x18:
+		{
 			/* ROMSEEK */
-			ROMSEEK(clownmdemu, user_data, frontend_callbacks, target_cycle);
+			const cc_u32f starting_sector = MCDM68kReadLongword(user_data, clownmdemu->mcd_m68k->address_registers[0] + 0, target_cycle);
+
+			ROMSEEK(clownmdemu, frontend_callbacks, starting_sector, 0);
 			break;
+		}
 
 		case 0x20:
 		{
 			/* ROMREADN */
+			const cc_u32f starting_sector = MCDM68kReadLongword(user_data, clownmdemu->mcd_m68k->address_registers[0] + 0, target_cycle);
 			const cc_u32f total_sectors = MCDM68kReadLongword(user_data, clownmdemu->mcd_m68k->address_registers[0] + 4, target_cycle);
 
-			ROMSEEK(clownmdemu, user_data, frontend_callbacks, target_cycle);
-			clownmdemu->state->mega_cd.cd.total_buffered_sectors = total_sectors;
+			/* TODO: What does 0 total sectors do to a real BIOS? */
+			ROMSEEK(clownmdemu, frontend_callbacks, starting_sector, total_sectors);
+			CDCSTART(clownmdemu, frontend_callbacks);
 			break;
 		}
 
 		case 0x21:
 		{
 			/* ROMREADE */
+			const cc_u32f starting_sector = MCDM68kReadLongword(user_data, clownmdemu->mcd_m68k->address_registers[0] + 0, target_cycle);
 			const cc_u32f last_sector = MCDM68kReadLongword(user_data, clownmdemu->mcd_m68k->address_registers[0] + 4, target_cycle);
 
-			ROMSEEK(clownmdemu, user_data, frontend_callbacks, target_cycle);
 			/* TODO: How does the official BIOS respond to a negative sector count? */
-			clownmdemu->state->mega_cd.cd.total_buffered_sectors = last_sector < clownmdemu->state->mega_cd.cd.current_sector ? 0 : last_sector - clownmdemu->state->mega_cd.cd.current_sector;
+			ROMSEEK(clownmdemu, frontend_callbacks, starting_sector, last_sector < starting_sector ? 0 : last_sector - starting_sector);
+			CDCSTART(clownmdemu, frontend_callbacks);
 			break;
 		}
 
+		case 0x88:
+			/* CDCSTART */
+			CDCSTART(clownmdemu, frontend_callbacks);
+			break;
+
+		case 0x89:
+			/* CDCSTOP */
+			CDC_Stop(&clownmdemu->state->mega_cd.cd.cdc);
+			break;
+
 		case 0x8A:
 			/* CDCSTAT */
-			/* TODO: Do this in a more proper way. */
-			/* HACK: Simulate a bit of delay (this should be be a separate mechanism). */
-			/* Sonic CD relies on this for FMV playback. */
-			if (clownmdemu->state->mega_cd.cd.cdc_delay < 2)
+			if (!CDC_Stat(&clownmdemu->state->mega_cd.cd.cdc, frontend_callbacks->cd_sector_read, frontend_callbacks->user_data))
 				clownmdemu->mcd_m68k->status_register |= 1; /* Set carry flag to signal that a sector is not ready. */
 			else
 				clownmdemu->mcd_m68k->status_register &= ~1; /* Clear carry flag to signal that there's a sector ready. */
-
-			clownmdemu->state->mega_cd.cd.cdc_delay = (clownmdemu->state->mega_cd.cd.cdc_delay + 1) % 6;
 
 			break;
 
 		case 0x8B:
 			/* CDCREAD */
-			if (clownmdemu->state->mega_cd.cd.total_buffered_sectors == 0)
+			if (!CDC_Read(&clownmdemu->state->mega_cd.cd.cdc, frontend_callbacks->cd_sector_read, frontend_callbacks->user_data, &clownmdemu->mcd_m68k->data_registers[0]))
 			{
 				/* Sonic Megamix 4.0b relies on this. */
 				clownmdemu->mcd_m68k->status_register |= 1; /* Set carry flag to signal that a sector has not been prepared. */
 			}
 			else
 			{
-				--clownmdemu->state->mega_cd.cd.total_buffered_sectors;
-				clownmdemu->state->mega_cd.cd.cdc_ready = cc_true;
-
 				clownmdemu->mcd_m68k->status_register &= ~1; /* Clear carry flag to signal that a sector has been prepared. */
-				clownmdemu->mcd_m68k->data_registers[0] = GetCDSectorHeader(clownmdemu);
 			}
 
 			break;
 
 		case 0x8C:
 			/* CDCTRN */
-			if (!clownmdemu->state->mega_cd.cd.cdc_ready)
+			if ((CDC_Mode(&clownmdemu->state->mega_cd.cd.cdc, cc_true) & 0x8000) != 0)
 			{
 				clownmdemu->mcd_m68k->status_register |= 1; /* Set carry flag to signal that there's not a sector ready. */
 			}
 			else
 			{
 				cc_u32f i;
-				const cc_u8l* const sector_bytes = frontend_callbacks->cd_sector_read((void*)frontend_callbacks->user_data);
-				const cc_u32f sector_header = GetCDSectorHeader(clownmdemu);
+				const cc_u32f sector_address = clownmdemu->mcd_m68k->address_registers[0];
+				const cc_u32f header_address = clownmdemu->mcd_m68k->address_registers[1];
 
-				clownmdemu->state->mega_cd.cd.cdc_ready = cc_false;
-				++clownmdemu->state->mega_cd.cd.current_sector;
+				MCDM68kWriteWord(user_data, header_address + 0, CDC_HostData(&clownmdemu->state->mega_cd.cd.cdc, cc_true), target_cycle);
+				MCDM68kWriteWord(user_data, header_address + 2, CDC_HostData(&clownmdemu->state->mega_cd.cd.cdc, cc_true), target_cycle);
 
-				for (i = 0; i < 0x800; i += 2)
-				{
-					const cc_u32f address = clownmdemu->mcd_m68k->address_registers[0] + i;
-					const cc_u16f sector_word = ((cc_u16f)sector_bytes[i + 0] << 8) | ((cc_u16f)sector_bytes[i + 1] << 0);
+				for (i = 0; i < CDC_SECTOR_SIZE; i += 2)
+					MCDM68kWriteWord(user_data, sector_address + i, CDC_HostData(&clownmdemu->state->mega_cd.cd.cdc, cc_true), target_cycle);
 
-					MCDM68kWriteWord(user_data, address, sector_word, target_cycle);
-				}
-
-				MCDM68kWriteLongword(user_data, clownmdemu->mcd_m68k->address_registers[1], sector_header, target_cycle);
-
-				clownmdemu->mcd_m68k->address_registers[0] = (clownmdemu->mcd_m68k->address_registers[0] + 0x800) & 0xFFFFFFFF;
+				clownmdemu->mcd_m68k->address_registers[0] = (clownmdemu->mcd_m68k->address_registers[0] + CDC_SECTOR_SIZE) & 0xFFFFFFFF;
 				clownmdemu->mcd_m68k->address_registers[1] = (clownmdemu->mcd_m68k->address_registers[1] + 4) & 0xFFFFFFFF;
 				clownmdemu->mcd_m68k->status_register &= ~1; /* Clear carry flag to signal that there's always a sector ready. */
 			}
@@ -201,7 +186,7 @@ static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const
 
 		case 0x8D:
 			/* CDCACK */
-			/* TODO: Anything. */
+			CDC_Ack(&clownmdemu->state->mega_cd.cd.cdc, frontend_callbacks->cd_sector_read, frontend_callbacks->user_data);
 			break;
 
 		default:
@@ -413,7 +398,7 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 	else if (address == 0xFF8004)
 	{
 		/* CDC mode / device destination */
-		value = 0x4000;
+		value = CDC_Mode(&clownmdemu->state->mega_cd.cd.cdc, cc_true);
 	}
 	else if (address == 0xFF8006)
 	{
@@ -501,6 +486,7 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 	const ClownMDEmu* const clownmdemu = callback_user_data->clownmdemu;
 	const cc_u32f address = address_word * 2;
 
+	const cc_u16f high_byte = (value >> 8) & 0xFF;
 	const cc_u16f low_byte = (value >> 0) & 0xFF;
 
 	cc_u16f mask = 0;
@@ -589,7 +575,7 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 	else if (address == 0xFF8004)
 	{
 		/* CDC mode / device destination */
-		LogMessage("SUB-CPU attempted to write to CDC mode/destination register at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
+		CDC_SetDeviceDestination(&clownmdemu->state->mega_cd.cd.cdc, high_byte & 7);
 	}
 	else if (address == 0xFF8006)
 	{
