@@ -1,5 +1,7 @@
 #include "pcm.h"
 
+#include <string.h>
+
 /* MEGA-CD HARDWARE MANUAL - PCM SOUND SOURCE */
 /* https://segaretro.org/images/2/2d/MCDHardware_Manual_PCM_Sound_Source.pdf */
 
@@ -25,6 +27,8 @@ void PCM_State_Initialise(PCM_State* const state)
 	state->sounding = cc_false;
 	state->current_wave_bank = 0;
 	state->current_channel = 0;
+
+	memset(state->wave_ram, 0, sizeof(state->wave_ram));
 }
 
 static cc_bool PCM_IsChannelAudible(const PCM* const pcm, const PCM_ChannelState* const channel)
