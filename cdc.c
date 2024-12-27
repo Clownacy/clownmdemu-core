@@ -133,12 +133,6 @@ cc_bool CDC_Read(CDC* const cdc, const CDC_SectorReadCallback callback, const vo
 
 	*header = U16sToU32(cdc->buffered_sectors[cdc->host_data_buffered_sector_index]);
 
-	--cdc->buffered_sectors_total;
-
-	++cdc->buffered_sectors_read_index;
-	if (cdc->buffered_sectors_read_index == CC_COUNT_OF(cdc->buffered_sectors))
-		cdc->buffered_sectors_read_index = 0;
-
 	cdc->host_data_bound = cc_true;
 
 	return cc_true;
@@ -160,7 +154,17 @@ cc_u16f CDC_HostData(CDC* const cdc, const cc_bool is_sub_cpu)
 
 void CDC_Ack(CDC* const cdc, const CDC_SectorReadCallback callback, const void* const user_data)
 {
+	if (!cdc->host_data_bound)
+		return;
+
 	cdc->host_data_bound = cc_false;
+
+	/* Advance the read index. */
+	--cdc->buffered_sectors_total;
+
+	++cdc->buffered_sectors_read_index;
+	if (cdc->buffered_sectors_read_index == CC_COUNT_OF(cdc->buffered_sectors))
+		cdc->buffered_sectors_read_index = 0;
 }
 
 void CDC_Seek(CDC* const cdc, const CDC_SectorReadCallback callback, const void* const user_data, const cc_u32f sector, const cc_u32f total_sectors)
