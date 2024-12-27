@@ -150,7 +150,7 @@ cc_u16f CDC_HostData(CDC* const cdc, const cc_bool is_sub_cpu)
 		return 0; /* TODO: What is actually returned upon data exhaustion? */
 
 	if (is_sub_cpu != cdc->host_data_target_sub_cpu)
-		return 0; /* TODO: What is actually returned when the is not the target CPU? */
+		return 0; /* TODO: What is actually returned when this is not the target CPU? */
 	
 	if (!cdc->host_data_bound)
 		return 0;
