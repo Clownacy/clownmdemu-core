@@ -56,14 +56,12 @@ static void CDSectorsTo68kRAM(const ClownMDEmu_Callbacks* const callbacks, cc_u1
 		CDSectorTo68kRAM(callbacks, &ram[i * CDC_SECTOR_SIZE / 2]);
 }
 
-ClownMDEmu_Constant ClownMDEmu_Constant_Initialise(void)
+void ClownMDEmu_Constant_Initialise(ClownMDEmu_Constant* const constant)
 {
-	ClownMDEmu_Constant constant;
-	Z80_Constant_Initialise(&constant.z80);
-	VDP_Constant_Initialise(&constant.vdp);
-	FM_Constant_Initialise(&constant.fm);
-	PSG_Constant_Initialise(&constant.psg);
-	return constant;
+	Z80_Constant_Initialise(&constant->z80);
+	VDP_Constant_Initialise(&constant->vdp);
+	FM_Constant_Initialise(&constant->fm);
+	PSG_Constant_Initialise(&constant->psg);
 }
 
 static cc_bool FrontendControllerCallbackCommon(void* const user_data, const Controller_Button button, const cc_u8f joypad_index)
