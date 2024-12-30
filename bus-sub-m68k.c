@@ -186,7 +186,7 @@ static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const
 
 		case 0x8D:
 			/* CDCACK */
-			CDC_Ack(&clownmdemu->state->mega_cd.cd.cdc, frontend_callbacks->cd_sector_read, frontend_callbacks->user_data);
+			CDC_Ack(&clownmdemu->state->mega_cd.cd.cdc);
 			break;
 
 		default:

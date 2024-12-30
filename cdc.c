@@ -152,7 +152,7 @@ cc_u16f CDC_HostData(CDC* const cdc, const cc_bool is_sub_cpu)
 	return cdc->buffered_sectors[cdc->host_data_buffered_sector_index][cdc->host_data_word_index++];
 }
 
-void CDC_Ack(CDC* const cdc, const CDC_SectorReadCallback callback, const void* const user_data)
+void CDC_Ack(CDC* const cdc)
 {
 	if (!cdc->host_data_bound)
 		return;

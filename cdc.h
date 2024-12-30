@@ -25,7 +25,7 @@ void CDC_Stop(CDC* cdc);
 cc_bool CDC_Stat(CDC* cdc, CDC_SectorReadCallback callback, const void *user_data);
 cc_bool CDC_Read(CDC* cdc, CDC_SectorReadCallback callback, const void *user_data, cc_u32l *header);
 cc_u16f CDC_HostData(CDC* cdc, cc_bool is_sub_cpu);
-void CDC_Ack(CDC* cdc, CDC_SectorReadCallback callback, const void* user_data);
+void CDC_Ack(CDC* cdc);
 void CDC_Seek(CDC* cdc, CDC_SectorReadCallback callback, const void* user_data, cc_u32f sector, cc_u32f total_sectors);
 cc_u16f CDC_Mode(CDC* cdc, cc_bool is_sub_cpu);
 void CDC_SetDeviceDestination(CDC* cdc, cc_u16f device_destination);
