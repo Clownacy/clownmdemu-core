@@ -408,7 +408,7 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 	else if (address == 0xFF8008)
 	{
 		/* CDC host data */
-		LogMessage("SUB-CPU attempted to read from CDC host data register at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
+		value = CDC_HostData(&clownmdemu->state->mega_cd.cd.cdc, cc_true);
 	}
 	else if (address == 0xFF800C)
 	{
