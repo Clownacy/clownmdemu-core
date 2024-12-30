@@ -203,7 +203,7 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State* const state)
 
 	state->mega_cd.prg_ram.bank = 0;
 
-	state->mega_cd.word_ram.in_1m_mode = cc_true; /* Confirmed by my Visual Sound Test homebrew. */
+	state->mega_cd.word_ram.in_1m_mode = cc_false;
 	/* Page 24 of MEGA-CD HARDWARE MANUAL confirms this. */
 	state->mega_cd.word_ram.dmna = cc_false;
 	state->mega_cd.word_ram.ret = cc_true;

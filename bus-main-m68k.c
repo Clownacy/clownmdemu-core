@@ -277,7 +277,7 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 	else if (address == 0xA12002)
 	{
 		/* Memory mode / Write protect */
-		value = ((cc_u16f)clownmdemu->state->mega_cd.prg_ram.bank << 6) | ((cc_u16f)clownmdemu->state->mega_cd.word_ram.dmna << 1) | ((cc_u16f)clownmdemu->state->mega_cd.word_ram.in_1m_mode << 2) | ((cc_u16f)clownmdemu->state->mega_cd.word_ram.ret << 0);
+		value = ((cc_u16f)clownmdemu->state->mega_cd.prg_ram.bank << 6) | ((cc_u16f)clownmdemu->state->mega_cd.word_ram.in_1m_mode << 2) | ((cc_u16f)clownmdemu->state->mega_cd.word_ram.dmna << 1) | ((cc_u16f)clownmdemu->state->mega_cd.word_ram.ret << 0);
 	}
 	else if (address == 0xA12004)
 	{
