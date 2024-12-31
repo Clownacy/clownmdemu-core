@@ -410,6 +410,11 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 		/* CDC host data */
 		value = CDC_HostData(&clownmdemu->state->mega_cd.cd.cdc, cc_true);
 	}
+	else if (address == 0xFF800A)
+	{
+		/* CDC DMA address */
+		LogMessage("SUB-CPU attempted to read from DMA address register at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
+	}
 	else if (address == 0xFF800C)
 	{
 		/* Stop watch */
@@ -586,6 +591,11 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 	{
 		/* CDC host data */
 		LogMessage("SUB-CPU attempted to write to CDC host data register at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
+	}
+	else if (address == 0xFF800A)
+	{
+		/* CDC DMA address */
+		CDC_SetDMAAddress(&clownmdemu->state->mega_cd.cd.cdc, value);
 	}
 	else if (address == 0xFF800C)
 	{

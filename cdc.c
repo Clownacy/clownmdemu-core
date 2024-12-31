@@ -71,6 +71,7 @@ void CDC_Initialise(CDC* const cdc)
 	cdc->current_sector = 0;
 	cdc->sectors_remaining = 0;
 	cdc->host_data_word_index = CC_COUNT_OF(cdc->buffered_sectors[0]);
+	cdc->dma_address = 0;
 	cdc->host_data_buffered_sector_index = 0;
 	cdc->buffered_sectors_read_index = 0;
 	cdc->buffered_sectors_write_index = 0;
@@ -187,4 +188,9 @@ void CDC_SetDeviceDestination(CDC* const cdc, const cc_u16f device_destination)
 {
 	/* TODO: Use an enum for this. */
 	cdc->device_destination = device_destination;
+}
+
+void CDC_SetDMAAddress(CDC* const cdc, const cc_u16f dma_address)
+{
+	cdc->dma_address = dma_address;
 }
