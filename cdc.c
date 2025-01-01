@@ -123,6 +123,7 @@ cc_bool CDC_Read(CDC* const cdc, const CDC_SectorReadCallback callback, const vo
 	if (cdc->host_data_bound)
 		return cc_false;
 
+	/* TODO: Is this thing actually latched during 'CDCRead', or is it when the value is first written? */
 	switch (cdc->device_destination)
 	{
 		case CDC_DESTINATION_MAIN_CPU_READ:
