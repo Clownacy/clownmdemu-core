@@ -133,6 +133,7 @@ cc_bool CDC_Read(CDC* const cdc, const CDC_SectorReadCallback callback, const vo
 			break;
 
 		case 3:
+		case 4:
 		case 5:
 		case 7:
 			cdc->host_data_target_sub_cpu = cc_true;
@@ -207,21 +208,9 @@ void CDC_Seek(CDC* const cdc, const CDC_SectorReadCallback callback, const void*
 cc_u16f CDC_Mode(CDC* const cdc, const cc_bool is_sub_cpu)
 {
 	if (is_sub_cpu != cdc->host_data_target_sub_cpu)
-	{
 		return 0x8000;
-	}
-	else
-	{
-		cc_u16f mode = 0;
 
-		if (EndOfDataTransfer(cdc))
-			mode |= 0x8000;
-
-		if (DataSetReady(cdc))
-			mode |= 0x4000;
-
-		return mode;
-	}
+	return EndOfDataTransfer(cdc) << 15 | DataSetReady(cdc) << 14;
 }
 
 void CDC_SetDeviceDestination(CDC* const cdc, const cc_u16f device_destination)

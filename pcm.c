@@ -186,6 +186,11 @@ cc_u8f PCM_ReadRegister(const PCM* const pcm, const cc_u16f reg)
 	return value;
 }
 
+cc_u8f PCM_ReadWaveRAM(const PCM* const pcm, const cc_u16f address)
+{
+	return pcm->state->wave_ram[(pcm->state->current_wave_bank << 12) + (address & 0xFFF)];
+}
+
 void PCM_WriteWaveRAM(const PCM* const pcm, const cc_u16f address, const cc_u8f value)
 {
 	pcm->state->wave_ram[(pcm->state->current_wave_bank << 12) + (address & 0xFFF)] = value;
