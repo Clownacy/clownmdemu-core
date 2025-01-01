@@ -157,9 +157,9 @@ static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const
 				/* TODO: This really belongs in the CDC logic, but it needs access to the RAM buffers... */
 				switch (clownmdemu->state->mega_cd.cd.cdc.device_destination)
 				{
-					case 4:
-					case 5:
-					case 7:
+					case CDC_DESTINATION_PCM_RAM:
+					case CDC_DESTINATION_PRG_RAM:
+					case CDC_DESTINATION_WORD_RAM:
 					{
 						/* TODO: How is RAM address overflow handled? */
 						cc_u32f i, address;
@@ -185,24 +185,25 @@ static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const
 						CDC_HostData(&clownmdemu->state->mega_cd.cd.cdc, cc_true);
 
 						/* Copy the sector data to the DMA destination. */
-						if (clownmdemu->state->mega_cd.cd.cdc.device_destination == 4)
+						/* The behaviour of CDC-to-PCM DMA exposes that this really does leverage the Sub-CPU bus on a Mega CD:
+						   the DMA destination address is measured in Sub-CPU address space bytes, not PCM RAM buffer bytes.
+						   That is to say, setting it to 8 will cause the data to be copied to 4 bytes into PCM RAM. */
+						while ((CDC_Mode(&clownmdemu->state->mega_cd.cd.cdc, cc_true) & 0x4000) != 0)
 						{
-							while ((CDC_Mode(&clownmdemu->state->mega_cd.cd.cdc, cc_true) & 0x4000) != 0)
+							const cc_u16f word = CDC_HostData(&clownmdemu->state->mega_cd.cd.cdc, cc_true);
+
+							if (clownmdemu->state->mega_cd.cd.cdc.device_destination == CDC_DESTINATION_PCM_RAM)
 							{
-								const cc_u16f word = CDC_HostData(&clownmdemu->state->mega_cd.cd.cdc, cc_true);
 								MCDM68kWriteWord(user_data, address, word >> 8, target_cycle);
 								address += 2;
 								MCDM68kWriteWord(user_data, address, word & 0xFF, target_cycle);
-								address += 2;
 							}
-						}
-						else
-						{
-							while ((CDC_Mode(&clownmdemu->state->mega_cd.cd.cdc, cc_true) & 0x4000) != 0)
+							else
 							{
-								MCDM68kWriteWord(user_data, address, CDC_HostData(&clownmdemu->state->mega_cd.cd.cdc, cc_true), target_cycle);
-								address += 2;
+								MCDM68kWriteWord(user_data, address, word, target_cycle);
 							}
+
+							address += 2;
 						}
 
 						break;

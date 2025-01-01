@@ -88,7 +88,7 @@ void CDC_Initialise(CDC* const cdc)
 	cdc->buffered_sectors_read_index = 0;
 	cdc->buffered_sectors_write_index = 0;
 	cdc->buffered_sectors_total = 0;
-	cdc->device_destination = 3;
+	cdc->device_destination = CDC_DESTINATION_SUB_CPU_READ;
 	cdc->host_data_target_sub_cpu = cc_false;
 	cdc->cdc_reading = cc_false;
 	cdc->host_data_bound = cc_false;
@@ -128,14 +128,14 @@ cc_bool CDC_Read(CDC* const cdc, const CDC_SectorReadCallback callback, const vo
 	/* TODO: Log error when invalid. */
 	switch (cdc->device_destination)
 	{
-		case 2:
+		case CDC_DESTINATION_MAIN_CPU_READ:
 			cdc->host_data_target_sub_cpu = cc_false;
 			break;
 
-		case 3:
-		case 4:
-		case 5:
-		case 7:
+		case CDC_DESTINATION_SUB_CPU_READ:
+		case CDC_DESTINATION_PCM_RAM:
+		case CDC_DESTINATION_PRG_RAM:
+		case CDC_DESTINATION_WORD_RAM:
 			cdc->host_data_target_sub_cpu = cc_true;
 			break;
 
@@ -213,9 +213,8 @@ cc_u16f CDC_Mode(CDC* const cdc, const cc_bool is_sub_cpu)
 	return EndOfDataTransfer(cdc) << 15 | DataSetReady(cdc) << 14;
 }
 
-void CDC_SetDeviceDestination(CDC* const cdc, const cc_u16f device_destination)
+void CDC_SetDeviceDestination(CDC* const cdc, const CDC_DeviceDestination device_destination)
 {
-	/* TODO: Use an enum for this. */
 	cdc->device_destination = device_destination;
 }
 
