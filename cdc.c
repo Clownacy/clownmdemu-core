@@ -123,9 +123,6 @@ cc_bool CDC_Read(CDC* const cdc, const CDC_SectorReadCallback callback, const vo
 	if (cdc->host_data_bound)
 		return cc_false;
 
-	/* TODO: Use an enum for this. */
-	/* TODO: DMA transfers. */
-	/* TODO: Log error when invalid. */
 	switch (cdc->device_destination)
 	{
 		case CDC_DESTINATION_MAIN_CPU_READ:
