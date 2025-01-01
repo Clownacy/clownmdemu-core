@@ -216,6 +216,7 @@ cc_u16f CDC_Mode(CDC* const cdc, const cc_bool is_sub_cpu)
 void CDC_SetDeviceDestination(CDC* const cdc, const CDC_DeviceDestination device_destination)
 {
 	cdc->device_destination = device_destination;
+	cdc->dma_address = 0;
 }
 
 void CDC_SetDMAAddress(CDC* const cdc, const cc_u16f dma_address)
