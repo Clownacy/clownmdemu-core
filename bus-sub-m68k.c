@@ -154,6 +154,34 @@ static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const
 			}
 			else
 			{
+				/* TODO: This really belongs in the CDC logic, but it needs access to the RAM buffers... */
+				switch (clownmdemu->state->mega_cd.cd.cdc.device_destination)
+				{
+					case 5:
+					case 7:
+					{
+						cc_u32f i;
+						const cc_u32f base_address = clownmdemu->state->mega_cd.cd.cdc.device_destination == 5 ? 0 : clownmdemu->state->mega_cd.word_ram.in_1m_mode ? 0xC0000 : 0x80000;
+						const cc_u32f offset_mask = clownmdemu->state->mega_cd.cd.cdc.device_destination == 5 ? 0x7FFFF : clownmdemu->state->mega_cd.word_ram.in_1m_mode ? 0x1FFFF : 0x3FFFF;
+						const cc_u32f offset = (cc_u32f)clownmdemu->state->mega_cd.cd.cdc.dma_address * 8 & offset_mask;
+						cc_u32f address = base_address + offset;
+
+						/* Discard the header data. */
+						CDC_HostData(&clownmdemu->state->mega_cd.cd.cdc, cc_true);
+						CDC_HostData(&clownmdemu->state->mega_cd.cd.cdc, cc_true);
+
+						/* Copy the sector data to the DMA destination. */
+						while ((CDC_Mode(&clownmdemu->state->mega_cd.cd.cdc, cc_true) & 0x4000) != 0)
+							//						for (i = 0; i < CDC_SECTOR_SIZE; i += 2)
+						{
+							MCDM68kWriteWord(user_data, address, CDC_HostData(&clownmdemu->state->mega_cd.cd.cdc, cc_true), target_cycle);
+							address += 2;
+						}
+
+						break;
+					}
+				}
+
 				clownmdemu->mcd_m68k->status_register &= ~1; /* Clear carry flag to signal that a sector has been prepared. */
 			}
 
@@ -179,6 +207,7 @@ static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const
 
 				clownmdemu->mcd_m68k->address_registers[0] = (clownmdemu->mcd_m68k->address_registers[0] + CDC_SECTOR_SIZE) & 0xFFFFFFFF;
 				clownmdemu->mcd_m68k->address_registers[1] = (clownmdemu->mcd_m68k->address_registers[1] + 4) & 0xFFFFFFFF;
+
 				clownmdemu->mcd_m68k->status_register &= ~1; /* Clear carry flag to signal that there's always a sector ready. */
 			}
 

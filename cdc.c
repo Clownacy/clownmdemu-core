@@ -2,7 +2,7 @@
 
 #include "log.h"
 
-#define CDC_END(CDC) (CC_COUNT_OF((CDC)->buffered_sectors[0]) - 1)
+#define CDC_END(CDC) CC_COUNT_OF((CDC)->buffered_sectors[0])
 
 static cc_u8f To2DigitBCD(const cc_u8f value)
 {
@@ -33,7 +33,12 @@ static cc_u16f U16sToU32(const cc_u16l* const u16s)
 
 static cc_bool EndOfDataTransfer(CDC* const cdc)
 {
-	return cdc->host_data_word_index == CDC_END(cdc);
+	return cdc->host_data_word_index >= CDC_END(cdc) - 1;
+}
+
+static cc_bool DataSetReady(CDC* const cdc)
+{
+	return cdc->host_data_word_index != CDC_END(cdc);
 }
 
 static void RefillSectorBuffer(CDC* const cdc, const CDC_SectorReadCallback cd_sector_read, const void* const user_data)
@@ -128,6 +133,8 @@ cc_bool CDC_Read(CDC* const cdc, const CDC_SectorReadCallback callback, const vo
 			break;
 
 		case 3:
+		case 5:
+		case 7:
 			cdc->host_data_target_sub_cpu = cc_true;
 			break;
 
@@ -151,16 +158,25 @@ cc_u16f CDC_HostData(CDC* const cdc, const cc_bool is_sub_cpu)
 	cc_u16f value;
 
 	if (is_sub_cpu != cdc->host_data_target_sub_cpu)
-		value = 0; /* TODO: What is actually returned when this is not the target CPU? */
+	{
+		/* TODO: What is actually returned when this is not the target CPU? */
+		value = 0;
+	}
 	else if (!cdc->host_data_bound)
-		value = 0; /* TODO: What is actually returned in this case? */
+	{
+		/* TODO: What is actually returned in this case? */
+		value = 0;
+	}
+	else if (!DataSetReady(cdc))
+	{
+		/* According to Genesis Plus GX, this will repeat the final value indefinitely. */
+		/* TODO: Verify this on actual hardware. */
+		value = cdc->buffered_sectors[cdc->host_data_buffered_sector_index][cdc->host_data_word_index - 1];
+	}
 	else
-		value = cdc->buffered_sectors[cdc->host_data_buffered_sector_index][cdc->host_data_word_index];
-
-	/* According to Genesis Plus GX, this will repeat the final value indefinitely. */
-	/* TODO: Verify this on actual hardware. */
-	if (!EndOfDataTransfer(cdc))
-		++cdc->host_data_word_index;
+	{
+		value = cdc->buffered_sectors[cdc->host_data_buffered_sector_index][cdc->host_data_word_index++];
+	}
 
 	return value;
 }
@@ -190,10 +206,22 @@ void CDC_Seek(CDC* const cdc, const CDC_SectorReadCallback callback, const void*
 
 cc_u16f CDC_Mode(CDC* const cdc, const cc_bool is_sub_cpu)
 {
-	if (is_sub_cpu != cdc->host_data_target_sub_cpu || EndOfDataTransfer(cdc))
+	if (is_sub_cpu != cdc->host_data_target_sub_cpu)
+	{
 		return 0x8000;
+	}
+	else
+	{
+		cc_u16f mode = 0;
 
-	return 0x4000;
+		if (EndOfDataTransfer(cdc))
+			mode |= 0x8000;
+
+		if (DataSetReady(cdc))
+			mode |= 0x4000;
+
+		return mode;
+	}
 }
 
 void CDC_SetDeviceDestination(CDC* const cdc, const cc_u16f device_destination)
