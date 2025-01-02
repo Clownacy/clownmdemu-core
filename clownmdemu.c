@@ -18,32 +18,15 @@
 
 #define MAX_ROM_SIZE (1024 * 1024 * 4) /* 4MiB */
 
-static cc_u32f ReadU32BE(const cc_u8l* const bytes)
+/* TODO: Merge this with the functions in 'cdc.c'. */
+static cc_u32f U16sToU32(const cc_u16l* const u16s)
 {
-	cc_u8f i;
-	cc_u32f value;
-
-	value = 0;
-
-	for (i = 0; i < 4; ++i)
-		value |= (cc_u32f)bytes[i] << (8 * (4 - 1 - i));
-
-	return value;
-}
-
-static void BytesTo68kRAM(cc_u16l* const ram, const cc_u8l* const bytes, const size_t total_bytes)
-{
-	size_t i;
-
-	for (i = 0; i < total_bytes / 2; ++i)
-		ram[i] = ((cc_u16f)bytes[i * 2 + 0] << 8) | bytes[i * 2 + 1];
+	return (cc_u32f)u16s[0] << 16 | u16s[1];
 }
 
 static void CDSectorTo68kRAM(const ClownMDEmu_Callbacks* const callbacks, cc_u16l* const ram)
 {
-	const cc_u8l* const sector_bytes = callbacks->cd_sector_read((void*)callbacks->user_data);
-
-	BytesTo68kRAM(ram, sector_bytes, CDC_SECTOR_SIZE);
+	callbacks->cd_sector_read((void*)callbacks->user_data, ram);
 }
 
 static void CDSectorsTo68kRAM(const ClownMDEmu_Callbacks* const callbacks, cc_u16l* const ram, const cc_u32f start, const cc_u32f length)
@@ -456,34 +439,37 @@ void ClownMDEmu_Reset(const ClownMDEmu* const clownmdemu, const cc_bool cd_boot)
 	if (cd_boot)
 	{
 		/* Boot from CD ("Mode 2"). */
-		const cc_u8l *sector_bytes;
 		cc_u32f ip_start, ip_length, sp_start, sp_length;
+		const cc_u16f boot_header_offset = 0x6000;
+		const cc_u16f ip_start_default = 0x200;
+		const cc_u16f ip_length_default = 0x600;
+		cc_u16l* const sector_words = &clownmdemu->state->mega_cd.prg_ram.buffer[boot_header_offset / 2];
 		/*cc_u8l region;*/
 
 		/* Read first sector. */
 		clownmdemu->callbacks->cd_seeked((void*)clownmdemu->callbacks->user_data, 0);
-		sector_bytes = clownmdemu->callbacks->cd_sector_read((void*)clownmdemu->callbacks->user_data);
-		ip_start = ReadU32BE(&sector_bytes[0x30]);
-		ip_length = ReadU32BE(&sector_bytes[0x34]);
-		sp_start = ReadU32BE(&sector_bytes[0x40]);
-		sp_length = ReadU32BE(&sector_bytes[0x44]);
+		clownmdemu->callbacks->cd_sector_read((void*)clownmdemu->callbacks->user_data, sector_words); /* Sega's BIOS reads to PRG-RAM too. */
+		ip_start = U16sToU32(&sector_words[0x18]);
+		ip_length = U16sToU32(&sector_words[0x1A]);
+		sp_start = U16sToU32(&sector_words[0x20]);
+		sp_length = U16sToU32(&sector_words[0x22]);
 		/*region = sector_bytes[0x1F0];*/
 
 		/* Don't allow overflowing the PRG-RAM array. */
-		sp_length = CC_MIN(CC_COUNT_OF(clownmdemu->state->mega_cd.prg_ram.buffer) * 2 - 0x6000, sp_length);
+		sp_length = CC_MIN(CC_COUNT_OF(clownmdemu->state->mega_cd.prg_ram.buffer) * 2 - boot_header_offset, sp_length);
 
 		/* Read Initial Program. */
-		BytesTo68kRAM(clownmdemu->state->mega_cd.word_ram.buffer, &sector_bytes[0x200], 0x600);
+		memcpy(clownmdemu->state->mega_cd.word_ram.buffer, &sector_words[ip_start_default / 2], ip_length_default);
 
 		/* Load additional Initial Program data if necessary. */
-		if (ip_start != 0x200 || ip_length != 0x600)
-			CDSectorsTo68kRAM(clownmdemu->callbacks, &clownmdemu->state->mega_cd.word_ram.buffer[0x600 / 2], ip_start, 32 * CDC_SECTOR_SIZE);
+		if (ip_start != ip_start_default || ip_length != ip_length_default)
+			CDSectorsTo68kRAM(clownmdemu->callbacks, &clownmdemu->state->mega_cd.word_ram.buffer[ip_length_default / 2], ip_start, 32 * CDC_SECTOR_SIZE);
 
-		/* This is what the Mega CD's BIOS does. */
+		/* This is what Sega's BIOS does. */
 		memcpy(clownmdemu->state->m68k.ram, clownmdemu->state->mega_cd.word_ram.buffer, sizeof(clownmdemu->state->m68k.ram) / 2);
 
 		/* Read Sub Program. */
-		CDSectorsTo68kRAM(clownmdemu->callbacks, &clownmdemu->state->mega_cd.prg_ram.buffer[0x6000 / 2], sp_start, sp_length);
+		CDSectorsTo68kRAM(clownmdemu->callbacks, &clownmdemu->state->mega_cd.prg_ram.buffer[boot_header_offset / 2], sp_start, sp_length);
 
 		/* Give WORD-RAM to the SUB-CPU. */
 		clownmdemu->state->mega_cd.word_ram.dmna = cc_true;

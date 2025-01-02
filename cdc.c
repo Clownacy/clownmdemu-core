@@ -26,7 +26,7 @@ static cc_u16f BytesToU16(const cc_u8l* const bytes)
 	return (cc_u16f)bytes[0] << 8 | bytes[1];
 }
 
-static cc_u16f U16sToU32(const cc_u16l* const u16s)
+static cc_u32f U16sToU32(const cc_u16l* const u16s)
 {
 	return (cc_u32f)u16s[0] << 16 | u16s[1];
 }
@@ -50,17 +50,14 @@ static void RefillSectorBuffer(CDC* const cdc, const CDC_SectorReadCallback cd_s
 	while (cdc->buffered_sectors_total != CC_COUNT_OF(cdc->buffered_sectors))
 	{
 		cc_u8l header_bytes[4];
-		const cc_u8l* sector_bytes = cd_sector_read((void*)user_data);
-		cc_u16l* sector_words = cdc->buffered_sectors[cdc->buffered_sectors_write_index];
+		cc_u16l* const sector_words = cdc->buffered_sectors[cdc->buffered_sectors_write_index];
 		cc_u16f i;
 
 		GetCDSectorHeaderBytes(cdc, header_bytes);
 
-		*sector_words++ = BytesToU16(&header_bytes[0]);
-		*sector_words++ = BytesToU16(&header_bytes[2]);
-
-		for (i = 0; i < CDC_SECTOR_SIZE; i += 2)
-			*sector_words++ = BytesToU16(&sector_bytes[i]);
+		sector_words[0] = BytesToU16(&header_bytes[0]);
+		sector_words[1] = BytesToU16(&header_bytes[2]);
+		cd_sector_read((void*)user_data, &sector_words[2]);
 
 		++cdc->current_sector;
 

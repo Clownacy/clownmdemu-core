@@ -5,7 +5,7 @@
 
 #define CDC_SECTOR_SIZE 0x800
 
-typedef const cc_u8l* (*CDC_SectorReadCallback)(void* user_data);
+typedef void (*CDC_SectorReadCallback)(void* user_data, cc_u16l *buffer);
 
 /* TODO: This, 'device_destination', and 'dma_address', probably don't belong
    in this class, and instead should go in the Sub-CPU bus logic instead. */
