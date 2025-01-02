@@ -162,7 +162,7 @@ static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const
 					case CDC_DESTINATION_WORD_RAM:
 					{
 						/* TODO: How is RAM address overflow handled? */
-						cc_u32f i, address;
+						cc_u32f address;
 						const cc_u32f offset = (cc_u32f)clownmdemu->state->mega_cd.cd.cdc.dma_address * 8;
 
 						switch (clownmdemu->state->mega_cd.cd.cdc.device_destination)

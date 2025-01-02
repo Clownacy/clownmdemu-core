@@ -15,7 +15,7 @@ typedef enum CDC_DeviceDestination
 	CDC_DESTINATION_SUB_CPU_READ = 3,
 	CDC_DESTINATION_PCM_RAM = 4,
 	CDC_DESTINATION_PRG_RAM = 5,
-	CDC_DESTINATION_WORD_RAM = 7,
+	CDC_DESTINATION_WORD_RAM = 7
 } CDC_DeviceDestination;
 
 typedef struct CDC

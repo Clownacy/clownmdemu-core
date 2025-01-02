@@ -138,7 +138,7 @@ cc_bool CDC_Read(CDC* const cdc, const CDC_SectorReadCallback callback, const vo
 			break;
 
 		default:
-			LogMessage("CDCREAD called with invalid device destination (%0xX)", cdc->device_destination);
+			LogMessage("CDCREAD called with invalid device destination (0x%" CC_PRIXLEAST8 ")", cdc->device_destination);
 			return cc_false;
 	}
 
