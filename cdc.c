@@ -51,7 +51,6 @@ static void RefillSectorBuffer(CDC* const cdc, const CDC_SectorReadCallback cd_s
 	{
 		cc_u8l header_bytes[4];
 		cc_u16l* const sector_words = cdc->buffered_sectors[cdc->buffered_sectors_write_index];
-		cc_u16f i;
 
 		GetCDSectorHeaderBytes(cdc, header_bytes);
 
