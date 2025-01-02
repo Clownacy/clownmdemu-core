@@ -26,19 +26,27 @@ static cc_u16f BytesToU16(const cc_u8l* const bytes)
 	return (cc_u16f)bytes[0] << 8 | bytes[1];
 }
 
-static cc_u16f U16sToU32(const cc_u16l* const u16s)
+static cc_u32f U16sToU32(const cc_u16l* const u16s)
 {
 	return (cc_u32f)u16s[0] << 16 | u16s[1];
 }
 
+static cc_u32f BytesToU32(const cc_u8l* const bytes)
+{
+	cc_u16l u16s[2];
+	u16s[0] = BytesToU16(bytes + 0);
+	u16s[1] = BytesToU16(bytes + 2);
+	return (cc_u32f)U16sToU32(u16s);
+}
+
 static cc_bool EndOfDataTransfer(CDC* const cdc)
 {
-	return cdc->host_data_word_index >= CDC_END(cdc) - 1;
+	return cdc->host_data_byte_index >= CDC_END(cdc) - 2;
 }
 
 static cc_bool DataSetReady(CDC* const cdc)
 {
-	return cdc->host_data_word_index != CDC_END(cdc);
+	return cdc->host_data_byte_index != CDC_END(cdc);
 }
 
 static void RefillSectorBuffer(CDC* const cdc, const CDC_SectorReadCallback cd_sector_read, const void* const user_data)
@@ -49,18 +57,14 @@ static void RefillSectorBuffer(CDC* const cdc, const CDC_SectorReadCallback cd_s
 	/* TODO: Stop reading sectors instantaneously! */
 	while (cdc->buffered_sectors_total != CC_COUNT_OF(cdc->buffered_sectors))
 	{
-		cc_u8l header_bytes[4];
 		const cc_u8l* sector_bytes = cd_sector_read((void*)user_data);
-		cc_u16l* sector_words = cdc->buffered_sectors[cdc->buffered_sectors_write_index];
+		cc_u8l* const sector_words = cdc->buffered_sectors[cdc->buffered_sectors_write_index];
 		cc_u16f i;
 
-		GetCDSectorHeaderBytes(cdc, header_bytes);
+		GetCDSectorHeaderBytes(cdc, sector_words);
 
-		*sector_words++ = BytesToU16(&header_bytes[0]);
-		*sector_words++ = BytesToU16(&header_bytes[2]);
-
-		for (i = 0; i < CDC_SECTOR_SIZE; i += 2)
-			*sector_words++ = BytesToU16(&sector_bytes[i]);
+		for (i = 0; i < CDC_SECTOR_SIZE; ++i)
+			sector_words[4 + i] = sector_bytes[i];
 
 		++cdc->current_sector;
 
@@ -82,7 +86,7 @@ void CDC_Initialise(CDC* const cdc)
 {
 	cdc->current_sector = 0;
 	cdc->sectors_remaining = 0;
-	cdc->host_data_word_index = CDC_END(cdc);
+	cdc->host_data_byte_index = CDC_END(cdc);
 	cdc->dma_address = 0;
 	cdc->host_data_buffered_sector_index = 0;
 	cdc->buffered_sectors_read_index = 0;
@@ -143,41 +147,49 @@ cc_bool CDC_Read(CDC* const cdc, const CDC_SectorReadCallback callback, const vo
 	}
 
 	cdc->host_data_buffered_sector_index = cdc->buffered_sectors_read_index;
-	cdc->host_data_word_index = 0;
+	cdc->host_data_byte_index = 0;
 
-	*header = U16sToU32(cdc->buffered_sectors[cdc->host_data_buffered_sector_index]);
+	*header = BytesToU32(cdc->buffered_sectors[cdc->host_data_buffered_sector_index]);
 
 	cdc->host_data_bound = cc_true;
 
 	return cc_true;
 }
 
-cc_u16f CDC_HostData(CDC* const cdc, const cc_bool is_sub_cpu)
+const cc_u8l* CDC_HostDataBytes(CDC* const cdc, const cc_bool is_sub_cpu)
 {
-	cc_u16f value;
+	static const cc_u8l dummy[2];
+	const cc_u8l *result;
 
 	if (is_sub_cpu != cdc->host_data_target_sub_cpu)
 	{
 		/* TODO: What is actually returned when this is not the target CPU? */
-		value = 0;
+		result = dummy;
 	}
 	else if (!cdc->host_data_bound)
 	{
 		/* TODO: What is actually returned in this case? */
-		value = 0;
+		result = dummy;
 	}
 	else if (!DataSetReady(cdc))
 	{
 		/* According to Genesis Plus GX, this will repeat the final value indefinitely. */
 		/* TODO: Verify this on actual hardware. */
-		value = cdc->buffered_sectors[cdc->host_data_buffered_sector_index][cdc->host_data_word_index - 1];
+		result = &cdc->buffered_sectors[cdc->host_data_buffered_sector_index][cdc->host_data_byte_index - 2];
 	}
 	else
 	{
-		value = cdc->buffered_sectors[cdc->host_data_buffered_sector_index][cdc->host_data_word_index++];
+		result = &cdc->buffered_sectors[cdc->host_data_buffered_sector_index][cdc->host_data_byte_index];
+		cdc->host_data_byte_index += 2;
 	}
 
-	return value;
+	return result;
+}
+
+cc_u16f CDC_HostData(CDC* const cdc, const cc_bool is_sub_cpu)
+{
+	const cc_u8l* const bytes = CDC_HostDataBytes(cdc, is_sub_cpu);
+	return bytes[0] << 8 | bytes[1];
 }
 
 void CDC_Ack(CDC* const cdc)

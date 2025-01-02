@@ -20,10 +20,10 @@ typedef enum CDC_DeviceDestination
 
 typedef struct CDC
 {
-	cc_u16l buffered_sectors[5][2 + CDC_SECTOR_SIZE / 2];
+	cc_u8l buffered_sectors[5][4 + CDC_SECTOR_SIZE];
 
 	cc_u32l current_sector, sectors_remaining;
-	cc_u16l host_data_word_index, dma_address;
+	cc_u16l host_data_byte_index, dma_address;
 	cc_u8l host_data_buffered_sector_index;
 	cc_u8l buffered_sectors_read_index, buffered_sectors_write_index, buffered_sectors_total;
 	cc_u8l device_destination;
@@ -35,6 +35,7 @@ void CDC_Start(CDC* cdc, CDC_SectorReadCallback callback, const void *user_data)
 void CDC_Stop(CDC* cdc);
 cc_bool CDC_Stat(CDC* cdc, CDC_SectorReadCallback callback, const void *user_data);
 cc_bool CDC_Read(CDC* cdc, CDC_SectorReadCallback callback, const void *user_data, cc_u32l *header);
+const cc_u8l* CDC_HostDataBytes(CDC* cdc, cc_bool is_sub_cpu);
 cc_u16f CDC_HostData(CDC* cdc, cc_bool is_sub_cpu);
 void CDC_Ack(CDC* cdc);
 void CDC_Seek(CDC* cdc, CDC_SectorReadCallback callback, const void* user_data, cc_u32f sector, cc_u32f total_sectors);

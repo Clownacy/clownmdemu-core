@@ -181,8 +181,8 @@ static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const
 						}
 
 						/* Discard the header data. */
-						CDC_HostData(&clownmdemu->state->mega_cd.cd.cdc, cc_true);
-						CDC_HostData(&clownmdemu->state->mega_cd.cd.cdc, cc_true);
+						CDC_HostDataBytes(&clownmdemu->state->mega_cd.cd.cdc, cc_true);
+						CDC_HostDataBytes(&clownmdemu->state->mega_cd.cd.cdc, cc_true);
 
 						/* Copy the sector data to the DMA destination. */
 						/* The behaviour of CDC-to-PCM DMA exposes that this really does leverage the Sub-CPU bus on a Mega CD:
@@ -190,20 +190,22 @@ static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const
 						   That is to say, setting it to 8 will cause the data to be copied to 4 bytes into PCM RAM. */
 						while ((CDC_Mode(&clownmdemu->state->mega_cd.cd.cdc, cc_true) & 0x4000) != 0)
 						{
-							const cc_u16f word = CDC_HostData(&clownmdemu->state->mega_cd.cd.cdc, cc_true);
-
 							if (clownmdemu->state->mega_cd.cd.cdc.device_destination == CDC_DESTINATION_PCM_RAM)
 							{
-								MCDM68kWriteWord(user_data, address, word >> 8, target_cycle);
-								address += 2;
-								MCDM68kWriteWord(user_data, address, word & 0xFF, target_cycle);
+								const cc_u8l* const bytes = CDC_HostDataBytes(&clownmdemu->state->mega_cd.cd.cdc, cc_true);
+								cc_u8f i;
+
+								for (i = 0; i < 2; ++i)
+								{
+									MCDM68kWriteWord(user_data, address, bytes[i], target_cycle);
+									address += 2;
+								}
 							}
 							else
 							{
-								MCDM68kWriteWord(user_data, address, word, target_cycle);
+								MCDM68kWriteWord(user_data, address, CDC_HostData(&clownmdemu->state->mega_cd.cd.cdc, cc_true), target_cycle);
+								address += 2;
 							}
-
-							address += 2;
 						}
 
 						break;
