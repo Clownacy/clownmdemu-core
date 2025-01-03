@@ -75,10 +75,7 @@ void CDDA_UpdateFade(CDDA* const cdda)
 	if (cdda->fade_remaining == 0)
 		return;
 
-	if (cdda->fade_remaining < cdda->fade_step)
-		cdda->fade_remaining = 0;
-	else
-		cdda->fade_remaining -= cdda->fade_step;
+	cdda->fade_remaining -= CC_MIN(cdda->fade_remaining, cdda->fade_step);
 
 	if (cdda->subtract_fade_step)
 		cdda->volume = cdda->target_volume + cdda->fade_remaining;
