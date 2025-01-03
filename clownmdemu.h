@@ -7,6 +7,7 @@
 #include "clowncommon/clowncommon.h"
 
 #include "cdc.h"
+#include "cdda.h"
 #include "clown68000/interpreter/clown68000.h"
 #include "controller.h"
 #include "fm.h"
@@ -233,10 +234,7 @@ typedef struct ClownMDEmu_State
 			cc_u32l irq3_countdown, irq3_countdown_master;
 		} irq;
 
-		struct
-		{
-			cc_bool playing, paused;
-		} cdda;
+		CDDA cdda;
 
 		PCM_State pcm;
 
@@ -265,7 +263,7 @@ typedef struct ClownMDEmu_Callbacks
 	void (*cd_seeked)(void *user_data, cc_u32f sector_index);
 	CDC_SectorReadCallback cd_sector_read;
 	cc_bool (*cd_track_seeked)(void *user_data, cc_u16f track_index, ClownMDEmu_CDDAMode mode);
-	size_t (*cd_audio_read)(void *user_data, cc_s16l *sample_buffer, size_t total_frames);
+	CDDA_AudioReadCallback cd_audio_read;
 } ClownMDEmu_Callbacks;
 
 typedef struct ClownMDEmu

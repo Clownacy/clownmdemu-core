@@ -1,8 +1,8 @@
 #include "bus-common.h"
 
 #include <assert.h>
-#include <string.h>
 
+#include "cdda.h"
 #include "fm.h"
 #include "pcm.h"
 #include "psg.h"
@@ -153,15 +153,7 @@ void SyncPCM(CPUCallbackUserData* const other_state, const CycleMegaCD target_cy
 
 static void GenerateCDDAAudio(const ClownMDEmu* const clownmdemu, cc_s16l* const sample_buffer, const size_t total_frames)
 {
-	const cc_u32f total_channels = 2;
-
-	cc_u32f frames_done = 0;
-
-	if (clownmdemu->state->mega_cd.cdda.playing && !clownmdemu->state->mega_cd.cdda.paused)
-		frames_done = clownmdemu->callbacks->cd_audio_read((void*)clownmdemu->callbacks->user_data, sample_buffer, total_frames);
-
-	/* Clear any samples that we could not read from the disc. */
-	memset(sample_buffer + frames_done * total_channels, 0, (total_frames - frames_done) * sizeof(cc_s16l) * total_channels);
+	CDDA_Update(&clownmdemu->state->mega_cd.cdda, clownmdemu->callbacks->cd_audio_read, clownmdemu->callbacks->user_data, sample_buffer, total_frames);
 }
 
 void SyncCDDA(CPUCallbackUserData* const other_state, const cc_u32f total_frames)

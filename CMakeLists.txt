@@ -15,6 +15,8 @@ add_library(clownmdemu-core STATIC
 	"bus-z80.h"
 	"cdc.c"
 	"cdc.h"
+	"cdda.c"
+	"cdda.h"
 	"clowncommon/clowncommon.h"
 	"clownmdemu.c"
 	"clownmdemu.h"

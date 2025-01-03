@@ -205,8 +205,7 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State* const state)
 	state->mega_cd.irq.irq1_pending = cc_false;
 	state->mega_cd.irq.irq3_countdown_master = state->mega_cd.irq.irq3_countdown = 0;
 
-	state->mega_cd.cdda.playing = cc_false;
-	state->mega_cd.cdda.paused = cc_false;
+	CDDA_Initialise(&state->mega_cd.cdda);
 
 	PCM_State_Initialise(&state->mega_cd.pcm);
 

@@ -40,7 +40,7 @@ static void ROMSEEK(const ClownMDEmu* const clownmdemu, const ClownMDEmu_Callbac
 
 static void CDCSTART(const ClownMDEmu* const clownmdemu, const ClownMDEmu_Callbacks* const frontend_callbacks)
 {
-	clownmdemu->state->mega_cd.cdda.playing = cc_false;
+	CDDA_SetPlaying(&clownmdemu->state->mega_cd.cdda, cc_false);
 	CDC_Start(&clownmdemu->state->mega_cd.cd.cdc, frontend_callbacks->cd_sector_read, frontend_callbacks->user_data);
 }
 
@@ -60,12 +60,12 @@ static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const
 			/* Fallthrough */
 		case 0x03:
 			/* MSCPAUSEON */
-			clownmdemu->state->mega_cd.cdda.paused = cc_true;
+			CDDA_SetPaused(&clownmdemu->state->mega_cd.cdda, cc_true);
 			break;
 
 		case 0x04:
 			/* MSCPAUSEOFF */
-			clownmdemu->state->mega_cd.cdda.paused = cc_false;
+			CDDA_SetPaused(&clownmdemu->state->mega_cd.cdda, cc_false);
 			break;
 
 		case 0x11:
@@ -77,8 +77,8 @@ static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const
 		{
 			const cc_u16f track_number = MCDM68kReadWord(user_data, clownmdemu->mcd_m68k->address_registers[0] + 0, target_cycle);
 
-			clownmdemu->state->mega_cd.cdda.playing = cc_true;
-			clownmdemu->state->mega_cd.cdda.paused = cc_false;
+			CDDA_SetPlaying(&clownmdemu->state->mega_cd.cdda, cc_true);
+			CDDA_SetPaused(&clownmdemu->state->mega_cd.cdda, cc_false);
 
 			frontend_callbacks->cd_track_seeked((void*)frontend_callbacks->user_data, track_number, command == 0x11 ? CLOWNMDEMU_CDDA_PLAY_ALL : command == 0x12 ? CLOWNMDEMU_CDDA_PLAY_ONCE : CLOWNMDEMU_CDDA_PLAY_REPEAT);
 			break;
