@@ -204,6 +204,7 @@ typedef struct ClownMDEmu_State
 		{
 			cc_u16l buffer[0x40000];
 			cc_u8l bank;
+			cc_u8l write_protect;
 		} prg_ram;
 
 		struct

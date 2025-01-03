@@ -452,7 +452,7 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 	else if (address == 0xFF8002)
 	{
 		/* Memory mode / Write protect */
-		value = ((cc_u16f)clownmdemu->state->mega_cd.word_ram.in_1m_mode << 2) | ((cc_u16f)clownmdemu->state->mega_cd.word_ram.dmna << 1) | ((cc_u16f)clownmdemu->state->mega_cd.word_ram.ret << 0);
+		value = ((cc_u16f)clownmdemu->state->mega_cd.prg_ram.write_protect << 8) | ((cc_u16f)clownmdemu->state->mega_cd.word_ram.in_1m_mode << 2) | ((cc_u16f)clownmdemu->state->mega_cd.word_ram.dmna << 1) | ((cc_u16f)clownmdemu->state->mega_cd.word_ram.ret << 0);
 	}
 	else if (address == 0xFF8004)
 	{
@@ -563,8 +563,15 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 	if (/*address >= 0 &&*/ address < 0x80000)
 	{
 		/* PRG-RAM */
-		clownmdemu->state->mega_cd.prg_ram.buffer[address_word] &= ~mask;
-		clownmdemu->state->mega_cd.prg_ram.buffer[address_word] |= value & mask;
+		if (address < (cc_u32f)clownmdemu->state->mega_cd.prg_ram.write_protect * 0x200)
+		{
+			LogMessage("MAIN-CPU attempted to write to write-protected portion of PRG-RAM (0x%" CC_PRIXFAST32 ") at 0x%" CC_PRIXLEAST32, address, clownmdemu->state->mega_cd.m68k.state.program_counter);
+		}
+		else
+		{
+			clownmdemu->state->mega_cd.prg_ram.buffer[address_word] &= ~mask;
+			clownmdemu->state->mega_cd.prg_ram.buffer[address_word] |= value & mask;
+		}
 	}
 	else if (address < 0xC0000)
 	{

@@ -277,7 +277,7 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 	else if (address == 0xA12002)
 	{
 		/* Memory mode / Write protect */
-		value = ((cc_u16f)clownmdemu->state->mega_cd.prg_ram.bank << 6) | ((cc_u16f)clownmdemu->state->mega_cd.word_ram.in_1m_mode << 2) | ((cc_u16f)clownmdemu->state->mega_cd.word_ram.dmna << 1) | ((cc_u16f)clownmdemu->state->mega_cd.word_ram.ret << 0);
+		value = ((cc_u16f)clownmdemu->state->mega_cd.prg_ram.write_protect << 8) | ((cc_u16f)clownmdemu->state->mega_cd.prg_ram.bank << 6) | ((cc_u16f)clownmdemu->state->mega_cd.word_ram.in_1m_mode << 2) | ((cc_u16f)clownmdemu->state->mega_cd.word_ram.dmna << 1) | ((cc_u16f)clownmdemu->state->mega_cd.word_ram.ret << 0);
 	}
 	else if (address == 0xA12004)
 	{
@@ -507,14 +507,20 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 			else
 			{
 				/* PRG-RAM */
+				const cc_u32f prg_ram_index = 0x10000 * clownmdemu->state->mega_cd.prg_ram.bank + (address_word & 0xFFFF);
+
 				if (!clownmdemu->state->mega_cd.m68k.bus_requested)
 				{
 					LogMessage("MAIN-CPU attempted to write to PRG-RAM while SUB-CPU has it at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.state.program_counter);
 				}
+				else if (prg_ram_index < (cc_u32f)clownmdemu->state->mega_cd.prg_ram.write_protect * 0x200)
+				{
+					LogMessage("MAIN-CPU attempted to write to write-protected portion of PRG-RAM (0x%" CC_PRIXFAST32 ") at 0x%" CC_PRIXLEAST32, prg_ram_index, clownmdemu->state->m68k.state.program_counter);
+				}
 				else
 				{
-					clownmdemu->state->mega_cd.prg_ram.buffer[0x10000 * clownmdemu->state->mega_cd.prg_ram.bank + (address_word & 0xFFFF)] &= ~mask;
-					clownmdemu->state->mega_cd.prg_ram.buffer[0x10000 * clownmdemu->state->mega_cd.prg_ram.bank + (address_word & 0xFFFF)] |= value & mask;
+					clownmdemu->state->mega_cd.prg_ram.buffer[prg_ram_index] &= ~mask;
+					clownmdemu->state->mega_cd.prg_ram.buffer[prg_ram_index] |= value & mask;
 				}
 			}
 		}
@@ -651,6 +657,9 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 	else if (address == 0xA12002)
 	{
 		/* Memory mode / Write protect */
+		if (do_high_byte)
+			clownmdemu->state->mega_cd.prg_ram.write_protect = high_byte;
+
 		if (do_low_byte)
 		{
 			if ((low_byte & (1 << 1)) != 0)
