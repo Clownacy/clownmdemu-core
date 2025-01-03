@@ -345,6 +345,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 		Clown68000_Interrupt(clownmdemu->mcd_m68k, 1);
 	}
 
+	/* TODO: This should be done 75 times a second (in sync with the CDD interrupt), not 60! */
 	CDDA_UpdateFade(&clownmdemu->state->mega_cd.cdda);
 }
 
