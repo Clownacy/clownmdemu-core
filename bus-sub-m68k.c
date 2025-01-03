@@ -7,6 +7,7 @@
 #include <assert.h>
 
 #include "bus-main-m68k.h"
+#include "cdda.h"
 #include "log.h"
 
 static cc_u16f MCDM68kReadWord(const void* const user_data, const cc_u32f address, const CycleMegaCD target_cycle)
@@ -123,6 +124,31 @@ static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const
 			/* TODO: How does the official BIOS respond to a negative sector count? */
 			ROMSEEK(clownmdemu, frontend_callbacks, starting_sector, last_sector < starting_sector ? 0 : last_sector - starting_sector);
 			CDCSTART(clownmdemu, frontend_callbacks);
+			break;
+		}
+
+		case 0x85:
+		{
+			/* FDRSET */
+			const cc_bool is_master_volume = (clownmdemu->mcd_m68k->data_registers[1] & 0x8000) != 0;
+			const cc_u16f volume = clownmdemu->mcd_m68k->data_registers[1] & 0x7FFF;
+
+			if (is_master_volume)
+				CDDA_SetMasterVolume(&clownmdemu->state->mega_cd.cdda, volume);
+			else
+				CDDA_SetVolume(&clownmdemu->state->mega_cd.cdda, volume);
+
+			break;
+		}
+
+		case 0x86:
+		{
+			/* FDRCHG */
+			const cc_u16f target_volume = clownmdemu->mcd_m68k->data_registers[1] >> 16;
+			const cc_u16f fade_step = clownmdemu->mcd_m68k->data_registers[1] & 0xFFFF;
+
+			CDDA_FadeToVolume(&clownmdemu->state->mega_cd.cdda, target_volume, fade_step);
+
 			break;
 		}
 

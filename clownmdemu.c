@@ -344,6 +344,8 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 		clownmdemu->state->mega_cd.irq.irq1_pending = cc_false;
 		Clown68000_Interrupt(clownmdemu->mcd_m68k, 1);
 	}
+
+	CDDA_UpdateFade(&clownmdemu->state->mega_cd.cdda);
 }
 
 static cc_u8f ReadCartridgeByte(const ClownMDEmu* const clownmdemu, const cc_u32f address)
