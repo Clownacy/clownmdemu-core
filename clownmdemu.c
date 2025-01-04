@@ -197,7 +197,7 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State* const state)
 	for (i = 0; i < CC_COUNT_OF(state->mega_cd.communication.status); ++i)
 		state->mega_cd.communication.status[i] = 0;
 
-	CDC_Initialise(&state->mega_cd.cd.cdc);
+	CDC_Initialise(&state->mega_cd.cdc);
 	
 	for (i = 0; i < CC_COUNT_OF(state->mega_cd.irq.enabled); ++i)
 		state->mega_cd.irq.enabled[i] = cc_false;

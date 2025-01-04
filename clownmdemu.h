@@ -179,6 +179,7 @@ typedef struct ClownMDEmu_State
 	PSG_State psg;
 	IOPort io_ports[3];
 	Controller controllers[2];
+
 	struct
 	{
 		cc_u8l buffer[0x4000]; /* This is the size required by Phantasy Star 4. */
@@ -224,18 +225,13 @@ typedef struct ClownMDEmu_State
 
 		struct
 		{
-			CDC cdc;
-		} cd;
-
-		struct
-		{
 			cc_bool enabled[6];
 			cc_bool irq1_pending;
 			cc_u32l irq3_countdown, irq3_countdown_master;
 		} irq;
 
+		CDC cdc;
 		CDDA cdda;
-
 		PCM_State pcm;
 
 		cc_bool boot_from_cd;

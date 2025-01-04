@@ -282,7 +282,7 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 	else if (address == 0xA12004)
 	{
 		/* CDC mode */
-		value = CDC_Mode(&clownmdemu->state->mega_cd.cd.cdc, cc_false);
+		value = CDC_Mode(&clownmdemu->state->mega_cd.cdc, cc_false);
 	}
 	else if (address == 0xA12006)
 	{
@@ -292,7 +292,7 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 	else if (address == 0xA12008)
 	{
 		/* CDC host data */
-		value = CDC_HostData(&clownmdemu->state->mega_cd.cd.cdc, cc_false);
+		value = CDC_HostData(&clownmdemu->state->mega_cd.cdc, cc_false);
 	}
 	else if (address == 0xA1200C)
 	{

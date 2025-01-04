@@ -34,15 +34,15 @@ static void MCDM68kWriteWord(const void* const user_data, const cc_u32f address,
 
 static void ROMSEEK(const ClownMDEmu* const clownmdemu, const ClownMDEmu_Callbacks* const frontend_callbacks, const cc_u32f starting_sector, const cc_u32f total_sectors)
 {
-	CDC_Stop(&clownmdemu->state->mega_cd.cd.cdc);
-	CDC_Seek(&clownmdemu->state->mega_cd.cd.cdc, frontend_callbacks->cd_sector_read, frontend_callbacks->user_data, starting_sector, total_sectors);
+	CDC_Stop(&clownmdemu->state->mega_cd.cdc);
+	CDC_Seek(&clownmdemu->state->mega_cd.cdc, frontend_callbacks->cd_sector_read, frontend_callbacks->user_data, starting_sector, total_sectors);
 	frontend_callbacks->cd_seeked((void*)frontend_callbacks->user_data, starting_sector);
 }
 
 static void CDCSTART(const ClownMDEmu* const clownmdemu, const ClownMDEmu_Callbacks* const frontend_callbacks)
 {
 	CDDA_SetPlaying(&clownmdemu->state->mega_cd.cdda, cc_false);
-	CDC_Start(&clownmdemu->state->mega_cd.cd.cdc, frontend_callbacks->cd_sector_read, frontend_callbacks->user_data);
+	CDC_Start(&clownmdemu->state->mega_cd.cdc, frontend_callbacks->cd_sector_read, frontend_callbacks->user_data);
 }
 
 /* TODO: Move this to its own file? */
@@ -159,12 +159,12 @@ static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const
 
 		case 0x89:
 			/* CDCSTOP */
-			CDC_Stop(&clownmdemu->state->mega_cd.cd.cdc);
+			CDC_Stop(&clownmdemu->state->mega_cd.cdc);
 			break;
 
 		case 0x8A:
 			/* CDCSTAT */
-			if (!CDC_Stat(&clownmdemu->state->mega_cd.cd.cdc, frontend_callbacks->cd_sector_read, frontend_callbacks->user_data))
+			if (!CDC_Stat(&clownmdemu->state->mega_cd.cdc, frontend_callbacks->cd_sector_read, frontend_callbacks->user_data))
 				clownmdemu->mcd_m68k->status_register |= 1; /* Set carry flag to signal that a sector is not ready. */
 			else
 				clownmdemu->mcd_m68k->status_register &= ~1; /* Clear carry flag to signal that there's a sector ready. */
@@ -173,7 +173,7 @@ static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const
 
 		case 0x8B:
 			/* CDCREAD */
-			if (!CDC_Read(&clownmdemu->state->mega_cd.cd.cdc, frontend_callbacks->cd_sector_read, frontend_callbacks->user_data, &clownmdemu->mcd_m68k->data_registers[0]))
+			if (!CDC_Read(&clownmdemu->state->mega_cd.cdc, frontend_callbacks->cd_sector_read, frontend_callbacks->user_data, &clownmdemu->mcd_m68k->data_registers[0]))
 			{
 				/* Sonic Megamix 4.0b relies on this. */
 				clownmdemu->mcd_m68k->status_register |= 1; /* Set carry flag to signal that a sector has not been prepared. */
@@ -181,7 +181,7 @@ static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const
 			else
 			{
 				/* TODO: This really belongs in the CDC logic, but it needs access to the RAM buffers... */
-				switch (clownmdemu->state->mega_cd.cd.cdc.device_destination)
+				switch (clownmdemu->state->mega_cd.cdc.device_destination)
 				{
 					case CDC_DESTINATION_PCM_RAM:
 					case CDC_DESTINATION_PRG_RAM:
@@ -189,9 +189,9 @@ static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const
 					{
 						/* TODO: How is RAM address overflow handled? */
 						cc_u32f address;
-						const cc_u32f offset = (cc_u32f)clownmdemu->state->mega_cd.cd.cdc.dma_address * 8;
+						const cc_u32f offset = (cc_u32f)clownmdemu->state->mega_cd.cdc.dma_address * 8;
 
-						switch (clownmdemu->state->mega_cd.cd.cdc.device_destination)
+						switch (clownmdemu->state->mega_cd.cdc.device_destination)
 						{
 							case 4:
 								address = 0xFFFF2000 + (offset & 0x1FFF);
@@ -207,18 +207,18 @@ static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const
 						}
 
 						/* Discard the header data. */
-						CDC_HostData(&clownmdemu->state->mega_cd.cd.cdc, cc_true);
-						CDC_HostData(&clownmdemu->state->mega_cd.cd.cdc, cc_true);
+						CDC_HostData(&clownmdemu->state->mega_cd.cdc, cc_true);
+						CDC_HostData(&clownmdemu->state->mega_cd.cdc, cc_true);
 
 						/* Copy the sector data to the DMA destination. */
 						/* The behaviour of CDC-to-PCM DMA exposes that this really does leverage the Sub-CPU bus on a Mega CD:
 						   the DMA destination address is measured in Sub-CPU address space bytes, not PCM RAM buffer bytes.
 						   That is to say, setting it to 8 will cause the data to be copied to 4 bytes into PCM RAM. */
-						while ((CDC_Mode(&clownmdemu->state->mega_cd.cd.cdc, cc_true) & 0x4000) != 0)
+						while ((CDC_Mode(&clownmdemu->state->mega_cd.cdc, cc_true) & 0x4000) != 0)
 						{
-							const cc_u16f word = CDC_HostData(&clownmdemu->state->mega_cd.cd.cdc, cc_true);
+							const cc_u16f word = CDC_HostData(&clownmdemu->state->mega_cd.cdc, cc_true);
 
-							if (clownmdemu->state->mega_cd.cd.cdc.device_destination == CDC_DESTINATION_PCM_RAM)
+							if (clownmdemu->state->mega_cd.cdc.device_destination == CDC_DESTINATION_PCM_RAM)
 							{
 								MCDM68kWriteWord(user_data, address, word >> 8, target_cycle);
 								address += 2;
@@ -243,7 +243,7 @@ static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const
 
 		case 0x8C:
 			/* CDCTRN */
-			if ((CDC_Mode(&clownmdemu->state->mega_cd.cd.cdc, cc_true) & 0x8000) != 0)
+			if ((CDC_Mode(&clownmdemu->state->mega_cd.cdc, cc_true) & 0x8000) != 0)
 			{
 				clownmdemu->mcd_m68k->status_register |= 1; /* Set carry flag to signal that there's not a sector ready. */
 			}
@@ -253,11 +253,11 @@ static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const
 				const cc_u32f sector_address = clownmdemu->mcd_m68k->address_registers[0];
 				const cc_u32f header_address = clownmdemu->mcd_m68k->address_registers[1];
 
-				MCDM68kWriteWord(user_data, header_address + 0, CDC_HostData(&clownmdemu->state->mega_cd.cd.cdc, cc_true), target_cycle);
-				MCDM68kWriteWord(user_data, header_address + 2, CDC_HostData(&clownmdemu->state->mega_cd.cd.cdc, cc_true), target_cycle);
+				MCDM68kWriteWord(user_data, header_address + 0, CDC_HostData(&clownmdemu->state->mega_cd.cdc, cc_true), target_cycle);
+				MCDM68kWriteWord(user_data, header_address + 2, CDC_HostData(&clownmdemu->state->mega_cd.cdc, cc_true), target_cycle);
 
 				for (i = 0; i < CDC_SECTOR_SIZE; i += 2)
-					MCDM68kWriteWord(user_data, sector_address + i, CDC_HostData(&clownmdemu->state->mega_cd.cd.cdc, cc_true), target_cycle);
+					MCDM68kWriteWord(user_data, sector_address + i, CDC_HostData(&clownmdemu->state->mega_cd.cdc, cc_true), target_cycle);
 
 				clownmdemu->mcd_m68k->address_registers[0] = (clownmdemu->mcd_m68k->address_registers[0] + CDC_SECTOR_SIZE) & 0xFFFFFFFF;
 				clownmdemu->mcd_m68k->address_registers[1] = (clownmdemu->mcd_m68k->address_registers[1] + 4) & 0xFFFFFFFF;
@@ -269,7 +269,7 @@ static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const
 
 		case 0x8D:
 			/* CDCACK */
-			CDC_Ack(&clownmdemu->state->mega_cd.cd.cdc);
+			CDC_Ack(&clownmdemu->state->mega_cd.cdc);
 			break;
 
 		default:
@@ -483,7 +483,7 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 	else if (address == 0xFF8004)
 	{
 		/* CDC mode / device destination */
-		value = CDC_Mode(&clownmdemu->state->mega_cd.cd.cdc, cc_true);
+		value = CDC_Mode(&clownmdemu->state->mega_cd.cdc, cc_true);
 	}
 	else if (address == 0xFF8006)
 	{
@@ -493,7 +493,7 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 	else if (address == 0xFF8008)
 	{
 		/* CDC host data */
-		value = CDC_HostData(&clownmdemu->state->mega_cd.cd.cdc, cc_true);
+		value = CDC_HostData(&clownmdemu->state->mega_cd.cdc, cc_true);
 	}
 	else if (address == 0xFF800A)
 	{
@@ -672,7 +672,7 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 	else if (address == 0xFF8004)
 	{
 		/* CDC mode / device destination */
-		CDC_SetDeviceDestination(&clownmdemu->state->mega_cd.cd.cdc, high_byte & 7);
+		CDC_SetDeviceDestination(&clownmdemu->state->mega_cd.cdc, high_byte & 7);
 	}
 	else if (address == 0xFF8006)
 	{
@@ -687,7 +687,7 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 	else if (address == 0xFF800A)
 	{
 		/* CDC DMA address */
-		CDC_SetDMAAddress(&clownmdemu->state->mega_cd.cd.cdc, value);
+		CDC_SetDMAAddress(&clownmdemu->state->mega_cd.cdc, value);
 	}
 	else if (address == 0xFF800C)
 	{
