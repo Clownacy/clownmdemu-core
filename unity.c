@@ -3,6 +3,8 @@
 #include "bus-main-m68k.c"
 #include "bus-sub-m68k.c"
 #include "bus-z80.c"
+#include "cdc.c"
+#include "cdda.c"
 #include "clownmdemu.c"
 #include "controller.c"
 #include "fm.c"

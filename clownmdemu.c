@@ -19,7 +19,7 @@
 #define MAX_ROM_SIZE (1024 * 1024 * 4) /* 4MiB */
 
 /* TODO: Merge this with the functions in 'cdc.c'. */
-static cc_u32f U16sToU32(const cc_u16l* const u16s)
+static cc_u32f ClownMDEmu_U16sToU32(const cc_u16l* const u16s)
 {
 	return (cc_u32f)u16s[0] << 16 | u16s[1];
 }
@@ -451,10 +451,10 @@ void ClownMDEmu_Reset(const ClownMDEmu* const clownmdemu, const cc_bool cd_boot)
 		/* Read first sector. */
 		clownmdemu->callbacks->cd_seeked((void*)clownmdemu->callbacks->user_data, 0);
 		clownmdemu->callbacks->cd_sector_read((void*)clownmdemu->callbacks->user_data, sector_words); /* Sega's BIOS reads to PRG-RAM too. */
-		ip_start = U16sToU32(&sector_words[0x18]);
-		ip_length = U16sToU32(&sector_words[0x1A]);
-		sp_start = U16sToU32(&sector_words[0x20]);
-		sp_length = U16sToU32(&sector_words[0x22]);
+		ip_start = ClownMDEmu_U16sToU32(&sector_words[0x18]);
+		ip_length = ClownMDEmu_U16sToU32(&sector_words[0x1A]);
+		sp_start = ClownMDEmu_U16sToU32(&sector_words[0x20]);
+		sp_length = ClownMDEmu_U16sToU32(&sector_words[0x22]);
 		/*region = sector_bytes[0x1F0];*/
 
 		/* Don't allow overflowing the PRG-RAM array. */
