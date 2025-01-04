@@ -64,6 +64,7 @@ void CDDA_FadeToVolume(CDDA* const cdda, const cc_u16f target_volume, const cc_u
 	cdda->target_volume = ScaleByMasterVolume(cdda, target_volume);
 	cdda->fade_step = fade_step;
 	cdda->subtract_fade_step = target_volume < cdda->volume;
+
 	if (cdda->subtract_fade_step)
 		cdda->fade_remaining = cdda->volume - target_volume;
 	else
