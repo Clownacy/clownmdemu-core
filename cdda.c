@@ -29,7 +29,7 @@ void CDDA_Update(CDDA* const cdda, const CDDA_AudioReadCallback callback, const 
 
 	/* TODO: Add clamping if the volume is able to exceed 'CDDA_MAX_VOLUME'. */
 	for (i = 0; i < frames_done * total_channels; ++i)
-		sample_buffer[i] = (cc_u32f)sample_buffer[i] * cdda->volume / CDDA_MAX_VOLUME;
+		sample_buffer[i] = (cc_s32f)sample_buffer[i] * cdda->volume / CDDA_MAX_VOLUME;
 
 	/* Clear any samples that we could not read from the disc. */
 	memset(sample_buffer + frames_done * total_channels, 0, (total_frames - frames_done) * sizeof(cc_s16l) * total_channels);
