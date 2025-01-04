@@ -541,19 +541,42 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 	else if (address == 0xFF8058)
 	{
 		/* Stamp data size */
-		/* TODO */
-		value = 0;
+		value = clownmdemu->state->mega_cd.rotation.large_stamp_map << 2 | clownmdemu->state->mega_cd.rotation.large_stamp << 1 | clownmdemu->state->mega_cd.rotation.repeating_stamp_map << 0;
+	}
+	else if (address == 0xFF805A)
+	{
+		/* Stamp map base address */
+		value = clownmdemu->state->mega_cd.rotation.stamp_map_address;
+	}
+	else if (address == 0xFF805C)
+	{
+		/* Image buffer vertical cell size */
+		value = clownmdemu->state->mega_cd.rotation.stamp_map_height_in_tiles;
+	}
+	else if (address == 0xFF805E)
+	{
+		/* Image buffer base address */
+		value = clownmdemu->state->mega_cd.rotation.image_buffer_address;
+	}
+	else if (address == 0xFF8060)
+	{
+		/* Image buffer offset */
+		value = clownmdemu->state->mega_cd.rotation.image_buffer_x_offset << 3 | clownmdemu->state->mega_cd.rotation.image_buffer_y_offset << 0;
+	}
+	else if (address == 0xFF8062)
+	{
+		/* Image buffer width */
+		value = clownmdemu->state->mega_cd.rotation.image_buffer_width;
 	}
 	else if (address == 0xFF8064)
 	{
-		/* Image buffer vertical draw size */
-		/* TODO */
-		value = 0;
+		/* Image buffer height */
+		value = clownmdemu->state->mega_cd.rotation.image_buffer_height;
 	}
 	else if (address == 0xFF8066)
 	{
-		/* Trace vector base address */
-		/* TODO */
+		/* Trace table address */
+		value = clownmdemu->state->mega_cd.rotation.trace_table_address;
 	}
 	else
 	{
@@ -743,17 +766,47 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 	else if (address == 0xFF8058)
 	{
 		/* Stamp data size */
-		/* TODO */
+		clownmdemu->state->mega_cd.rotation.large_stamp_map = (value & (1 << 2)) != 0;
+		clownmdemu->state->mega_cd.rotation.large_stamp = (value & (1 << 1)) != 0;
+		clownmdemu->state->mega_cd.rotation.repeating_stamp_map = (value & (1 << 0)) != 0;
+	}
+	else if (address == 0xFF805A)
+	{
+		/* Stamp map base address */
+		clownmdemu->state->mega_cd.rotation.stamp_map_address = value;
+	}
+	else if (address == 0xFF805C)
+	{
+		/* Image buffer vertical cell size */
+		clownmdemu->state->mega_cd.rotation.stamp_map_height_in_tiles = value;
+	}
+	else if (address == 0xFF805E)
+	{
+		/* Image buffer base address */
+		clownmdemu->state->mega_cd.rotation.image_buffer_address = value;
+	}
+	else if (address == 0xFF8060)
+	{
+		/* Image buffer offset */
+		clownmdemu->state->mega_cd.rotation.image_buffer_x_offset = value >> 3 & 7;
+		clownmdemu->state->mega_cd.rotation.image_buffer_y_offset = value >> 0 & 7;
+	}
+	else if (address == 0xFF8062)
+	{
+		/* Image buffer width */
+		clownmdemu->state->mega_cd.rotation.image_buffer_width = value;
 	}
 	else if (address == 0xFF8064)
 	{
-		/* Image buffer vertical draw size */
-		/* TODO */
+		/* Image buffer height */
+		/* TODO: Are the upper bits discarded or just left unused? */
+		clownmdemu->state->mega_cd.rotation.image_buffer_height = value;
 	}
 	else if (address == 0xFF8066)
 	{
-		/* Trace vector base address */
-		/* TODO */
+		/* Trace table address */
+		clownmdemu->state->mega_cd.rotation.trace_table_address = value;
+
 		if (clownmdemu->state->mega_cd.irq.enabled[0])
 			clownmdemu->state->mega_cd.irq.irq1_pending = cc_true;
 	}

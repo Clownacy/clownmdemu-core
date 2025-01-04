@@ -196,8 +196,6 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State* const state)
 
 	for (i = 0; i < CC_COUNT_OF(state->mega_cd.communication.status); ++i)
 		state->mega_cd.communication.status[i] = 0;
-
-	CDC_Initialise(&state->mega_cd.cdc);
 	
 	for (i = 0; i < CC_COUNT_OF(state->mega_cd.irq.enabled); ++i)
 		state->mega_cd.irq.enabled[i] = cc_false;
@@ -205,8 +203,20 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State* const state)
 	state->mega_cd.irq.irq1_pending = cc_false;
 	state->mega_cd.irq.irq3_countdown_master = state->mega_cd.irq.irq3_countdown = 0;
 
-	CDDA_Initialise(&state->mega_cd.cdda);
+	state->mega_cd.rotation.large_stamp_map = cc_false;
+	state->mega_cd.rotation.large_stamp = cc_false;
+	state->mega_cd.rotation.repeating_stamp_map = cc_false;
+	state->mega_cd.rotation.stamp_map_address = 0;
+	state->mega_cd.rotation.trace_table_address = 0;
+	state->mega_cd.rotation.image_buffer_address = 0;
+	state->mega_cd.rotation.image_buffer_width = 0;
+	state->mega_cd.rotation.image_buffer_height = 0;
+	state->mega_cd.rotation.stamp_map_height_in_tiles = 0;
+	state->mega_cd.rotation.image_buffer_x_offset = 0;
+	state->mega_cd.rotation.image_buffer_y_offset = 0;
 
+	CDC_Initialise(&state->mega_cd.cdc);
+	CDDA_Initialise(&state->mega_cd.cdda);
 	PCM_State_Initialise(&state->mega_cd.pcm);
 
 	state->mega_cd.boot_from_cd = cc_false;
