@@ -437,7 +437,7 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 		}
 		else
 		{
-			value = clownmdemu->state->mega_cd.word_ram.buffer[address_word & 0x1FFFF];
+			value = clownmdemu->state->mega_cd.word_ram.buffer[address_word % CC_COUNT_OF(clownmdemu->state->mega_cd.word_ram.buffer)];
 		}
 	}
 	else if (address < 0xE0000)
@@ -450,7 +450,7 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 		}
 		else
 		{
-			value = clownmdemu->state->mega_cd.word_ram.buffer[(address_word & 0xFFFF) * 2 + !clownmdemu->state->mega_cd.word_ram.ret];
+			value = clownmdemu->state->mega_cd.word_ram.buffer[(address_word * 2 + !clownmdemu->state->mega_cd.word_ram.ret) % CC_COUNT_OF(clownmdemu->state->mega_cd.word_ram.buffer)];
 		}
 	}
 	else if (address >= 0xFF0000 && address < 0xFF8000)
