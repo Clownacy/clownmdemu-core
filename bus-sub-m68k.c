@@ -807,6 +807,7 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 		/* Trace table address */
 		clownmdemu->state->mega_cd.rotation.trace_table_address = value;
 
+		/* Fire the 'graphics operation complete' interrupt. */
 		if (clownmdemu->state->mega_cd.irq.enabled[0])
 			clownmdemu->state->mega_cd.irq.irq1_pending = cc_true;
 	}
