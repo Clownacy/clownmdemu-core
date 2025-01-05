@@ -1065,6 +1065,8 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 								/* I swear some dumb Electronic Arts game uses this. */
 								LogMessage("Prohibited plane height mode '2' selected - should use '0' instead");
 								/* This appears to be what happens on real hardware. */
+								/* TODO: Jorge claims that this works in a different way:
+								   https://board.mddc.dev/threads/md-vdp-research-thread.76/ */
 								vdp->state->plane_height_bitmask = 0x1F;
 								break;
 
