@@ -576,7 +576,7 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 	else if (address == 0xFF8066)
 	{
 		/* Trace table address */
-		value = clownmdemu->state->mega_cd.rotation.trace_table_address;
+		LogMessage("Attempted to read trace table address register at 0x%" CC_PRIXLEAST32, address, clownmdemu->mcd_m68k->program_counter);
 	}
 	else
 	{
