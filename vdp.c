@@ -877,80 +877,75 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 		vdp->state->access.selected_buffer = VDP_ACCESS_INVALID;
 
 		/* This command is setting a register */
-		switch (reg)
-		{
-			case 0:
-				/* MODE SET REGISTER NO.1 */
-				vdp->state->h_int_enabled = (data & (1 << 4)) != 0;
-				/* TODO */
-				break;
-
-			case 1:
-				/* MODE SET REGISTER NO.2 */
-				vdp->state->display_enabled = (data & (1 << 6)) != 0;
-				vdp->state->v_int_enabled = (data & (1 << 5)) != 0;
-				vdp->state->dma.enabled = (data & (1 << 4)) != 0;
-				vdp->state->v30_enabled = (data & (1 << 3)) != 0;
-				vdp->state->mega_drive_mode_enabled = (data & (1 << 2)) != 0;
-				break;
-
-			case 2:
-				/* PATTERN NAME TABLE BASE ADDRESS FOR SCROLL A */
-				vdp->state->plane_a_address = (data & 0x38) << 10;
-				break;
-
-			case 3:
-				/* PATTERN NAME TABLE BASE ADDRESS FOR WINDOW */
-				/* TODO: The lowest bit is invalid is H40 mode according to the 'Genesis Software Manual'. */
-				/* http://techdocs.exodusemulator.com/Console/SegaMegaDrive/Documentation.html#mega-drive-documentation */
-				vdp->state->window_address = (data & 0x3E) << 10;
-				break;
-
-			case 4:
-				/* PATTERN NAME TABLE BASE ADDRESS FOR SCROLL B */
-				vdp->state->plane_b_address = (data & 7) << 13;
-				break;
-
-			case 5:
-				/* SPRITE ATTRIBUTE TABLE BASE ADDRESS */
-				vdp->state->sprite_table_address = (data & 0x7F) << 9;
-
-				/* Real VDPs partially cache the sprite table, and forget to update it
-				   when the sprite table base address is changed. Replicating this
-				   behaviour may be needed in order to properly emulate certain effects
-				   that involve manipulating the sprite table during rendering. */
-				/*vdp->state->sprite_row_cache.needs_updating = cc_true;*/ /* The VDP does not do this! */
-
-				break;
-
-			case 6:
-				/* Unused legacy register for Master System mode. */
-				/* TODO */
-				break;
-
-			case 7:
-				/* BACKGROUND COLOR */
-				vdp->state->background_colour = data & 0x3F;
-				break;
-
-			case 8:
-			case 9:
-				/* Unused legacy register for Master System mode. */
-				/* TODO */
-				break;
-
-			case 10:
-				/* H INTERRUPT REGISTER */
-				vdp->state->h_int_interval = (cc_u8l)data;
-				break;
-
-			/* TODO: When Master System mode is supported, warn about invalid registers here! */
-		}
-
-		if (vdp->state->mega_drive_mode_enabled)
+		if (reg <= 10 || vdp->state->mega_drive_mode_enabled)
 		{
 			switch (reg)
 			{
+				case 0:
+					/* MODE SET REGISTER NO.1 */
+					vdp->state->h_int_enabled = (data & (1 << 4)) != 0;
+					/* TODO */
+					break;
+
+				case 1:
+					/* MODE SET REGISTER NO.2 */
+					vdp->state->display_enabled = (data & (1 << 6)) != 0;
+					vdp->state->v_int_enabled = (data & (1 << 5)) != 0;
+					vdp->state->dma.enabled = (data & (1 << 4)) != 0;
+					vdp->state->v30_enabled = (data & (1 << 3)) != 0;
+					vdp->state->mega_drive_mode_enabled = (data & (1 << 2)) != 0;
+					break;
+
+				case 2:
+					/* PATTERN NAME TABLE BASE ADDRESS FOR SCROLL A */
+					vdp->state->plane_a_address = (data & 0x38) << 10;
+					break;
+
+				case 3:
+					/* PATTERN NAME TABLE BASE ADDRESS FOR WINDOW */
+					/* TODO: The lowest bit is invalid is H40 mode according to the 'Genesis Software Manual'. */
+					/* http://techdocs.exodusemulator.com/Console/SegaMegaDrive/Documentation.html#mega-drive-documentation */
+					vdp->state->window_address = (data & 0x3E) << 10;
+					break;
+
+				case 4:
+					/* PATTERN NAME TABLE BASE ADDRESS FOR SCROLL B */
+					vdp->state->plane_b_address = (data & 7) << 13;
+					break;
+
+				case 5:
+					/* SPRITE ATTRIBUTE TABLE BASE ADDRESS */
+					vdp->state->sprite_table_address = (data & 0x7F) << 9;
+
+					/* Real VDPs partially cache the sprite table, and forget to update it
+					   when the sprite table base address is changed. Replicating this
+					   behaviour may be needed in order to properly emulate certain effects
+					   that involve manipulating the sprite table during rendering. */
+					/*vdp->state->sprite_row_cache.needs_updating = cc_true;*/ /* The VDP does not do this! */
+
+					break;
+
+				case 6:
+					/* Unused legacy register for Master System mode. */
+					/* TODO */
+					break;
+
+				case 7:
+					/* BACKGROUND COLOR */
+					vdp->state->background_colour = data & 0x3F;
+					break;
+
+				case 8:
+				case 9:
+					/* Unused legacy register for Master System mode. */
+					/* TODO */
+					break;
+
+				case 10:
+					/* H INTERRUPT REGISTER */
+					vdp->state->h_int_interval = (cc_u8l)data;
+					break;
+
 				case 11:
 					/* MODE SET REGISTER NO.3 */
 
