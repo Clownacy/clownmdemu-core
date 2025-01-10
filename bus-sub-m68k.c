@@ -551,7 +551,7 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 	else if (address == 0xFF805C)
 	{
 		/* Image buffer vertical cell size */
-		value = clownmdemu->state->mega_cd.rotation.stamp_map_height_in_tiles;
+		value = clownmdemu->state->mega_cd.rotation.image_buffer_height_in_tiles;
 	}
 	else if (address == 0xFF805E)
 	{
@@ -778,7 +778,7 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 	else if (address == 0xFF805C)
 	{
 		/* Image buffer vertical cell size */
-		clownmdemu->state->mega_cd.rotation.stamp_map_height_in_tiles = value;
+		clownmdemu->state->mega_cd.rotation.image_buffer_height_in_tiles = value;
 	}
 	else if (address == 0xFF805E)
 	{

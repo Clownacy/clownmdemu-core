@@ -211,7 +211,7 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State* const state)
 	state->mega_cd.rotation.image_buffer_address = 0;
 	state->mega_cd.rotation.image_buffer_width = 0;
 	state->mega_cd.rotation.image_buffer_height = 0;
-	state->mega_cd.rotation.stamp_map_height_in_tiles = 0;
+	state->mega_cd.rotation.image_buffer_height_in_tiles = 0;
 	state->mega_cd.rotation.image_buffer_x_offset = 0;
 	state->mega_cd.rotation.image_buffer_y_offset = 0;
 

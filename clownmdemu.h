@@ -235,7 +235,7 @@ typedef struct ClownMDEmu_State
 		{
 			cc_bool large_stamp_map, large_stamp, repeating_stamp_map;
 			cc_u16l stamp_map_address, trace_table_address, image_buffer_address, image_buffer_width;
-			cc_u8l image_buffer_height, stamp_map_height_in_tiles, image_buffer_x_offset, image_buffer_y_offset;
+			cc_u8l image_buffer_height, image_buffer_height_in_tiles, image_buffer_x_offset, image_buffer_y_offset;
 		} rotation;
 
 		CDC cdc;
