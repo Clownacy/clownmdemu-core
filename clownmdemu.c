@@ -207,7 +207,6 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State* const state)
 	state->mega_cd.rotation.large_stamp = cc_false;
 	state->mega_cd.rotation.repeating_stamp_map = cc_false;
 	state->mega_cd.rotation.stamp_map_address = 0;
-	state->mega_cd.rotation.trace_table_address = 0;
 	state->mega_cd.rotation.image_buffer_address = 0;
 	state->mega_cd.rotation.image_buffer_width = 0;
 	state->mega_cd.rotation.image_buffer_height = 0;

@@ -327,6 +327,166 @@ void SyncMCDM68k(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* const 
 	SyncMCDM68kForReal(clownmdemu, &m68k_read_write_callbacks, target_cycle);
 }
 
+static size_t StampMapDiameterInPixels(ClownMDEmu_State* const state)
+{
+	return state->mega_cd.rotation.large_stamp_map ? 1 << 12 : 1 << 8;
+}
+
+#define SHIFT_TO_NORMAL(SHIFT) ((size_t)1 << (SHIFT))
+#define BITS_PER_PIXEL 4
+#define BITS_PER_BYTE 8
+#define BITS_PER_WORD 16
+#define PIXELS_PER_BYTE (BITS_PER_BYTE / BITS_PER_PIXEL)
+#define PIXELS_PER_WORD (BITS_PER_WORD / BITS_PER_PIXEL)
+
+#define STAMP_TILE_DIAMETER_IN_PIXELS_SHIFT 3
+#define STAMP_TILE_DIAMETER_IN_PIXELS SHIFT_TO_NORMAL(STAMP_TILE_DIAMETER_IN_PIXELS_SHIFT)
+
+static cc_u8f StampDiameterInPixelsShift(ClownMDEmu_State* const state)
+{
+	return STAMP_TILE_DIAMETER_IN_PIXELS_SHIFT + 1 + state->mega_cd.rotation.large_stamp;
+}
+
+static const cc_u16l* GetStampMapAddress(ClownMDEmu_State* const state)
+{
+	return state->mega_cd.word_ram.buffer + (size_t)state->mega_cd.rotation.stamp_map_address * 2;
+}
+
+#define SMALL_STAMP_DIAMETER_IN_PIXELS_SHIFT (STAMP_TILE_DIAMETER_IN_PIXELS_SHIFT + 1) /* 16x16 */
+#define SMALL_STAMP_DIAMETER_IN_PIXELS       SHIFT_TO_NORMAL(SMALL_STAMP_DIAMETER_IN_PIXELS_SHIFT)
+#define LARGE_STAMP_DIAMETER_IN_PIXELS_SHIFT (STAMP_TILE_DIAMETER_IN_PIXELS_SHIFT + 2) /* 32x32 */
+#define LARGE_STAMP_DIAMETER_IN_PIXELS       SHIFT_TO_NORMAL(LARGE_STAMP_DIAMETER_IN_PIXELS_SHIFT)
+
+#define SMALL_STAMP_SIZE_IN_WORDS (SMALL_STAMP_DIAMETER_IN_PIXELS * SMALL_STAMP_DIAMETER_IN_PIXELS / PIXELS_PER_WORD)
+#define LARGE_STAMP_SIZE_IN_WORDS (LARGE_STAMP_DIAMETER_IN_PIXELS * LARGE_STAMP_DIAMETER_IN_PIXELS / PIXELS_PER_WORD)
+
+static const cc_u16l* GetStampAddress(ClownMDEmu_State* const state, const cc_u16f index)
+{
+	if (state->mega_cd.rotation.large_stamp)
+		return state->mega_cd.word_ram.buffer + (index * SMALL_STAMP_SIZE_IN_WORDS);
+	else
+		return state->mega_cd.word_ram.buffer + (index / (LARGE_STAMP_SIZE_IN_WORDS / SMALL_STAMP_SIZE_IN_WORDS) * LARGE_STAMP_SIZE_IN_WORDS);
+}
+
+static size_t PixelIndexFromImageBufferCoordinate(const cc_u16f x, const cc_u16f y, const size_t image_buffer_height)
+{
+	const cc_u16f pixel_x_in_tile = x % STAMP_TILE_DIAMETER_IN_PIXELS;
+	const cc_u8f tile_x_in_image_buffer = x / STAMP_TILE_DIAMETER_IN_PIXELS;
+
+	const size_t tile_row_index = (size_t)tile_x_in_image_buffer * image_buffer_height + y;
+
+	return (size_t)tile_row_index * STAMP_TILE_DIAMETER_IN_PIXELS + pixel_x_in_tile;
+}
+
+static cc_u8f ReadPixelFromWord(const cc_u16f word, const cc_u8f pixel_index)
+{
+	const cc_u8f pixel_mask = ((1 << BITS_PER_PIXEL) - 1);
+	return (word >> (BITS_PER_WORD - (BITS_PER_PIXEL * (1 + pixel_index)))) & pixel_mask;
+}
+
+static void WritePixelToWord(cc_u16l* const word, const cc_u8f pixel_index, const cc_u8f pixel)
+{
+	const cc_u16f pixel_mask = ((1 << BITS_PER_PIXEL) - 1);
+	const cc_u8f shift = (BITS_PER_WORD - (BITS_PER_PIXEL * (1 + pixel_index)));
+	*word &= ~(pixel_mask << shift);
+	*word |= (cc_u16f)pixel << shift;
+}
+
+static cc_u8f PixelFromStamp(const cc_u16l* const buffer, const cc_u16f x, const cc_u16f y, const size_t stamp_height)
+{
+	const cc_u32f pixel_index_within_stamp = PixelIndexFromImageBufferCoordinate(x, y, stamp_height);
+
+	const cc_u32f word_index_within_stamp = pixel_index_within_stamp / PIXELS_PER_WORD;
+	const cc_u8f pixel_index_within_word = pixel_index_within_stamp % PIXELS_PER_WORD;
+
+	const cc_u16f word = buffer[word_index_within_stamp];
+	const cc_u8f pixel = ReadPixelFromWord(word, pixel_index_within_word);
+
+	return pixel;
+}
+
+static cc_u8f ReadPixelFromStampMap(ClownMDEmu_State* const state, const cc_u32f x, const cc_u32f y)
+{
+	const cc_u8f stamp_diameter_in_pixels_shift = StampDiameterInPixelsShift(state);
+	const size_t stamp_diameter_in_pixels = SHIFT_TO_NORMAL(stamp_diameter_in_pixels_shift);
+	const size_t stamp_map_diameter_in_pixels = StampMapDiameterInPixels(state);
+	const size_t stamp_map_diameter_in_stamps = stamp_map_diameter_in_pixels >> stamp_diameter_in_pixels_shift;
+	const size_t stamp_map_size_mask = stamp_map_diameter_in_pixels - 1;
+	const size_t stamp_size_mask = stamp_diameter_in_pixels - 1;
+
+	if (!state->mega_cd.rotation.repeating_stamp_map && (x >= stamp_map_diameter_in_pixels || y >= stamp_map_diameter_in_pixels))
+	{
+		return 0;
+	}
+	else
+	{
+		const size_t pixel_x_within_stamp_map = x & stamp_map_size_mask;
+		const size_t pixel_y_within_stamp_map = y & stamp_map_size_mask;
+
+		const size_t stamp_x_within_stamp_map = pixel_x_within_stamp_map >> stamp_diameter_in_pixels_shift;
+		const size_t stamp_y_within_stamp_map = pixel_y_within_stamp_map >> stamp_diameter_in_pixels_shift;
+
+		const size_t stamp_index_within_stamp_map = stamp_y_within_stamp_map * stamp_map_diameter_in_stamps + stamp_x_within_stamp_map;
+
+		const cc_u16f stamp_metadata = GetStampMapAddress(state)[stamp_index_within_stamp_map];
+		const cc_u16f stamp_index = stamp_metadata & 0x7FF;
+		const cc_u8f rotation = (stamp_metadata >> 13) & 3;
+		const cc_bool horizontal_flip = (stamp_metadata & 0x8000) != 0;
+
+		if (stamp_index == 0)
+		{
+			return 0;
+		}
+		else
+		{
+			const cc_u16l* const stamp_address = GetStampAddress(state, stamp_index);
+
+			cc_u16f pixel_x_within_stamp = pixel_x_within_stamp_map & stamp_size_mask;
+			cc_u16f pixel_y_within_stamp = pixel_y_within_stamp_map & stamp_size_mask;
+
+			cc_bool x_flip = cc_false, y_flip = cc_false, swap_coordinates = cc_false;
+
+			switch (rotation)
+			{
+				case 0: /* 0 degrees */
+					break;
+
+				case 1: /* 90 degrees */
+					y_flip = cc_true;
+					swap_coordinates = cc_true;
+					break;
+
+				case 2: /* 180 degrees */
+					x_flip = cc_true;
+					y_flip = cc_true;
+					break;
+
+				case 3: /* 270 degrees */
+					x_flip = cc_true;
+					swap_coordinates = cc_true;
+					break;
+			}
+
+			x_flip ^= horizontal_flip;
+
+			if (x_flip)
+				pixel_x_within_stamp = stamp_diameter_in_pixels - pixel_x_within_stamp - 1;
+
+			if (y_flip)
+				pixel_y_within_stamp = stamp_diameter_in_pixels - pixel_y_within_stamp - 1;
+
+			if (swap_coordinates)
+			{
+				const cc_u16f temp = pixel_x_within_stamp;
+				pixel_x_within_stamp = pixel_y_within_stamp;
+				pixel_y_within_stamp = temp;
+			}
+
+			return PixelFromStamp(stamp_address, pixel_x_within_stamp, pixel_y_within_stamp, stamp_diameter_in_pixels);
+		}
+	}
+}
+
 cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f address_word, const cc_bool do_high_byte, const cc_bool do_low_byte, const CycleMegaCD target_cycle)
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
@@ -805,7 +965,47 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 	else if (address == 0xFF8066)
 	{
 		/* Trace table address */
-		clownmdemu->state->mega_cd.rotation.trace_table_address = value;
+		cc_u8f pixel_y_in_image_buffer;
+		/* TODO: Correctly mask the address! */
+		const cc_u16l *trace_table = &clownmdemu->state->mega_cd.word_ram.buffer[value * 2];
+		const cc_u8f fraction_shift = 11;
+		const cc_u32f x_offset = -(cc_u32f)clownmdemu->state->mega_cd.rotation.image_buffer_x_offset << fraction_shift;
+		const cc_u32f y_offset = -(cc_u32f)clownmdemu->state->mega_cd.rotation.image_buffer_y_offset << fraction_shift;
+
+		/* TODO: Correctly mask the address! */
+		cc_u16l* const image_buffer = &clownmdemu->state->mega_cd.word_ram.buffer[clownmdemu->state->mega_cd.rotation.image_buffer_address * 2];
+		/* TODO: Rename 'image_buffer_height_in_tiles' to 'image_buffer_height_in_tiles_minus_one'. */
+		const cc_u16f image_buffer_height_in_pixels = (clownmdemu->state->mega_cd.rotation.image_buffer_height_in_tiles + 1) * STAMP_TILE_DIAMETER_IN_PIXELS;
+
+		for (pixel_y_in_image_buffer = 0; pixel_y_in_image_buffer < clownmdemu->state->mega_cd.rotation.image_buffer_height; ++pixel_y_in_image_buffer)
+		{
+			cc_u16f pixel_x_in_image_buffer;
+			cc_u32f sample_x = x_offset + ((cc_u32f)trace_table[0] << (fraction_shift - 3));
+			cc_u32f sample_y = y_offset + ((cc_u32f)trace_table[1] << (fraction_shift - 3));
+			const cc_u32f delta_x = CC_SIGN_EXTEND(cc_u32f, 15, trace_table[2]);
+			const cc_u32f delta_y = CC_SIGN_EXTEND(cc_u32f, 15, trace_table[3]);
+			trace_table += 4;
+
+			for (pixel_x_in_image_buffer = 0; pixel_x_in_image_buffer < clownmdemu->state->mega_cd.rotation.image_buffer_width; ++pixel_x_in_image_buffer)
+			{
+				const cc_u32f pixel_x = sample_x >> fraction_shift;
+				const cc_u32f pixel_y = sample_y >> fraction_shift;
+				const cc_u8f pixel = ReadPixelFromStampMap(clownmdemu->state, pixel_x, pixel_y);
+
+				/* TODO: Priority mode! */
+				const cc_u32f pixel_index_within_image_buffer = PixelIndexFromImageBufferCoordinate(pixel_x_in_image_buffer, pixel_y_in_image_buffer, image_buffer_height_in_pixels);
+
+				const cc_u32f word_index_within_image_buffer = pixel_index_within_image_buffer / PIXELS_PER_WORD;
+				const cc_u8f pixel_index_within_word = pixel_index_within_image_buffer % PIXELS_PER_WORD;
+
+				cc_u16l* const word = &image_buffer[word_index_within_image_buffer];
+
+				WritePixelToWord(word, pixel_index_within_word, pixel);
+
+				sample_x += delta_x;
+				sample_y += delta_y;
+			}
+		}
 
 		/* The graphics operation decrements this until it reaches 0. Sonic CD relies on this to load its special stages. */
 		clownmdemu->state->mega_cd.rotation.image_buffer_height = 0;
