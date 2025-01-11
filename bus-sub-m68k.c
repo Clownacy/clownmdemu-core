@@ -561,7 +561,7 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 	else if (address == 0xFF8060)
 	{
 		/* Image buffer offset */
-		value = clownmdemu->state->mega_cd.rotation.image_buffer_x_offset << 3 | clownmdemu->state->mega_cd.rotation.image_buffer_y_offset << 0;
+		value = clownmdemu->state->mega_cd.rotation.image_buffer_y_offset << 3 | clownmdemu->state->mega_cd.rotation.image_buffer_x_offset << 0;
 	}
 	else if (address == 0xFF8062)
 	{
@@ -788,8 +788,8 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 	else if (address == 0xFF8060)
 	{
 		/* Image buffer offset */
-		clownmdemu->state->mega_cd.rotation.image_buffer_x_offset = value >> 3 & 7;
-		clownmdemu->state->mega_cd.rotation.image_buffer_y_offset = value >> 0 & 7;
+		clownmdemu->state->mega_cd.rotation.image_buffer_y_offset = value >> 3 & 7;
+		clownmdemu->state->mega_cd.rotation.image_buffer_x_offset = value >> 0 & 7;
 	}
 	else if (address == 0xFF8062)
 	{
