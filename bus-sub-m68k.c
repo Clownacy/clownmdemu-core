@@ -475,14 +475,7 @@ static cc_u8f ReadPixelFromStampMap(ClownMDEmu_State* const state, const cc_u32f
 			if (y_flip)
 				pixel_y_within_stamp = stamp_diameter_in_pixels - pixel_y_within_stamp - 1;
 
-			if (swap_coordinates)
-			{
-				const cc_u16f temp = pixel_x_within_stamp;
-				pixel_x_within_stamp = pixel_y_within_stamp;
-				pixel_y_within_stamp = temp;
-			}
-
-			return PixelFromStamp(stamp_address, pixel_x_within_stamp, pixel_y_within_stamp, stamp_diameter_in_pixels);
+			return PixelFromStamp(stamp_address, swap_coordinates ? pixel_y_within_stamp : pixel_x_within_stamp, swap_coordinates ? pixel_x_within_stamp : pixel_y_within_stamp, stamp_diameter_in_pixels);
 		}
 	}
 }
