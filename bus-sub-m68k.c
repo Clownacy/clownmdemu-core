@@ -962,6 +962,7 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 		/* TODO: Correctly mask the address! */
 		const cc_u16l *trace_table = &clownmdemu->state->mega_cd.word_ram.buffer[value * 2];
 		const cc_u8f fraction_shift = 11;
+		/* TODO: Does this actually offset the destination instead of the source? */
 		const cc_u32f x_offset = -(cc_u32f)clownmdemu->state->mega_cd.rotation.image_buffer_x_offset << fraction_shift;
 		const cc_u32f y_offset = -(cc_u32f)clownmdemu->state->mega_cd.rotation.image_buffer_y_offset << fraction_shift;
 
@@ -973,8 +974,8 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 		for (pixel_y_in_image_buffer = 0; pixel_y_in_image_buffer < clownmdemu->state->mega_cd.rotation.image_buffer_height; ++pixel_y_in_image_buffer)
 		{
 			cc_u16f pixel_x_in_image_buffer;
-			cc_u32f sample_x = x_offset + ((cc_u32f)trace_table[0] << (fraction_shift - 3));
-			cc_u32f sample_y = y_offset + ((cc_u32f)trace_table[1] << (fraction_shift - 3));
+			cc_u32f sample_x = x_offset + (CC_SIGN_EXTEND(cc_u32f, 15, trace_table[0]) << (fraction_shift - 3));
+			cc_u32f sample_y = y_offset + (CC_SIGN_EXTEND(cc_u32f, 15, trace_table[1]) << (fraction_shift - 3));
 			const cc_u32f delta_x = CC_SIGN_EXTEND(cc_u32f, 15, trace_table[2]);
 			const cc_u32f delta_y = CC_SIGN_EXTEND(cc_u32f, 15, trace_table[3]);
 			trace_table += 4;
