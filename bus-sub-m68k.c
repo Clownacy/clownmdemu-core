@@ -10,6 +10,13 @@
 #include "cdda.h"
 #include "log.h"
 
+static cc_u16f MCDM68kReadByte(const void* const user_data, const cc_u32f address, const CycleMegaCD target_cycle)
+{
+	const cc_bool is_odd = (address & 1) != 0;
+
+	return (MCDM68kReadCallbackWithCycle(user_data, (address & 0xFFFFFF) / 2, !is_odd, is_odd, target_cycle) >> (is_odd ? 0 : 8)) & 0xFF;
+}
+
 static cc_u16f MCDM68kReadWord(const void* const user_data, const cc_u32f address, const CycleMegaCD target_cycle)
 {
 	assert(address % 2 == 0);
@@ -23,6 +30,13 @@ static cc_u16f MCDM68kReadLongword(const void* const user_data, const cc_u32f ad
 	longword = (cc_u32f)MCDM68kReadWord(user_data, address + 0, target_cycle) << 16;
 	longword |= (cc_u32f)MCDM68kReadWord(user_data, address + 2, target_cycle) << 0;
 	return longword;
+}
+
+static void MCDM68kWriteByte(const void* const user_data, const cc_u32f address, const cc_u16f value, const CycleMegaCD target_cycle)
+{
+	const cc_bool is_odd = (address & 1) != 0;
+
+	MCDM68kWriteCallbackWithCycle(user_data, (address & 0xFFFFFF) / 2, !is_odd, is_odd, value << (is_odd ? 0 : 8), target_cycle);
 }
 
 static void MCDM68kWriteWord(const void* const user_data, const cc_u32f address, const cc_u16f value, const CycleMegaCD target_cycle)
@@ -480,6 +494,95 @@ static cc_u8f ReadPixelFromStampMap(ClownMDEmu_State* const state, const cc_u32f
 	}
 }
 
+#include <stdio.h>
+
+#define FILE_NAME_LENGTH 11
+#define FILE_NAME_BUFFER_LENGTH (FILE_NAME_LENGTH + 1 + 2 + 1 + 3 + 1)
+
+static void ReadFilename(const void* const user_data, char* const file_name_buffer, const cc_bool write_protected, const CycleMegaCD target_cycle)
+{
+	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
+	const ClownMDEmu* const clownmdemu = callback_user_data->clownmdemu;
+
+	char *file_name_pointer = file_name_buffer;
+	cc_u8f i;
+
+	for (i = 0; i < FILE_NAME_LENGTH; ++i)
+		*file_name_pointer++ = MCDM68kReadByte(user_data, clownmdemu->mcd_m68k->address_registers[0] + i, target_cycle);
+
+	if (write_protected)
+	{
+		*file_name_pointer++ = '.';
+		*file_name_pointer++ = 'w';
+		*file_name_pointer++ = 'p';
+	}
+
+	*file_name_pointer++ = '.';
+	*file_name_pointer++ = 'b';
+	*file_name_pointer++ = 'r';
+	*file_name_pointer++ = 'm';
+	*file_name_pointer++ = '\0';
+}
+
+static FILE* OpenSaveFileForReading(const void* const user_data, const cc_bool write_protected, const CycleMegaCD target_cycle)
+{
+	char file_name_buffer[FILE_NAME_BUFFER_LENGTH];
+
+	ReadFilename(user_data, file_name_buffer, write_protected, target_cycle);
+	return fopen(file_name_buffer, "rb");
+}
+
+static FILE* OpenSaveFileForReadingAny(const void* const user_data, cc_bool* const write_protected, const CycleMegaCD target_cycle)
+{
+	FILE *file;
+
+	file = OpenSaveFileForReading(user_data, cc_false, target_cycle);
+
+	if (file != NULL)
+	{
+		*write_protected = cc_false;
+		return file;
+	}
+
+	file = OpenSaveFileForReading(user_data, cc_true, target_cycle);
+
+	if (file != NULL)
+	{
+		*write_protected = cc_true;
+		return file;
+	}
+
+	return NULL;
+}
+
+static FILE* OpenSaveFileForWriting(const void* const user_data, const cc_bool write_protected, const CycleMegaCD target_cycle)
+{
+	char file_name_buffer[FILE_NAME_BUFFER_LENGTH];
+
+	ReadFilename(user_data, file_name_buffer, write_protected, target_cycle);
+	return fopen(file_name_buffer, "wb");
+}
+
+static cc_bool RemoveSaveFile(const void* const user_data, const cc_bool write_protected, const CycleMegaCD target_cycle)
+{
+	char file_name_buffer[FILE_NAME_BUFFER_LENGTH];
+
+	ReadFilename(user_data, file_name_buffer, write_protected, target_cycle);
+	return remove(file_name_buffer) == 0;
+}
+
+static cc_bool RemoveSaveFileAny(const void* const user_data, const CycleMegaCD target_cycle)
+{
+	cc_bool success = cc_false;
+
+	success |= RemoveSaveFile(user_data, cc_false, target_cycle);
+	success |= RemoveSaveFile(user_data, cc_true, target_cycle);
+
+	return success;
+}
+
+#define BURAM_BLOCK_SIZE(WRITE_PROTECTED) ((WRITE_PROTECTED) ? 0x20 : 0x40)
+
 cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f address_word, const cc_bool do_high_byte, const cc_bool do_low_byte, const CycleMegaCD target_cycle)
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
@@ -516,43 +619,122 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 				case 0x01:
 					/* BRMSTAT */
 					clownmdemu->mcd_m68k->data_registers[0] &= 0xFFFF0000;
+					clownmdemu->mcd_m68k->data_registers[0] |= 100; /* 100 free blocks. */
 					clownmdemu->mcd_m68k->data_registers[1] &= 0xFFFF0000;
+					clownmdemu->mcd_m68k->data_registers[1] |= 1; /* Just one file. */
 					break;
 
 				case 0x02:
+				{
 					/* BRMSERCH */
-					clownmdemu->mcd_m68k->status_register |= 1; /* File not found */
+					cc_bool write_protected;
+					FILE* const file = OpenSaveFileForReadingAny(user_data, &write_protected, target_cycle);
+
+					if (file == NULL)
+					{
+						clownmdemu->mcd_m68k->status_register |= 1; /* File not found. */
+					}
+					else
+					{
+						long file_size;
+
+						fseek(file, 0, SEEK_END);
+						file_size = ftell(file);
+						fclose(file);
+
+						clownmdemu->mcd_m68k->data_registers[0] &= 0xFFFF0000;
+						clownmdemu->mcd_m68k->data_registers[0] |= (file_size / BURAM_BLOCK_SIZE(write_protected)) & 0xFFFF;
+						clownmdemu->mcd_m68k->data_registers[1] &= 0xFFFFFF00;
+						clownmdemu->mcd_m68k->data_registers[1] |= write_protected ? 0xFF : 0;
+
+						clownmdemu->mcd_m68k->status_register &= ~1; /* File found. */
+					}
+
 					break;
+				}
 
 				case 0x03:
+				{
 					/* BRMREAD */
-					clownmdemu->mcd_m68k->status_register &= ~1; /* Okay */
-					clownmdemu->mcd_m68k->data_registers[0] &= 0xFFFF0000;
-					clownmdemu->mcd_m68k->data_registers[1] &= 0xFFFFFF00;
+					cc_bool write_protected;
+					FILE* const file = OpenSaveFileForReadingAny(user_data, &write_protected, target_cycle);
+
+					if (file == NULL)
+					{
+						clownmdemu->mcd_m68k->status_register |= 1; /* Error. */
+					}
+					else
+					{
+						cc_u32f total_bytes = 0;
+						int value;
+
+						while ((value = fgetc(file)) != EOF)
+							MCDM68kWriteByte(user_data, clownmdemu->mcd_m68k->address_registers[1] + total_bytes++, value, target_cycle);
+
+						fclose(file);
+
+						clownmdemu->mcd_m68k->data_registers[0] &= 0xFFFF0000;
+						clownmdemu->mcd_m68k->data_registers[0] |= (total_bytes / BURAM_BLOCK_SIZE(write_protected)) & 0xFFFF;
+						clownmdemu->mcd_m68k->data_registers[1] &= 0xFFFFFF00;
+						clownmdemu->mcd_m68k->data_registers[1] |= write_protected ? 0xFF : 0;
+
+						clownmdemu->mcd_m68k->status_register &= ~1; /* Okay */
+					}
+
 					break;
+				}
 
 				case 0x04:
+				{
 					/* BRMWRITE */
-					clownmdemu->mcd_m68k->status_register |= 1; /* Error */
+					const cc_bool write_protected = MCDM68kReadByte(user_data, clownmdemu->mcd_m68k->address_registers[0] + FILE_NAME_LENGTH, target_cycle) != 0;
+					FILE* const file = OpenSaveFileForWriting(user_data, write_protected, target_cycle);
+
+					if (file == NULL)
+					{
+						clownmdemu->mcd_m68k->status_register |= 1; /* Error. */
+					}
+					else
+					{
+						const cc_u16f total_blocks = MCDM68kReadWord(user_data, clownmdemu->mcd_m68k->address_registers[0] + FILE_NAME_LENGTH + 1, target_cycle);
+						const cc_u32f total_bytes = (cc_u32f)total_blocks * BURAM_BLOCK_SIZE(write_protected);
+						cc_u32f i;
+
+						for (i = 0; i < total_bytes; ++i)
+							fputc(MCDM68kReadByte(user_data, clownmdemu->mcd_m68k->address_registers[1] + i, target_cycle), file);
+
+						fclose(file);
+
+						clownmdemu->mcd_m68k->status_register &= ~1; /* Okay */
+					}
+
 					break;
+				}
 
 				case 0x05:
 					/* BRMDEL */
 					clownmdemu->mcd_m68k->status_register &= ~1; /* Okay */
+					clownmdemu->mcd_m68k->status_register |= 1; /* Error. */
 					break;
 
 				case 0x06:
 					/* BRMFORMAT */
+					/* TODO: Delete everything? */
 					clownmdemu->mcd_m68k->status_register &= ~1; /* Okay */
 					break;
 
 				case 0x07:
 					/* BRMDIR */
-					clownmdemu->mcd_m68k->status_register |= 1; /* Error */
+					if (!RemoveSaveFileAny(user_data, target_cycle))
+						clownmdemu->mcd_m68k->status_register |= 1; /* Error */
+					else
+						clownmdemu->mcd_m68k->status_register &= ~1; /* Okay */
+
 					break;
 
 				case 0x08:
 					/* BRMVERIFY */
+					/* TODO: This. */
 					clownmdemu->mcd_m68k->status_register &= ~1; /* Okay */
 					break;
 
