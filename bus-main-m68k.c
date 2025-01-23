@@ -8,7 +8,7 @@
 #include "log.h"
 
 /* The Z80 can trigger 68k bus errors by using the 68k address space window, so print its program counter here too. */
-#define LOG_MAIN_CPU_BUS_ERROR_MESSAGE_PREFIX "(M68K PC: 0x%" CC_PRIXLEAST32 ", Z80 PC: 0x%" CC_PRIXLEAST16 ") "
+#define LOG_MAIN_CPU_BUS_ERROR_MESSAGE_PREFIX "[M68K PC: 0x%06" CC_PRIXLEAST32 ", Z80 PC: 0x%04" CC_PRIXLEAST16 "] "
 #define LOG_MAIN_CPU_BUS_ERROR_ARGUMENTS clownmdemu->state->m68k.state.program_counter, clownmdemu->state->z80.state.program_counter
 #define LOG_MAIN_CPU_BUS_ERROR_0(MESSAGE)                   LogMessage(LOG_MAIN_CPU_BUS_ERROR_MESSAGE_PREFIX MESSAGE, LOG_MAIN_CPU_BUS_ERROR_ARGUMENTS);
 #define LOG_MAIN_CPU_BUS_ERROR_1(MESSAGE, ARG1)             LogMessage(LOG_MAIN_CPU_BUS_ERROR_MESSAGE_PREFIX MESSAGE, LOG_MAIN_CPU_BUS_ERROR_ARGUMENTS, ARG1);
