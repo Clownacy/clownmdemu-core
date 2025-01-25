@@ -260,14 +260,24 @@ typedef struct ClownMDEmu_Callbacks
 	void (*colour_updated)(void *user_data, cc_u16f index, cc_u16f colour);
 	void (*scanline_rendered)(void *user_data, cc_u16f scanline, const cc_u8l *pixels, cc_u16f screen_width, cc_u16f screen_height);
 	cc_bool (*input_requested)(void *user_data, cc_u8f player_id, ClownMDEmu_Button button_id);
+
 	void (*fm_audio_to_be_generated)(void *user_data, const struct ClownMDEmu *clownmdemu, size_t total_frames, void (*generate_fm_audio)(const struct ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames));
 	void (*psg_audio_to_be_generated)(void *user_data, const struct ClownMDEmu *clownmdemu, size_t total_frames, void (*generate_psg_audio)(const struct ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames));
 	void (*pcm_audio_to_be_generated)(void *user_data, const struct ClownMDEmu *clownmdemu, size_t total_frames, void (*generate_pcm_audio)(const struct ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames));
 	void (*cdda_audio_to_be_generated)(void *user_data, const struct ClownMDEmu *clownmdemu, size_t total_frames, void (*generate_cdda_audio)(const struct ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames));
+
 	void (*cd_seeked)(void *user_data, cc_u32f sector_index);
 	CDC_SectorReadCallback cd_sector_read;
 	cc_bool (*cd_track_seeked)(void *user_data, cc_u16f track_index, ClownMDEmu_CDDAMode mode);
 	CDDA_AudioReadCallback cd_audio_read;
+
+	cc_bool (*save_file_opened_for_reading)(void *user_data, const char *filename);
+	cc_s16f (*save_file_read)(void *user_data);
+	cc_bool (*save_file_opened_for_writing)(void *user_data, const char *filename);
+	void (*save_file_written)(void *user_data, cc_u8f byte);
+	void (*save_file_closed)(void *user_data);
+	cc_bool (*save_file_removed)(void *user_data, const char *filename);
+	cc_bool (*save_file_size_obtained)(void *user_data, const char *filename, size_t *size);
 } ClownMDEmu_Callbacks;
 
 typedef struct ClownMDEmu

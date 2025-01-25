@@ -494,8 +494,6 @@ static cc_u8f ReadPixelFromStampMap(ClownMDEmu_State* const state, const cc_u32f
 	}
 }
 
-#include <stdio.h>
-
 #define FILE_NAME_LENGTH 11
 #define FILE_NAME_BUFFER_LENGTH (FILE_NAME_LENGTH + 1 + 2 + 1 + 3 + 1)
 
@@ -521,54 +519,55 @@ static void ReadFilename(const void* const user_data, char* const file_name_buff
 	*file_name_pointer++ = 'b';
 	*file_name_pointer++ = 'r';
 	*file_name_pointer++ = 'm';
+
 	*file_name_pointer++ = '\0';
 }
 
-static FILE* OpenSaveFileForReading(const void* const user_data, const cc_bool write_protected, const CycleMegaCD target_cycle)
+static cc_bool OpenSaveFileForReading(const void* const user_data, const cc_bool write_protected, const CycleMegaCD target_cycle)
 {
+	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
+	const ClownMDEmu* const clownmdemu = callback_user_data->clownmdemu;
 	char file_name_buffer[FILE_NAME_BUFFER_LENGTH];
 
 	ReadFilename(user_data, file_name_buffer, write_protected, target_cycle);
-	return fopen(file_name_buffer, "rb");
+	return clownmdemu->callbacks->save_file_opened_for_reading((void*)clownmdemu->callbacks->user_data, file_name_buffer);
 }
 
-static FILE* OpenSaveFileForReadingAny(const void* const user_data, cc_bool* const write_protected, const CycleMegaCD target_cycle)
+static cc_bool OpenSaveFileForReadingAny(const void* const user_data, cc_bool* const write_protected, const CycleMegaCD target_cycle)
 {
-	FILE *file;
-
-	file = OpenSaveFileForReading(user_data, cc_false, target_cycle);
-
-	if (file != NULL)
+	if (OpenSaveFileForReading(user_data, cc_false, target_cycle))
 	{
 		*write_protected = cc_false;
-		return file;
+		return cc_true;
 	}
 
-	file = OpenSaveFileForReading(user_data, cc_true, target_cycle);
-
-	if (file != NULL)
+	if (OpenSaveFileForReading(user_data, cc_true, target_cycle))
 	{
 		*write_protected = cc_true;
-		return file;
+		return cc_true;
 	}
 
-	return NULL;
+	return cc_false;
 }
 
-static FILE* OpenSaveFileForWriting(const void* const user_data, const cc_bool write_protected, const CycleMegaCD target_cycle)
+static cc_bool OpenSaveFileForWriting(const void* const user_data, const cc_bool write_protected, const CycleMegaCD target_cycle)
 {
+	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
+	const ClownMDEmu* const clownmdemu = callback_user_data->clownmdemu;
 	char file_name_buffer[FILE_NAME_BUFFER_LENGTH];
 
 	ReadFilename(user_data, file_name_buffer, write_protected, target_cycle);
-	return fopen(file_name_buffer, "wb");
+	return clownmdemu->callbacks->save_file_opened_for_writing((void*)clownmdemu->callbacks->user_data, file_name_buffer);
 }
 
 static cc_bool RemoveSaveFile(const void* const user_data, const cc_bool write_protected, const CycleMegaCD target_cycle)
 {
+	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
+	const ClownMDEmu* const clownmdemu = callback_user_data->clownmdemu;
 	char file_name_buffer[FILE_NAME_BUFFER_LENGTH];
 
 	ReadFilename(user_data, file_name_buffer, write_protected, target_cycle);
-	return remove(file_name_buffer) == 0;
+	return clownmdemu->callbacks->save_file_removed((void*)clownmdemu->callbacks->user_data, file_name_buffer);
 }
 
 static cc_bool RemoveSaveFileAny(const void* const user_data, const CycleMegaCD target_cycle)
@@ -579,6 +578,34 @@ static cc_bool RemoveSaveFileAny(const void* const user_data, const CycleMegaCD 
 	success |= RemoveSaveFile(user_data, cc_true, target_cycle);
 
 	return success;
+}
+
+static cc_bool GetSaveFileSize(const void* const user_data, const cc_bool write_protected, size_t* const file_size, const CycleMegaCD target_cycle)
+{
+	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
+	const ClownMDEmu* const clownmdemu = callback_user_data->clownmdemu;
+	char file_name_buffer[FILE_NAME_BUFFER_LENGTH];
+
+	ReadFilename(user_data, file_name_buffer, write_protected, target_cycle);
+	return clownmdemu->callbacks->save_file_size_obtained((void*)clownmdemu->callbacks->user_data, file_name_buffer, file_size);
+}
+
+
+static cc_bool GetSaveFileSizeAny(const void* const user_data, cc_bool* const write_protected, size_t* const file_size, const CycleMegaCD target_cycle)
+{
+	if (GetSaveFileSize(user_data, cc_false, file_size, target_cycle))
+	{
+		*write_protected = cc_false;
+		return cc_true;
+	}
+
+	if (GetSaveFileSize(user_data, cc_true, file_size, target_cycle))
+	{
+		*write_protected = cc_true;
+		return cc_true;
+	}
+
+	return cc_false;
 }
 
 #define BURAM_BLOCK_SIZE(WRITE_PROTECTED) ((WRITE_PROTECTED) ? 0x20 : 0x40)
@@ -628,20 +655,14 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 				{
 					/* BRMSERCH */
 					cc_bool write_protected;
-					FILE* const file = OpenSaveFileForReadingAny(user_data, &write_protected, target_cycle);
+					size_t file_size;
 
-					if (file == NULL)
+					if (!GetSaveFileSizeAny(user_data, &write_protected, &file_size, target_cycle))
 					{
 						clownmdemu->mcd_m68k->status_register |= 1; /* File not found. */
 					}
 					else
 					{
-						long file_size;
-
-						fseek(file, 0, SEEK_END);
-						file_size = ftell(file);
-						fclose(file);
-
 						clownmdemu->mcd_m68k->data_registers[0] &= 0xFFFF0000;
 						clownmdemu->mcd_m68k->data_registers[0] |= (file_size / BURAM_BLOCK_SIZE(write_protected)) & 0xFFFF;
 						clownmdemu->mcd_m68k->data_registers[1] &= 0xFFFFFF00;
@@ -657,21 +678,20 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 				{
 					/* BRMREAD */
 					cc_bool write_protected;
-					FILE* const file = OpenSaveFileForReadingAny(user_data, &write_protected, target_cycle);
 
-					if (file == NULL)
+					if (!OpenSaveFileForReadingAny(user_data, &write_protected, target_cycle))
 					{
 						clownmdemu->mcd_m68k->status_register |= 1; /* Error. */
 					}
 					else
 					{
 						cc_u32f total_bytes = 0;
-						int value;
+						cc_s16f value;
 
-						while ((value = fgetc(file)) != EOF)
+						while ((value = frontend_callbacks->save_file_read((void*)frontend_callbacks->user_data)) != -1)
 							MCDM68kWriteByte(user_data, clownmdemu->mcd_m68k->address_registers[1] + total_bytes++, value, target_cycle);
 
-						fclose(file);
+						frontend_callbacks->save_file_closed((void*)frontend_callbacks->user_data);
 
 						clownmdemu->mcd_m68k->data_registers[0] &= 0xFFFF0000;
 						clownmdemu->mcd_m68k->data_registers[0] |= (total_bytes / BURAM_BLOCK_SIZE(write_protected)) & 0xFFFF;
@@ -688,9 +708,8 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 				{
 					/* BRMWRITE */
 					const cc_bool write_protected = MCDM68kReadByte(user_data, clownmdemu->mcd_m68k->address_registers[0] + FILE_NAME_LENGTH, target_cycle) != 0;
-					FILE* const file = OpenSaveFileForWriting(user_data, write_protected, target_cycle);
 
-					if (file == NULL)
+					if (!OpenSaveFileForWriting(user_data, write_protected, target_cycle))
 					{
 						clownmdemu->mcd_m68k->status_register |= 1; /* Error. */
 					}
@@ -701,9 +720,9 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 						cc_u32f i;
 
 						for (i = 0; i < total_bytes; ++i)
-							fputc(MCDM68kReadByte(user_data, clownmdemu->mcd_m68k->address_registers[1] + i, target_cycle), file);
+							frontend_callbacks->save_file_written((void*)frontend_callbacks->user_data, MCDM68kReadByte(user_data, clownmdemu->mcd_m68k->address_registers[1] + i, target_cycle));
 
-						fclose(file);
+						frontend_callbacks->save_file_closed((void*)frontend_callbacks->user_data);
 
 						clownmdemu->mcd_m68k->status_register &= ~1; /* Okay */
 					}
@@ -713,8 +732,10 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 
 				case 0x05:
 					/* BRMDEL */
-					clownmdemu->mcd_m68k->status_register &= ~1; /* Okay */
-					clownmdemu->mcd_m68k->status_register |= 1; /* Error. */
+					if (!RemoveSaveFileAny(user_data, target_cycle))
+						clownmdemu->mcd_m68k->status_register |= 1; /* Error */
+					else
+						clownmdemu->mcd_m68k->status_register &= ~1; /* Okay */
 					break;
 
 				case 0x06:
@@ -725,11 +746,7 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 
 				case 0x07:
 					/* BRMDIR */
-					if (!RemoveSaveFileAny(user_data, target_cycle))
-						clownmdemu->mcd_m68k->status_register |= 1; /* Error */
-					else
-						clownmdemu->mcd_m68k->status_register &= ~1; /* Okay */
-
+					clownmdemu->mcd_m68k->status_register |= 1; /* Error. */
 					break;
 
 				case 0x08:
