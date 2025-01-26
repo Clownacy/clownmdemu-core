@@ -645,6 +645,7 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 
 				case 0x01:
 					/* BRMSTAT */
+					/* TODO: Report more files. */
 					clownmdemu->mcd_m68k->data_registers[0] &= 0xFFFF0000;
 					clownmdemu->mcd_m68k->data_registers[0] |= 100; /* 100 free blocks. */
 					clownmdemu->mcd_m68k->data_registers[1] &= 0xFFFF0000;
@@ -746,14 +747,46 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 
 				case 0x07:
 					/* BRMDIR */
+					/* TODO: Implement this. */
 					clownmdemu->mcd_m68k->status_register |= 1; /* Error. */
 					break;
 
 				case 0x08:
+				{
 					/* BRMVERIFY */
-					/* TODO: This. */
-					clownmdemu->mcd_m68k->status_register &= ~1; /* Okay */
+					const cc_bool write_protected = MCDM68kReadByte(user_data, clownmdemu->mcd_m68k->address_registers[0] + FILE_NAME_LENGTH, target_cycle) != 0;
+
+					if (!OpenSaveFileForReading(user_data, write_protected, target_cycle))
+					{
+						clownmdemu->mcd_m68k->status_register |= 1; /* Error. */
+					}
+					else
+					{
+						/* TODO: Signal an error if the file is longer than expected? */
+						const cc_u16f total_blocks = MCDM68kReadWord(user_data, clownmdemu->mcd_m68k->address_registers[0] + FILE_NAME_LENGTH + 1, target_cycle);
+						const cc_u32f total_bytes = (cc_u32f)total_blocks * BURAM_BLOCK_SIZE(write_protected);
+						cc_u32f i;
+
+						for (i = 0; i < total_bytes; ++i)
+						{
+							const cc_u8f source_value = MCDM68kReadByte(user_data, clownmdemu->mcd_m68k->address_registers[1] + i, target_cycle);
+							const cc_s16f destination_value = frontend_callbacks->save_file_read((void*)frontend_callbacks->user_data);
+
+							/* End of file encountered too early, or mismatch. */
+							if (destination_value == -1 || destination_value != source_value)
+								break;
+						}
+
+						frontend_callbacks->save_file_closed((void*)frontend_callbacks->user_data);
+
+						if (i != total_bytes)
+							clownmdemu->mcd_m68k->status_register |= 1; /* Error. */
+						else
+							clownmdemu->mcd_m68k->status_register &= ~1; /* Okay. */
+					}
+
 					break;
+				}
 
 				default:
 					LogMessage("UNRECOGNISED BRAM CALL DETECTED (0x%02" CC_PRIXFAST16 ")", command);
