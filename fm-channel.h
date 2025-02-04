@@ -3,6 +3,7 @@
 
 #include "clowncommon/clowncommon.h"
 
+#include "fm-lfo.h"
 #include "fm-operator.h"
 
 #define FM_CHANNEL_PARAMETERS_INITIALISE(CONSTANT, STATE) { \
@@ -74,6 +75,6 @@ void FM_Channel_SetDecayRate(const FM_Channel *channel, cc_u16f operator_index, 
 void FM_Channel_SetSustainRate(const FM_Channel *channel, cc_u16f operator_index, cc_u16f sustain_rate);
 void FM_Channel_SetSustainLevelAndReleaseRate(const FM_Channel *channel, cc_u16f operator_index, cc_u16f sustain_level, cc_u16f release_rate);
 
-cc_s16f FM_Channel_GetSample(const FM_Channel *channel);
+cc_s16f FM_Channel_GetSample(const FM_Channel *channel, const FM_LFO *lfo);
 
 #endif /* FM_CHANNEL_H */

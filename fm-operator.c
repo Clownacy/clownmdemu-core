@@ -391,15 +391,20 @@ static void UpdateEnvelopeADSR(FM_Operator_State* const state)
 	}
 }
 
-static cc_u16f UpdateEnvelope(FM_Operator_State* const state)
+static cc_u16f UpdateEnvelope(FM_Operator_State* const state, const FM_LFO* const lfo, const cc_u8f amplitude_modulation_sensitivity)
 {
+	/* TODO: Cache this when AMS is set. */
+	static const cc_u8l amplitude_modulation_shifts[] = {7, 3, 1, 0};
+	const cc_u16f amplitude_modulation = lfo->amplitude_modulation >> amplitude_modulation_shifts[amplitude_modulation_sensitivity];
+
 	UpdateEnvelopeSSGEG(state);
 	UpdateEnvelopeADSR(state);
 
-	return CC_MIN(0x3FF, GetSSGEGCorrectedAttenuation(state, !state->key_on) + state->total_level);
+	/* TODO: TL isn't added here if this is FM3 and CSM is enabled! */
+	return CC_MIN(0x3FF, GetSSGEGCorrectedAttenuation(state, !state->key_on) + amplitude_modulation + state->total_level);
 }
 
-cc_s16f FM_Operator_Process(const FM_Operator* const fm_operator, const cc_s16f phase_modulation)
+cc_s16f FM_Operator_Process(const FM_Operator* const fm_operator, const FM_LFO* const lfo, const cc_u8f amplitude_modulation_sensitivity, const cc_s16f phase_modulation)
 {
 	/* TODO: https://gendev.spritesmind.net/forum/viewtopic.php?p=8908#p8908 */
 
@@ -407,7 +412,7 @@ cc_s16f FM_Operator_Process(const FM_Operator* const fm_operator, const cc_s16f 
 	const cc_u16f phase = FM_Phase_Increment(&fm_operator->state->phase) >> 10;
 
 	/* Update and obtain attenuation (10-bit). */
-	const cc_u16f attenuation = UpdateEnvelope(fm_operator->state);
+	const cc_u16f attenuation = UpdateEnvelope(fm_operator->state, lfo, amplitude_modulation_sensitivity);
 
 	/* Modulate the phase. */
 	/* The modulation is divided by two because up to two operators can provide modulation at once. */

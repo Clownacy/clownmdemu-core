@@ -6,6 +6,7 @@
 #include "clowncommon/clowncommon.h"
 
 #include "fm-channel.h"
+#include "fm-lfo.h"
 
 /* 8 is chosen because there are 6 FM channels (of which the DAC can replace one).
    Dividing by 8 is simpler than dividing by 6, so that was opted for instead. */
@@ -98,8 +99,7 @@ typedef struct FM_State
 	cc_u8l leftover_cycles;
 	cc_u8l status;
 	cc_u8l busy_flag_counter;
-	cc_u8l lfo_frequency;
-	cc_bool lfo_enabled;
+	FM_LFO lfo;
 } FM_State;
 
 typedef struct FM

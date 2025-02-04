@@ -161,8 +161,8 @@ void FM_State_Initialise(FM_State* const state)
 	state->leftover_cycles = 0;
 	state->status = 0;
 	state->busy_flag_counter = 0;
-	state->lfo_frequency = 0;
-	state->lfo_enabled = cc_false;
+
+	FM_LFO_Initialise(&state->lfo);
 }
 
 void FM_Parameters_Initialise(FM* const fm, const FM_Configuration* const configuration, const FM_Constant* const constant, FM_State* const state)
@@ -206,8 +206,8 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 					break;
 
 				case 0x22:
-					state->lfo_enabled = (data & 8) != 0;
-					state->lfo_frequency = data & 7;
+					state->lfo.enabled = (data & 8) != 0;
+					state->lfo.frequency = data & 7;
 					break;
 
 				case 0x24:
@@ -471,30 +471,32 @@ void FM_OutputSamples(const FM* const fm, cc_s16l* const sample_buffer, const cc
 
 	const cc_s16l* const sample_buffer_end = &sample_buffer[total_frames * 2];
 
-	cc_u16f i;
+	cc_s16l *sample_buffer_pointer;
 
-	for (i = 0; i < CC_COUNT_OF(state->channels); ++i)
+	for (sample_buffer_pointer = sample_buffer; sample_buffer_pointer != sample_buffer_end; sample_buffer_pointer += 2)
 	{
-		const FM_ChannelMetadata* const channel_metadata = &state->channels[i];
-		const FM_Channel* const channel = &fm->channels[i];
-		const cc_bool pan_left = channel_metadata->pan_left;
-		const cc_bool pan_right = channel_metadata->pan_right;
+		cc_u16f i;
 
-		const cc_bool is_dac = i == 5 && state->dac_enabled;
-		const cc_bool channel_disabled = is_dac ? fm->configuration->dac_channel_disabled : fm->configuration->fm_channels_disabled[i];
+		FM_LFO_Advance(&state->lfo);
 
-		cc_s16l *sample_buffer_pointer = sample_buffer;
-
-		if (channel_disabled)
-			continue;
-
-		while (sample_buffer_pointer != sample_buffer_end)
+		for (i = 0; i < CC_COUNT_OF(state->channels); ++i)
 		{
-			const cc_s16f fm_sample = FM_Channel_GetSample(channel);
+			const FM_ChannelMetadata* const channel_metadata = &state->channels[i];
+			const FM_Channel* const channel = &fm->channels[i];
+			const cc_bool pan_left = channel_metadata->pan_left;
+			const cc_bool pan_right = channel_metadata->pan_right;
+
+			const cc_bool is_dac = i == 5 && state->dac_enabled;
+			const cc_bool channel_disabled = is_dac ? fm->configuration->dac_channel_disabled : fm->configuration->fm_channels_disabled[i];
+
+			const cc_s16f fm_sample = FM_Channel_GetSample(channel, &state->lfo);
 			const cc_s16f sample = is_dac ? dac_sample : fm_sample;
 
-			*sample_buffer_pointer++ += GetFinalSample(fm, sample, pan_left);
-			*sample_buffer_pointer++ += GetFinalSample(fm, sample, pan_right);
+			if (!channel_disabled)
+			{
+				sample_buffer_pointer[0] += GetFinalSample(fm, sample, pan_left);
+				sample_buffer_pointer[1] += GetFinalSample(fm, sample, pan_right);
+			}
 		}
 	}
 }
