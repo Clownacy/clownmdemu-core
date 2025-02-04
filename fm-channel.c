@@ -71,7 +71,8 @@ void FM_Channel_SetSSGEG(const FM_Channel* const channel, const cc_u8f ssgeg)
 
 void FM_Channel_SetAMSAndFMS(const FM_Channel* const channel, const cc_u8f ams, const cc_u8f fms)
 {
-	channel->state->ams = ams;
+	static const cc_u8l amplitude_modulation_shifts[4] = {7, 3, 1, 0};
+	channel->state->ams = amplitude_modulation_shifts[ams];
 	channel->state->fms = fms;
 }
 
