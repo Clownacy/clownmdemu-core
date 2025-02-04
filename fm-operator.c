@@ -404,8 +404,6 @@ static cc_u16f UpdateEnvelope(FM_Operator_State* const state, const FM_LFO* cons
 
 cc_s16f FM_Operator_Process(const FM_Operator* const fm_operator, const FM_LFO* const lfo, const cc_u8f amplitude_modulation_shift, const cc_u8f phase_modulation_sensitivity, const cc_s16f phase_modulation)
 {
-	/* TODO: https://gendev.spritesmind.net/forum/viewtopic.php?p=8908#p8908 */
-
 	/* Update and obtain phase and make it 10-bit (the upper bits are discarded later). */
 	const cc_u16f phase = FM_Phase_Increment(&fm_operator->state->phase, lfo, phase_modulation_sensitivity) >> 10;
 
