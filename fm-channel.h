@@ -44,7 +44,7 @@ typedef struct FM_Channel_State
 	cc_s16l feedback_divisor;
 	cc_u16l algorithm;
 	cc_s16l operator_1_previous_samples[2];
-	cc_u8f ams, fms; /* TODO: Rename 'fms' to 'pms', rename 'ams' to 'amplitude_modulation_shift'. */
+	cc_u8f amplitude_modulation_shift, phase_modulation_sensitivity;
 } FM_Channel_State;
 
 typedef struct FM_Channel

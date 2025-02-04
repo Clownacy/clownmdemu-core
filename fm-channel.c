@@ -22,7 +22,7 @@ void FM_Channel_State_Initialise(FM_Channel_State* const state)
 	for (i = 0; i < CC_COUNT_OF(state->operator_1_previous_samples); ++i)
 		state->operator_1_previous_samples[i] = 0;
 
-	state->ams = state->fms = 0;
+	state->amplitude_modulation_shift = state->phase_modulation_sensitivity = 0;
 }
 
 void FM_Channel_Parameters_Initialise(FM_Channel* const channel, const FM_Channel_Constant* const constant, FM_Channel_State* const state)
@@ -72,8 +72,8 @@ void FM_Channel_SetSSGEG(const FM_Channel* const channel, const cc_u8f ssgeg)
 void FM_Channel_SetModulationSensitivity(const FM_Channel* const channel, const cc_u8f amplitude, const cc_u8f frequency)
 {
 	static const cc_u8l amplitude_modulation_shifts[4] = {7, 3, 1, 0};
-	channel->state->ams = amplitude_modulation_shifts[amplitude];
-	channel->state->fms = frequency;
+	channel->state->amplitude_modulation_shift = amplitude_modulation_shifts[amplitude];
+	channel->state->phase_modulation_sensitivity = frequency;
 }
 
 void FM_Channel_SetKeyOn(const FM_Channel* const channel, const cc_u16f operator_index, const cc_bool key_on)
@@ -137,7 +137,7 @@ static cc_s16f FM_Channel_MixSamples(const cc_s16f a, const cc_s16f b)
 
 cc_s16f FM_Channel_GetSample(const FM_Channel* const channel, const FM_LFO* const lfo)
 {
-	/* TODO: Cache 'channel->state' and 'channel->state->ams'. */
+	/* TODO: Cache 'channel->state' and 'channel->state->amplitude_modulation_shift'. */
 	const FM_Operator* const operator1 = &channel->operators[0];
 	const FM_Operator* const operator2 = &channel->operators[2]; /* Yes, these really are swapped. */
 	const FM_Operator* const operator3 = &channel->operators[1];
@@ -168,10 +168,10 @@ cc_s16f FM_Channel_GetSample(const FM_Channel* const channel, const FM_LFO* cons
 			/* Fallthrough */
 		case 0:
 			/* "Four serial connection mode". */
-			operator_1_sample = FM_Operator_Process(operator1, lfo, channel->state->ams, channel->state->fms, feedback_modulation);
-			operator_2_sample = FM_Operator_Process(operator2, lfo, channel->state->ams, channel->state->fms, operator_1_sample);
-			operator_3_sample = FM_Operator_Process(operator3, lfo, channel->state->ams, channel->state->fms, operator_2_sample);
-			operator_4_sample = FM_Operator_Process(operator4, lfo, channel->state->ams, channel->state->fms, operator_3_sample);
+			operator_1_sample = FM_Operator_Process(operator1, lfo, channel->state->amplitude_modulation_shift, channel->state->phase_modulation_sensitivity, feedback_modulation);
+			operator_2_sample = FM_Operator_Process(operator2, lfo, channel->state->amplitude_modulation_shift, channel->state->phase_modulation_sensitivity, operator_1_sample);
+			operator_3_sample = FM_Operator_Process(operator3, lfo, channel->state->amplitude_modulation_shift, channel->state->phase_modulation_sensitivity, operator_2_sample);
+			operator_4_sample = FM_Operator_Process(operator4, lfo, channel->state->amplitude_modulation_shift, channel->state->phase_modulation_sensitivity, operator_3_sample);
 
 			sample = FM_Channel_14BitTo9Bit(operator_4_sample);
 
@@ -179,11 +179,11 @@ cc_s16f FM_Channel_GetSample(const FM_Channel* const channel, const FM_LFO* cons
 
 		case 1:
 			/* "Three double modulation serial connection mode". */
-			operator_1_sample = FM_Operator_Process(operator1, lfo, channel->state->ams, channel->state->fms, feedback_modulation);
-			operator_2_sample = FM_Operator_Process(operator2, lfo, channel->state->ams, channel->state->fms, 0);
+			operator_1_sample = FM_Operator_Process(operator1, lfo, channel->state->amplitude_modulation_shift, channel->state->phase_modulation_sensitivity, feedback_modulation);
+			operator_2_sample = FM_Operator_Process(operator2, lfo, channel->state->amplitude_modulation_shift, channel->state->phase_modulation_sensitivity, 0);
 
-			operator_3_sample = FM_Operator_Process(operator3, lfo, channel->state->ams, channel->state->fms, operator_1_sample + operator_2_sample);
-			operator_4_sample = FM_Operator_Process(operator4, lfo, channel->state->ams, channel->state->fms, operator_3_sample);
+			operator_3_sample = FM_Operator_Process(operator3, lfo, channel->state->amplitude_modulation_shift, channel->state->phase_modulation_sensitivity, operator_1_sample + operator_2_sample);
+			operator_4_sample = FM_Operator_Process(operator4, lfo, channel->state->amplitude_modulation_shift, channel->state->phase_modulation_sensitivity, operator_3_sample);
 
 			sample = FM_Channel_14BitTo9Bit(operator_4_sample);
 
@@ -191,12 +191,12 @@ cc_s16f FM_Channel_GetSample(const FM_Channel* const channel, const FM_LFO* cons
 
 		case 2:
 			/* "Double modulation mode (1)". */
-			operator_1_sample = FM_Operator_Process(operator1, lfo, channel->state->ams, channel->state->fms, feedback_modulation);
+			operator_1_sample = FM_Operator_Process(operator1, lfo, channel->state->amplitude_modulation_shift, channel->state->phase_modulation_sensitivity, feedback_modulation);
 
-			operator_2_sample = FM_Operator_Process(operator2, lfo, channel->state->ams, channel->state->fms, 0);
-			operator_3_sample = FM_Operator_Process(operator3, lfo, channel->state->ams, channel->state->fms, operator_2_sample);
+			operator_2_sample = FM_Operator_Process(operator2, lfo, channel->state->amplitude_modulation_shift, channel->state->phase_modulation_sensitivity, 0);
+			operator_3_sample = FM_Operator_Process(operator3, lfo, channel->state->amplitude_modulation_shift, channel->state->phase_modulation_sensitivity, operator_2_sample);
 
-			operator_4_sample = FM_Operator_Process(operator4, lfo, channel->state->ams, channel->state->fms, operator_1_sample + operator_3_sample);
+			operator_4_sample = FM_Operator_Process(operator4, lfo, channel->state->amplitude_modulation_shift, channel->state->phase_modulation_sensitivity, operator_1_sample + operator_3_sample);
 
 			sample = FM_Channel_14BitTo9Bit(operator_4_sample);
 
@@ -204,12 +204,12 @@ cc_s16f FM_Channel_GetSample(const FM_Channel* const channel, const FM_LFO* cons
 
 		case 3:
 			/* "Double modulation mode (2)". */
-			operator_1_sample = FM_Operator_Process(operator1, lfo, channel->state->ams, channel->state->fms, feedback_modulation);
-			operator_2_sample = FM_Operator_Process(operator2, lfo, channel->state->ams, channel->state->fms, operator_1_sample);
+			operator_1_sample = FM_Operator_Process(operator1, lfo, channel->state->amplitude_modulation_shift, channel->state->phase_modulation_sensitivity, feedback_modulation);
+			operator_2_sample = FM_Operator_Process(operator2, lfo, channel->state->amplitude_modulation_shift, channel->state->phase_modulation_sensitivity, operator_1_sample);
 
-			operator_3_sample = FM_Operator_Process(operator3, lfo, channel->state->ams, channel->state->fms, 0);
+			operator_3_sample = FM_Operator_Process(operator3, lfo, channel->state->amplitude_modulation_shift, channel->state->phase_modulation_sensitivity, 0);
 
-			operator_4_sample = FM_Operator_Process(operator4, lfo, channel->state->ams, channel->state->fms, operator_2_sample + operator_3_sample);
+			operator_4_sample = FM_Operator_Process(operator4, lfo, channel->state->amplitude_modulation_shift, channel->state->phase_modulation_sensitivity, operator_2_sample + operator_3_sample);
 
 			sample = FM_Channel_14BitTo9Bit(operator_4_sample);
 
@@ -217,11 +217,11 @@ cc_s16f FM_Channel_GetSample(const FM_Channel* const channel, const FM_LFO* cons
 
 		case 4:
 			/* "Two serial connection and two parallel modes". */
-			operator_1_sample = FM_Operator_Process(operator1, lfo, channel->state->ams, channel->state->fms, feedback_modulation);
-			operator_2_sample = FM_Operator_Process(operator2, lfo, channel->state->ams, channel->state->fms, operator_1_sample);
+			operator_1_sample = FM_Operator_Process(operator1, lfo, channel->state->amplitude_modulation_shift, channel->state->phase_modulation_sensitivity, feedback_modulation);
+			operator_2_sample = FM_Operator_Process(operator2, lfo, channel->state->amplitude_modulation_shift, channel->state->phase_modulation_sensitivity, operator_1_sample);
 
-			operator_3_sample = FM_Operator_Process(operator3, lfo, channel->state->ams, channel->state->fms, 0);
-			operator_4_sample = FM_Operator_Process(operator4, lfo, channel->state->ams, channel->state->fms, operator_3_sample);
+			operator_3_sample = FM_Operator_Process(operator3, lfo, channel->state->amplitude_modulation_shift, channel->state->phase_modulation_sensitivity, 0);
+			operator_4_sample = FM_Operator_Process(operator4, lfo, channel->state->amplitude_modulation_shift, channel->state->phase_modulation_sensitivity, operator_3_sample);
 
 			sample = FM_Channel_14BitTo9Bit(operator_2_sample);
 			sample = FM_Channel_MixSamples(sample, FM_Channel_14BitTo9Bit(operator_4_sample));
@@ -230,11 +230,11 @@ cc_s16f FM_Channel_GetSample(const FM_Channel* const channel, const FM_LFO* cons
 
 		case 5:
 			/* "Common modulation 3 parallel mode". */
-			operator_1_sample = FM_Operator_Process(operator1, lfo, channel->state->ams, channel->state->fms, feedback_modulation);
+			operator_1_sample = FM_Operator_Process(operator1, lfo, channel->state->amplitude_modulation_shift, channel->state->phase_modulation_sensitivity, feedback_modulation);
 
-			operator_2_sample = FM_Operator_Process(operator2, lfo, channel->state->ams, channel->state->fms, operator_1_sample);
-			operator_3_sample = FM_Operator_Process(operator3, lfo, channel->state->ams, channel->state->fms, operator_1_sample);
-			operator_4_sample = FM_Operator_Process(operator4, lfo, channel->state->ams, channel->state->fms, operator_1_sample);
+			operator_2_sample = FM_Operator_Process(operator2, lfo, channel->state->amplitude_modulation_shift, channel->state->phase_modulation_sensitivity, operator_1_sample);
+			operator_3_sample = FM_Operator_Process(operator3, lfo, channel->state->amplitude_modulation_shift, channel->state->phase_modulation_sensitivity, operator_1_sample);
+			operator_4_sample = FM_Operator_Process(operator4, lfo, channel->state->amplitude_modulation_shift, channel->state->phase_modulation_sensitivity, operator_1_sample);
 
 			sample = FM_Channel_14BitTo9Bit(operator_2_sample);
 			sample = FM_Channel_MixSamples(sample, FM_Channel_14BitTo9Bit(operator_3_sample));
@@ -244,12 +244,12 @@ cc_s16f FM_Channel_GetSample(const FM_Channel* const channel, const FM_LFO* cons
 
 		case 6:
 			/* "Two serial connection + two sine mode". */
-			operator_1_sample = FM_Operator_Process(operator1, lfo, channel->state->ams, channel->state->fms, feedback_modulation);
-			operator_2_sample = FM_Operator_Process(operator2, lfo, channel->state->ams, channel->state->fms, operator_1_sample);
+			operator_1_sample = FM_Operator_Process(operator1, lfo, channel->state->amplitude_modulation_shift, channel->state->phase_modulation_sensitivity, feedback_modulation);
+			operator_2_sample = FM_Operator_Process(operator2, lfo, channel->state->amplitude_modulation_shift, channel->state->phase_modulation_sensitivity, operator_1_sample);
 
-			operator_3_sample = FM_Operator_Process(operator3, lfo, channel->state->ams, channel->state->fms, 0);
+			operator_3_sample = FM_Operator_Process(operator3, lfo, channel->state->amplitude_modulation_shift, channel->state->phase_modulation_sensitivity, 0);
 
-			operator_4_sample = FM_Operator_Process(operator4, lfo, channel->state->ams, channel->state->fms, 0);
+			operator_4_sample = FM_Operator_Process(operator4, lfo, channel->state->amplitude_modulation_shift, channel->state->phase_modulation_sensitivity, 0);
 
 			sample = FM_Channel_14BitTo9Bit(operator_2_sample);
 			sample = FM_Channel_MixSamples(sample, FM_Channel_14BitTo9Bit(operator_3_sample));
@@ -259,13 +259,13 @@ cc_s16f FM_Channel_GetSample(const FM_Channel* const channel, const FM_LFO* cons
 
 		case 7:
 			/* "Four parallel sine synthesis mode". */
-			operator_1_sample = FM_Operator_Process(operator1, lfo, channel->state->ams, channel->state->fms, feedback_modulation);
+			operator_1_sample = FM_Operator_Process(operator1, lfo, channel->state->amplitude_modulation_shift, channel->state->phase_modulation_sensitivity, feedback_modulation);
 
-			operator_2_sample = FM_Operator_Process(operator2, lfo, channel->state->ams, channel->state->fms, 0);
+			operator_2_sample = FM_Operator_Process(operator2, lfo, channel->state->amplitude_modulation_shift, channel->state->phase_modulation_sensitivity, 0);
 
-			operator_3_sample = FM_Operator_Process(operator3, lfo, channel->state->ams, channel->state->fms, 0);
+			operator_3_sample = FM_Operator_Process(operator3, lfo, channel->state->amplitude_modulation_shift, channel->state->phase_modulation_sensitivity, 0);
 
-			operator_4_sample = FM_Operator_Process(operator4, lfo, channel->state->ams, channel->state->fms, 0);
+			operator_4_sample = FM_Operator_Process(operator4, lfo, channel->state->amplitude_modulation_shift, channel->state->phase_modulation_sensitivity, 0);
 
 			sample = FM_Channel_14BitTo9Bit(operator_1_sample);
 			sample = FM_Channel_MixSamples(sample, FM_Channel_14BitTo9Bit(operator_2_sample));
