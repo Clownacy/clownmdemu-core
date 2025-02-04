@@ -69,11 +69,11 @@ void FM_Channel_SetSSGEG(const FM_Channel* const channel, const cc_u8f ssgeg)
 		FM_Operator_SetSSGEG(channel->operators[i].state, ssgeg);
 }
 
-void FM_Channel_SetAMSAndFMS(const FM_Channel* const channel, const cc_u8f ams, const cc_u8f fms)
+void FM_Channel_SetModulationSensitivity(const FM_Channel* const channel, const cc_u8f amplitude, const cc_u8f frequency)
 {
 	static const cc_u8l amplitude_modulation_shifts[4] = {7, 3, 1, 0};
-	channel->state->ams = amplitude_modulation_shifts[ams];
-	channel->state->fms = fms;
+	channel->state->ams = amplitude_modulation_shifts[amplitude];
+	channel->state->fms = frequency;
 }
 
 void FM_Channel_SetKeyOn(const FM_Channel* const channel, const cc_u16f operator_index, const cc_bool key_on)
@@ -111,9 +111,9 @@ void FM_Channel_SetSustainLevelAndReleaseRate(const FM_Channel* const channel, c
 	FM_Operator_SetSustainLevelAndReleaseRate(channel->operators[operator_index].state, sustain_level, release_rate);
 }
 
-void FM_Channel_SetAMON(const FM_Channel* const channel, const cc_u16f operator_index, const cc_bool amon)
+void FM_Channel_SetAmplitudeModulationOn(const FM_Channel* const channel, const cc_u16f operator_index, const cc_bool amplitude_modulation_on)
 {
-	FM_Operator_SetAMON(channel->operators[operator_index].state, amon);
+	FM_Operator_SetAmplitudeModulationOn(channel->operators[operator_index].state, amplitude_modulation_on);
 }
 
 /* Portable equivalent to bit-shifting. */

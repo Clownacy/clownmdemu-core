@@ -343,7 +343,7 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 					case 0x60 / 0x10:
 						/* Amplitude modulation on and decay rate. */
 						FM_Channel_SetDecayRate(channel, operator_index, data & 0x1F);
-						FM_Channel_SetAMON(channel, operator_index, (data & 0x80) != 0);
+						FM_Channel_SetAmplitudeModulationOn(channel, operator_index, (data & 0x80) != 0);
 						break;
 
 					case 0x70 / 0x10:
@@ -419,7 +419,7 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 						channel_metadata->pan_left = (data & 0x80) != 0;
 						channel_metadata->pan_right = (data & 0x40) != 0;
 
-						FM_Channel_SetAMSAndFMS(channel, (data >> 4) & 3, data & 7);
+						FM_Channel_SetModulationSensitivity(channel, (data >> 4) & 3, data & 7);
 						break;
 				}
 			}

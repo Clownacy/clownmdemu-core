@@ -137,7 +137,7 @@ void FM_Operator_State_Initialise(FM_Operator_State* const state)
 	FM_Operator_SetDecayRate(state, 0);
 	FM_Operator_SetSustainRate(state, 0);
 	FM_Operator_SetSustainLevelAndReleaseRate(state, 0, 0);
-	FM_Operator_SetAMON(state, cc_false);
+	FM_Operator_SetAmplitudeModulationOn(state, cc_false);
 
 	state->envelope_mode = FM_OPERATOR_ENVELOPE_MODE_RELEASE;
 
@@ -220,9 +220,9 @@ void FM_Operator_SetSustainLevelAndReleaseRate(FM_Operator_State* const state, c
 	state->rates[FM_OPERATOR_ENVELOPE_MODE_RELEASE] = (release_rate << 1) | 1;
 }
 
-void FM_Operator_SetAMON(FM_Operator_State* const state, const cc_bool amon)
+void FM_Operator_SetAmplitudeModulationOn(FM_Operator_State* const state, const cc_bool amplitude_modulation_on)
 {
-	state->amon = amon;
+	state->amplitude_modulation_on = amplitude_modulation_on;
 }
 
 static cc_u16f GetEnvelopeDelta(FM_Operator_State* const state)
