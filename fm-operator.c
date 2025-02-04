@@ -393,7 +393,7 @@ static void UpdateEnvelopeADSR(FM_Operator_State* const state)
 
 static cc_u16f UpdateEnvelope(FM_Operator_State* const state, const FM_LFO* const lfo, const cc_u8f amplitude_modulation_shift)
 {
-	const cc_u16f amplitude_modulation = lfo->amplitude_modulation >> amplitude_modulation_shift;
+	const cc_u8f amplitude_modulation = state->amplitude_modulation_on ? lfo->amplitude_modulation >> amplitude_modulation_shift : 0;
 
 	UpdateEnvelopeSSGEG(state);
 	UpdateEnvelopeADSR(state);
