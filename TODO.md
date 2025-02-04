@@ -34,6 +34,7 @@
       - Algorithms
     - Per-operator frequencies
       - CSM mode
+    - Low-Frequency Oscillator
   - DAC channel
   - Timer A and Timer B
   - Busy flag
@@ -50,8 +51,21 @@
   - Two joypads
 - Mega CD
   - Sub-68000
+  - Graphical operations
+    - Coordinate conversion
   - RF5C164 PCM chip
+  - CDC
+    - BIOS (CDCTRN)
+    - Register
+      - Main-68000
+      - Sub-68000
+    - DMA
+      - WORD-RAM
+      - PRG-RAM
+      - WAVE-RAM
   - CD-DA
+    - Fader
+  - BuRAM
 
 # Unimplemented
 - 68k
@@ -71,7 +85,6 @@
   - Proper interrupt timings
   - R register
 - FM
-  - Low-Frequency Oscillator
   - Debug registers
 - Save data
   - EEPROM
@@ -84,9 +97,10 @@
 - Game Gear support
 - Mega CD
   - Graphical operations
-  - CDC destination register stuff (CDC to WAVE-RAM, main-68000, etc.)
-  - BRAM
-  - CD-DA
-    - Fader
+    - Pixel-packing/unpacking
+  - CDC
+    - Timing of sector reading
+  - BuRAM
+    - Assorted BIOS calls
 - 32X support
 - Remaining quirks and undefined behaviour of the original Mega Drive hardware
