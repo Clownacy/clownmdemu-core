@@ -4,7 +4,7 @@
 
 #include "clowncommon/clowncommon.h"
 
-static void RecalculatePhaseStep(FM_Phase_State* const phase)
+static void RecalculatePhaseStep(FM_Phase_State* const phase, const FM_LFO* const lfo, const cc_u8f phase_modulation_sensitivity)
 {
 	/* First, obtain some values. */
 
@@ -62,6 +62,28 @@ static void RecalculatePhaseStep(FM_Phase_State* const phase)
 		}
 	};
 
+	static const cc_u8l lfo_shift_lookup1[8][8] = {
+		{7, 7, 7, 7, 7, 7, 7, 7},
+		{7, 7, 7, 7, 7, 7, 7, 7},
+		{7, 7, 7, 7, 7, 7, 1, 1},
+		{7, 7, 7, 7, 1, 1, 1, 1},
+		{7, 7, 7, 1, 1, 1, 1, 0},
+		{7, 7, 1, 1, 0, 0, 0, 0},
+		{7, 7, 1, 1, 0, 0, 0, 0},
+		{7, 7, 1, 1, 0, 0, 0, 0}
+	};
+
+	static const cc_u8l lfo_shift_lookup2[8][8] = {
+		{7, 7, 7, 7, 7, 7, 7, 7},
+		{7, 7, 7, 7, 2, 2, 2, 2},
+		{7, 7, 7, 2, 2, 2, 7, 7},
+		{7, 7, 2, 2, 7, 7, 2, 2},
+		{7, 7, 2, 7, 7, 7, 2, 7},
+		{7, 7, 7, 2, 7, 7, 2, 1},
+		{7, 7, 7, 2, 7, 7, 2, 1},
+		{7, 7, 7, 2, 7, 7, 2, 1}
+	};
+
 	/* The octave. */
 	const cc_u16f block = (phase->f_number_and_block >> 11) & 7;
 
@@ -71,17 +93,36 @@ static void RecalculatePhaseStep(FM_Phase_State* const phase)
 	/* Frequency offset. */
 	const cc_u16f detune = detune_lookup[block][key_codes[f_number >> 7]][phase->detune % CC_COUNT_OF(detune_lookup[0][0])];
 
+	/* The phase modulation is a wave, which is made of the same quadrant mirrored repeatedly. */
+	const cc_bool phase_modulation_is_negative_lobe = (lfo->phase_modulation & 0x10) != 0;
+	const cc_bool phase_modulation_is_mirrored_size_of_lobe = (lfo->phase_modulation & 8) != 0;
+	const cc_u8f phase_modulation_absolute_quadrant = (phase_modulation_is_mirrored_size_of_lobe ? -lfo->phase_modulation : lfo->phase_modulation) & 7;
+
 	/* Finally, calculate the phase step. */
 
-	/* Start by basing the step on the F-number. */
-	phase->step = f_number;
+	/* Start by basing the step on the F-number, mutated by the phase modulation. */
+	/* TODO: Turn this into a multiplication. */
+	const cc_u16f f_number_upper_nybbles = f_number >> 4;
+	phase->step = (f_number_upper_nybbles >> lfo_shift_lookup1[phase_modulation_sensitivity][phase_modulation_absolute_quadrant]) + (f_number_upper_nybbles >> lfo_shift_lookup2[phase_modulation_sensitivity][phase_modulation_absolute_quadrant]);
 
-	/* TODO: According to Nemesis (http://gendev.spritesmind.net/forum/viewtopic.php?p=8908#p8908),
-	   the LFO frequency modulation should be applied here. Just add it and then apply an 11-bit mask. */
+	if (phase_modulation_sensitivity > 5)
+		phase->step <<= phase_modulation_sensitivity - 5;
+
+	phase->step >>= 2;
+
+	if (phase_modulation_is_negative_lobe)
+		phase->step = -phase->step;
+
+	/* Mix-in the unmodified F-number. */
+	phase->step += f_number << 1; /* Note that the F-number is converted to 16-bit here. */
+	phase->step &= 0xFFF;
 
 	/* Then apply the octave to the step. */
 	/* Octave 0 is 0.5x the frequency, 1 is 1x, 2 is 2x, 3 is 4x, etc. */
 	phase->step <<= block;
+	phase->step >>= 1;
+
+	/* Convert from 16-bit to 15-bit. */
 	phase->step >>= 1;
 
 	/* Apply the detune. */
@@ -117,7 +158,7 @@ void FM_Phase_SetFrequency(FM_Phase_State* const phase, const cc_u16f f_number_a
 	phase->f_number_and_block = f_number_and_block;
 	phase->key_code = f_number_and_block >> 9;
 
-	RecalculatePhaseStep(phase);
+	/*RecalculatePhaseStep(phase);*/
 }
 
 void FM_Phase_SetDetuneAndMultiplier(FM_Phase_State* const phase, const cc_u16f detune, const cc_u16f multiplier)
@@ -125,7 +166,7 @@ void FM_Phase_SetDetuneAndMultiplier(FM_Phase_State* const phase, const cc_u16f 
 	phase->detune = detune;
 	phase->multiplier = multiplier == 0 ? 1 : multiplier * 2;
 
-	RecalculatePhaseStep(phase);
+	/*RecalculatePhaseStep(phase);*/
 }
 
 void FM_Phase_Reset(FM_Phase_State* const phase)
@@ -133,8 +174,11 @@ void FM_Phase_Reset(FM_Phase_State* const phase)
 	phase->position = 0;
 }
 
-cc_u32f FM_Phase_Increment(FM_Phase_State* const phase)
+cc_u32f FM_Phase_Increment(FM_Phase_State* const phase, const FM_LFO* const lfo, const cc_u8f phase_modulation_sensitivity)
 {
+	/* TODO: Only call this here when LFO is enabled. */
+	RecalculatePhaseStep(phase, lfo, phase_modulation_sensitivity);
+
 	phase->position += phase->step;
 
 	return phase->position;

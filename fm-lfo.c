@@ -10,7 +10,7 @@ void FM_LFO_Initialise(FM_LFO* const state)
 
 void FM_LFO_Advance(FM_LFO* const state)
 {
-	static const cc_u8l thresholds[] = {108, 77, 71, 67, 62, 44, 8, 5};
+	static const cc_u8l thresholds[8] = {108, 77, 71, 67, 62, 44, 8, 5};
 
 	const cc_u8l threshold = thresholds[state->frequency];
 
