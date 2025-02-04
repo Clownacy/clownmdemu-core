@@ -8,7 +8,7 @@
 typedef struct FM_Phase_State
 {
 	cc_u32l position;
-	cc_u32l step;
+	/*cc_u32l step;*/
 
 	cc_u16l f_number_and_block;
 	cc_u16l key_code;
