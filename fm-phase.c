@@ -62,28 +62,6 @@ static void RecalculatePhaseStep(FM_Phase_State* const phase, const FM_LFO* cons
 		}
 	};
 
-	static const cc_u8l lfo_shift_lookup1[8][8] = {
-		{7, 7, 7, 7, 7, 7, 7, 7},
-		{7, 7, 7, 7, 7, 7, 7, 7},
-		{7, 7, 7, 7, 7, 7, 1, 1},
-		{7, 7, 7, 7, 1, 1, 1, 1},
-		{7, 7, 7, 1, 1, 1, 1, 0},
-		{7, 7, 1, 1, 0, 0, 0, 0},
-		{7, 7, 1, 1, 0, 0, 0, 0},
-		{7, 7, 1, 1, 0, 0, 0, 0}
-	};
-
-	static const cc_u8l lfo_shift_lookup2[8][8] = {
-		{7, 7, 7, 7, 7, 7, 7, 7},
-		{7, 7, 7, 7, 2, 2, 2, 2},
-		{7, 7, 7, 2, 2, 2, 7, 7},
-		{7, 7, 2, 2, 7, 7, 2, 2},
-		{7, 7, 2, 7, 7, 7, 2, 7},
-		{7, 7, 7, 2, 7, 7, 2, 1},
-		{7, 7, 7, 2, 7, 7, 2, 1},
-		{7, 7, 7, 2, 7, 7, 2, 1}
-	};
-
 	/* The octave. */
 	const cc_u16f block = (phase->f_number_and_block >> 11) & 7;
 
@@ -101,9 +79,40 @@ static void RecalculatePhaseStep(FM_Phase_State* const phase, const FM_LFO* cons
 	/* Finally, calculate the phase step. */
 
 	/* Start by basing the step on the F-number, mutated by the phase modulation. */
-	/* TODO: Turn this into a multiplication. */
+
+#if 1
+	/* This goofy thing implements a fixed-point multiplication using only shifts and an addition.
+	   Unfortunately, this particular method is required in order to recreate the rounding errors of a real YM2612,
+	   which prevents me from replacing it with a real multiplication without sacrificing accuracy. */
+	static const cc_u8l lfo_shift_lookup[8][8][2] = {
+		{{7, 7}, {7, 7}, {7, 7}, {7, 7}, {7, 7}, {7, 7}, {7, 7}, {7, 7}},
+		{{7, 7}, {7, 7}, {7, 7}, {7, 7}, {7, 2}, {7, 2}, {7, 2}, {7, 2}},
+		{{7, 7}, {7, 7}, {7, 7}, {7, 2}, {7, 2}, {7, 2}, {1, 7}, {1, 7}},
+		{{7, 7}, {7, 7}, {7, 2}, {7, 2}, {1, 7}, {1, 7}, {1, 2}, {1, 2}},
+		{{7, 7}, {7, 7}, {7, 2}, {1, 7}, {1, 7}, {1, 7}, {1, 2}, {0, 7}},
+		{{7, 7}, {7, 7}, {1, 7}, {1, 2}, {0, 7}, {0, 7}, {0, 2}, {0, 1}},
+		{{7, 7}, {7, 7}, {1, 7}, {1, 2}, {0, 7}, {0, 7}, {0, 2}, {0, 1}},
+		{{7, 7}, {7, 7}, {1, 7}, {1, 2}, {0, 7}, {0, 7}, {0, 2}, {0, 1}},
+	};
+
 	const cc_u16f f_number_upper_nybbles = f_number >> 4;
-	phase->step = (f_number_upper_nybbles >> lfo_shift_lookup1[phase_modulation_sensitivity][phase_modulation_absolute_quadrant]) + (f_number_upper_nybbles >> lfo_shift_lookup2[phase_modulation_sensitivity][phase_modulation_absolute_quadrant]);
+	const cc_u8l* const shifts = lfo_shift_lookup[phase_modulation_sensitivity][phase_modulation_absolute_quadrant];
+	phase->step = (f_number_upper_nybbles >> shifts[0]) + (f_number_upper_nybbles >> shifts[1]);
+#else
+	/* This is what the above code is an approximation of. */
+	static const cc_u8l lfo_lookup[8][8] = {
+		{0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01},
+		{0x01, 0x01, 0x01, 0x01, 0x20, 0x20, 0x20, 0x20},
+		{0x01, 0x01, 0x01, 0x20, 0x20, 0x20, 0x40, 0x40},
+		{0x01, 0x01, 0x20, 0x20, 0x40, 0x40, 0x60, 0x60},
+		{0x01, 0x01, 0x20, 0x40, 0x40, 0x40, 0x60, 0x80},
+		{0x01, 0x01, 0x40, 0x60, 0x80, 0x80, 0xA0, 0xC0},
+		{0x01, 0x01, 0x40, 0x60, 0x80, 0x80, 0xA0, 0xC0},
+		{0x01, 0x01, 0x40, 0x60, 0x80, 0x80, 0xA0, 0xC0}
+	};
+
+	phase->step = f_number * lfo_lookup[phase_modulation_sensitivity][phase_modulation_absolute_quadrant] / 0x800;
+#endif
 
 	if (phase_modulation_sensitivity > 5)
 		phase->step <<= phase_modulation_sensitivity - 5;
