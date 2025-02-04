@@ -98,6 +98,8 @@ typedef struct FM_State
 	cc_u8l leftover_cycles;
 	cc_u8l status;
 	cc_u8l busy_flag_counter;
+	cc_u8l lfo_frequency;
+	cc_bool lfo_enabled;
 } FM_State;
 
 typedef struct FM

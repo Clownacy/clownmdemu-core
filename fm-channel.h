@@ -43,6 +43,7 @@ typedef struct FM_Channel_State
 	cc_s16l feedback_divisor;
 	cc_u16l algorithm;
 	cc_s16l operator_1_previous_samples[2];
+	cc_u8f ams, fms; /* TODO: Rename 'fms' to 'pms'. */
 } FM_Channel_State;
 
 typedef struct FM_Channel
@@ -62,6 +63,7 @@ void FM_Channel_SetFrequency(const FM_Channel *channel, cc_u16f f_number_and_blo
 void FM_Channel_SetFrequencies(const FM_Channel *channel, const cc_u16l *f_number_and_block);
 void FM_Channel_SetFeedbackAndAlgorithm(const FM_Channel *channel, cc_u16f feedback, cc_u16f algorithm);
 void FM_Channel_SetSSGEG(const FM_Channel *channel, cc_u8f ssgeg);
+void FM_Channel_SetAMSAndFMS(const FM_Channel *channel, cc_u8f ams, cc_u8f fms);
 
 /* Per-operator. */
 void FM_Channel_SetKeyOn(const FM_Channel *channel, cc_u16f operator_index, cc_bool key_on);

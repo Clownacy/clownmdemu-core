@@ -161,6 +161,8 @@ void FM_State_Initialise(FM_State* const state)
 	state->leftover_cycles = 0;
 	state->status = 0;
 	state->busy_flag_counter = 0;
+	state->lfo_frequency = 0;
+	state->lfo_enabled = cc_false;
 }
 
 void FM_Parameters_Initialise(FM* const fm, const FM_Configuration* const configuration, const FM_Constant* const constant, FM_State* const state)
@@ -204,10 +206,8 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 					break;
 
 				case 0x22:
-					/* TODO: LFO. */
-					if ((data & 8) != 0)
-						LogMessage("LFO enabled");
-
+					state->lfo_enabled = (data & 8) != 0;
+					state->lfo_frequency = data & 7;
 					break;
 
 				case 0x24:
@@ -346,7 +346,7 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 
 						/* TODO: LFO. */
 						if ((data & 0x80) != 0)
-							LogMessage("LFO AMON used");
+							LogMessage("LFO AMON used (FM%d, operator %d)", channel_index + 1, operator_index + 1);
 
 						break;
 
@@ -423,10 +423,7 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 						channel_metadata->pan_left = (data & 0x80) != 0;
 						channel_metadata->pan_right = (data & 0x40) != 0;
 
-						/* TODO: AMS, FMS. */
-						if ((data & 0x37) != 0)
-							LogMessage("LFO AMS/FMS used");
-
+						FM_Channel_SetAMSAndFMS(channel, (data >> 4) & 3, data & 7);
 						break;
 				}
 			}
@@ -532,6 +529,7 @@ cc_u8f FM_Update(const FM* const fm, const cc_u32f cycles_to_do, void (* const f
 				timer->counter = timer->value;
 
 				/* Perform CSM key-on/key-off logic. */
+				/* TODO: Shouldn't this be done in the actual update logic? */
 				if (state->channel_3_metadata.csm_mode_enabled && timer_index == 0)
 				{
 					cc_u8f operator_index;

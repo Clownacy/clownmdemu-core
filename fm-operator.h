@@ -39,6 +39,7 @@ typedef struct FM_Operator_State
 	FM_Operator_EnvelopeMode envelope_mode;
 
 	cc_bool key_on;
+	cc_bool amon;
 
 	/* TODO: Make this part of FM_Channel instead. */
 	struct
@@ -69,6 +70,7 @@ void FM_Operator_SetKeyScaleAndAttackRate(FM_Operator_State *state, cc_u16f key_
 void FM_Operator_SetDecayRate(FM_Operator_State *state, cc_u16f decay_rate);
 void FM_Operator_SetSustainRate(FM_Operator_State *state, cc_u16f sustain_rate);
 void FM_Operator_SetSustainLevelAndReleaseRate(FM_Operator_State *state, cc_u16f sustain_level, cc_u16f release_rate);
+void FM_Operator_SetAMON(FM_Operator_State *state, cc_bool amon);
 
 cc_s16f FM_Operator_Process(const FM_Operator *fm_operator, cc_s16f phase_modulation);
 

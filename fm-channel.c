@@ -21,6 +21,8 @@ void FM_Channel_State_Initialise(FM_Channel_State* const state)
 
 	for (i = 0; i < CC_COUNT_OF(state->operator_1_previous_samples); ++i)
 		state->operator_1_previous_samples[i] = 0;
+
+	state->ams = state->fms = 0;
 }
 
 void FM_Channel_Parameters_Initialise(FM_Channel* const channel, const FM_Channel_Constant* const constant, FM_Channel_State* const state)
@@ -67,6 +69,12 @@ void FM_Channel_SetSSGEG(const FM_Channel* const channel, const cc_u8f ssgeg)
 		FM_Operator_SetSSGEG(channel->operators[i].state, ssgeg);
 }
 
+void FM_Channel_SetAMSAndFMS(const FM_Channel* const channel, const cc_u8f ams, const cc_u8f fms)
+{
+	channel->state->ams = ams;
+	channel->state->fms = fms;
+}
+
 void FM_Channel_SetKeyOn(const FM_Channel* const channel, const cc_u16f operator_index, const cc_bool key_on)
 {
 	FM_Operator_SetKeyOn(channel->operators[operator_index].state, key_on);
@@ -100,6 +108,11 @@ void FM_Channel_SetSustainRate(const FM_Channel* const channel, const cc_u16f op
 void FM_Channel_SetSustainLevelAndReleaseRate(const FM_Channel* const channel, const cc_u16f operator_index, const cc_u16f sustain_level, const cc_u16f release_rate)
 {
 	FM_Operator_SetSustainLevelAndReleaseRate(channel->operators[operator_index].state, sustain_level, release_rate);
+}
+
+void FM_Channel_SetAMON(const FM_Channel* const channel, const cc_u16f operator_index, const cc_bool amon)
+{
+	FM_Operator_SetAMON(channel->operators[operator_index].state, amon);
 }
 
 /* Portable equivalent to bit-shifting. */
