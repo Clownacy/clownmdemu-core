@@ -343,11 +343,7 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 					case 0x60 / 0x10:
 						/* Amplitude modulation on and decay rate. */
 						FM_Channel_SetDecayRate(channel, operator_index, data & 0x1F);
-
-						/* TODO: LFO. */
-						if ((data & 0x80) != 0)
-							LogMessage("LFO AMON used (FM%d, operator %d)", channel_index + 1, operator_index + 1);
-
+						FM_Channel_SetAMON(channel, operator_index, (data & 0x80) != 0);
 						break;
 
 					case 0x70 / 0x10:
