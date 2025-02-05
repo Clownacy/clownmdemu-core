@@ -74,7 +74,7 @@ static cc_u32f RecalculatePhaseStep(const FM_Phase_State* const phase, const FM_
 	/* The phase modulation is a wave, which is made of the same quadrant mirrored repeatedly. */
 	const cc_bool phase_modulation_is_negative_lobe = (lfo->phase_modulation & 0x10) != 0;
 	const cc_bool phase_modulation_is_mirrored_size_of_lobe = (lfo->phase_modulation & 8) != 0;
-	const cc_u8f phase_modulation_absolute_quadrant = (phase_modulation_is_mirrored_size_of_lobe ? -lfo->phase_modulation : lfo->phase_modulation) & 7;
+	const cc_u8f phase_modulation_absolute_quadrant = (lfo->phase_modulation & 7) ^ (phase_modulation_is_mirrored_size_of_lobe ? 7 : 0);
 
 	/* Finally, calculate the phase step. */
 	cc_u32f step;
