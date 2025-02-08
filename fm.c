@@ -390,6 +390,7 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 					}
 
 					/* TODO: Do these actually share a latch? */
+					/* TODO: According to Nuked OPN2, no they do not! */
 					case 0xA4 / 4:
 					case 0xAC / 4:
 						/* Frequency high bits. */
@@ -398,17 +399,19 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 						break;
 
 					case 0xA8 / 4:
-					{
 						/* Frequency low bits (multi-frequency). */
-						const cc_u16f frequency = data | (channel_metadata->cached_upper_frequency_bits << 8);
+						if (state->port == 0)
+						{
+							static const cc_u8l operator_mappings[3] = {1, 0, 2}; /* Oddly, the operators are switched-around here, just like the accumulation logic. */ /* TODO: Look into this some more. */
+							const cc_u16f frequency = data | (channel_metadata->cached_upper_frequency_bits << 8);
 
-						state->channel_3_metadata.frequencies[channel_index] = frequency;
+							state->channel_3_metadata.frequencies[operator_mappings[channel_index]] = frequency;
 
-						if (state->channel_3_metadata.per_operator_frequencies_enabled)
-							FM_Channel_SetFrequencies(&fm->channels[2], state->channel_3_metadata.frequencies);
+							if (state->channel_3_metadata.per_operator_frequencies_enabled)
+								FM_Channel_SetFrequencies(&fm->channels[2], state->channel_3_metadata.frequencies);
+						}
 
 						break;
-					}
 
 					case 0xB0 / 4:
 						FM_Channel_SetFeedbackAndAlgorithm(channel, (data >> 3) & 7, data & 7);
