@@ -380,11 +380,13 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 							state->channel_3_metadata.frequencies[3] = frequency;
 
 							if (state->channel_3_metadata.per_operator_frequencies_enabled)
+							{
+								FM_Channel_SetFrequencies(&fm->channels[2], state->channel_3_metadata.frequencies);
 								break;
+							}
 						}
 
 						FM_Channel_SetFrequency(channel, frequency);
-
 						break;
 					}
 
