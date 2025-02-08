@@ -252,12 +252,12 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 
 					if (state->channel_3_metadata.per_operator_frequencies_enabled != fm3_per_operator_frequencies_enabled)
 					{
+						cc_u8f i;
+
 						state->channel_3_metadata.per_operator_frequencies_enabled = fm3_per_operator_frequencies_enabled;
 
-						if (fm3_per_operator_frequencies_enabled)
-							FM_Channel_SetFrequencies(&fm->channels[2], state->channel_3_metadata.frequencies);
-						else
-							FM_Channel_SetFrequency(&fm->channels[2], state->channel_3_metadata.frequencies[3]);
+						for (i = 0; i < CC_COUNT_OF(fm->channels[2].operators); ++i)
+							FM_Channel_SetFrequency(&fm->channels[2], i, state->channel_3_metadata.frequencies[fm3_per_operator_frequencies_enabled ? i : 3]);
 					}
 
 					state->channel_3_metadata.csm_mode_enabled = (data & 0xC0) == 0x80;
@@ -381,12 +381,12 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 
 							if (state->channel_3_metadata.per_operator_frequencies_enabled)
 							{
-								FM_Channel_SetFrequencies(&fm->channels[2], state->channel_3_metadata.frequencies);
+								FM_Channel_SetFrequency(&fm->channels[2], 3, frequency);
 								break;
 							}
 						}
 
-						FM_Channel_SetFrequency(channel, frequency);
+						FM_Channel_SetFrequencies(channel, frequency);
 						break;
 					}
 
@@ -401,12 +401,13 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 						if (state->port == 0)
 						{
 							static const cc_u8l operator_mappings[3] = {1, 0, 2}; /* Oddly, the operators are switched-around here, just like the accumulation logic. */ /* TODO: Look into this some more. */
+							const cc_u8f operator_index = operator_mappings[channel_index];
 							const cc_u16f frequency = data | (state->cached_upper_frequency_bits_fm3_multi_frequency << 8);
 
-							state->channel_3_metadata.frequencies[operator_mappings[channel_index]] = frequency;
+							state->channel_3_metadata.frequencies[operator_index] = frequency;
 
 							if (state->channel_3_metadata.per_operator_frequencies_enabled)
-								FM_Channel_SetFrequencies(&fm->channels[2], state->channel_3_metadata.frequencies);
+								FM_Channel_SetFrequency(&fm->channels[2], operator_index, frequency);
 						}
 
 						break;

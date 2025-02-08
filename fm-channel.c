@@ -39,20 +39,17 @@ void FM_Channel_Parameters_Initialise(FM_Channel* const channel, const FM_Channe
 	}
 }
 
-void FM_Channel_SetFrequency(const FM_Channel* const channel, const cc_u16f f_number_and_block)
+void FM_Channel_SetFrequency(const FM_Channel* const channel, const cc_u8f operator_index, const cc_u16f f_number_and_block)
+{
+	FM_Operator_SetFrequency(channel->operators[operator_index].state, f_number_and_block);
+}
+
+void FM_Channel_SetFrequencies(const FM_Channel* const channel, const cc_u16f f_number_and_block)
 {
 	cc_u16f i;
 
 	for (i = 0; i < CC_COUNT_OF(channel->state->operators); ++i)
 		FM_Operator_SetFrequency(channel->operators[i].state, f_number_and_block);
-}
-
-void FM_Channel_SetFrequencies(const FM_Channel* const channel, const cc_u16l* const f_number_and_block)
-{
-	cc_u16f i;
-
-	for (i = 0; i < CC_COUNT_OF(channel->state->operators); ++i)
-		FM_Operator_SetFrequency(channel->operators[i].state, f_number_and_block[i]);
 }
 
 void FM_Channel_SetFeedbackAndAlgorithm(const FM_Channel* const channel, const cc_u16f feedback, const cc_u16f algorithm)
