@@ -129,8 +129,6 @@ void FM_State_Initialise(FM_State* const state)
 	{
 		FM_Channel_State_Initialise(&channel->state);
 
-		channel->cached_upper_frequency_bits = 0;
-
 		/* Panning must be enabled by default. Without this, Sonic 1's 'Sega' chant doesn't play. */
 		channel->pan_left = cc_true;
 		channel->pan_right = cc_true;
@@ -158,6 +156,7 @@ void FM_State_Initialise(FM_State* const state)
 	}
 
 	state->cached_address_27 = 0;
+	state->cached_upper_frequency_bits = state->cached_upper_frequency_bits_fm3_multi_frequency = 0;
 	state->leftover_cycles = 0;
 	state->status = 0;
 	state->busy_flag_counter = 0;
@@ -374,7 +373,7 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 					case 0xA0 / 4:
 					{
 						/* Frequency low bits. */
-						const cc_u16f frequency = data | (channel_metadata->cached_upper_frequency_bits << 8);
+						const cc_u16f frequency = data | (state->cached_upper_frequency_bits << 8);
 
 						if (channel_index == 2) /* FM3 */
 						{
@@ -389,13 +388,10 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 						break;
 					}
 
-					/* TODO: Do these actually share a latch? */
-					/* TODO: According to Nuked OPN2, no they do not! */
 					case 0xA4 / 4:
-					case 0xAC / 4:
 						/* Frequency high bits. */
 						/* http://gendev.spritesmind.net/forum/viewtopic.php?p=5621#p5621 */
-						channel_metadata->cached_upper_frequency_bits = data & 0x3F;
+						state->cached_upper_frequency_bits = data & 0x3F;
 						break;
 
 					case 0xA8 / 4:
@@ -403,7 +399,7 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 						if (state->port == 0)
 						{
 							static const cc_u8l operator_mappings[3] = {1, 0, 2}; /* Oddly, the operators are switched-around here, just like the accumulation logic. */ /* TODO: Look into this some more. */
-							const cc_u16f frequency = data | (channel_metadata->cached_upper_frequency_bits << 8);
+							const cc_u16f frequency = data | (state->cached_upper_frequency_bits_fm3_multi_frequency << 8);
 
 							state->channel_3_metadata.frequencies[operator_mappings[channel_index]] = frequency;
 
@@ -411,6 +407,12 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 								FM_Channel_SetFrequencies(&fm->channels[2], state->channel_3_metadata.frequencies);
 						}
 
+						break;
+
+					case 0xAC / 4:
+						/* Frequency high bits. */
+						/* http://gendev.spritesmind.net/forum/viewtopic.php?p=5621#p5621 */
+						state->cached_upper_frequency_bits_fm3_multi_frequency = data & 0x3F;
 						break;
 
 					case 0xB0 / 4:

@@ -56,7 +56,6 @@
 typedef struct FM_ChannelMetadata
 {
 	FM_Channel_State state;
-	cc_u8l cached_upper_frequency_bits;
 	cc_bool pan_left;
 	cc_bool pan_right;
 } FM_ChannelMetadata;
@@ -96,6 +95,7 @@ typedef struct FM_State
 	cc_u16l raw_timer_a_value;
 	FM_Timer timers[2];
 	cc_u8l cached_address_27;
+	cc_u8l cached_upper_frequency_bits, cached_upper_frequency_bits_fm3_multi_frequency;
 	cc_u8l leftover_cycles;
 	cc_u8l status;
 	cc_u8l busy_flag_counter;
