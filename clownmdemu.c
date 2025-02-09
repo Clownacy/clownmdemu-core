@@ -401,7 +401,7 @@ static void SetUpExternalRAM(const ClownMDEmu* const clownmdemu)
 	if (ReadCartridgeWord(clownmdemu, 0x1B0) != ((cc_u16f)'R' << 8 | (cc_u16f)'A' << 0))
 		cartridge_base = ReadCartridgeLongWord(clownmdemu, 0x1D4) + 1;
 
-	if (ReadCartridgeWord(clownmdemu, cartridge_base + 0x1B0) == ((cc_u16f)'R' << 8 | (cc_u16f)'A' << 0))
+	if ((cartridge_base & 1) == 0 && ReadCartridgeWord(clownmdemu, cartridge_base + 0x1B0) == ((cc_u16f)'R' << 8 | (cc_u16f)'A' << 0))
 	{
 		const cc_u16f metadata = ReadCartridgeWord(clownmdemu, cartridge_base + 0x1B2);
 		const cc_u16f metadata_junk_bits = metadata & 0xA71F;
