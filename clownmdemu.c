@@ -392,18 +392,21 @@ static cc_u32f NextPowerOfTwo(cc_u32f v)
 	return v;
 }
 
-void ClownMDEmu_Reset(const ClownMDEmu* const clownmdemu, const cc_bool cd_boot)
+static void SetUpExternalRAM(const ClownMDEmu* const clownmdemu)
 {
-	Clown68000_ReadWriteCallbacks m68k_read_write_callbacks;
-	CPUCallbackUserData callback_user_data;
+	cc_u32f cartridge_base = 0;
 
-	/* Handle external RAM. */
-	if (ReadCartridgeWord(clownmdemu, 0x1B0) == ((cc_u16f)'R' << 8 | (cc_u16f)'A' << 0))
+	/* If external RAM metadata cannot be found in the ROM header, search for it in the locked-on cartridge instead. */
+	/* This is needed for Sonic 3 & Knuckles to save data. */
+	if (ReadCartridgeWord(clownmdemu, 0x1B0) != ((cc_u16f)'R' << 8 | (cc_u16f)'A' << 0))
+		cartridge_base = ReadCartridgeLongWord(clownmdemu, 0x1A4) + 1;
+
+	if (ReadCartridgeWord(clownmdemu, cartridge_base + 0x1B0) == ((cc_u16f)'R' << 8 | (cc_u16f)'A' << 0))
 	{
-		const cc_u16f metadata = ReadCartridgeWord(clownmdemu, 0x1B2);
+		const cc_u16f metadata = ReadCartridgeWord(clownmdemu, cartridge_base + 0x1B2);
 		const cc_u16f metadata_junk_bits = metadata & 0xA71F;
-		const cc_u32f start = ReadCartridgeLongWord(clownmdemu, 0x1B4);
-		const cc_u32f end = ReadCartridgeLongWord(clownmdemu, 0x1B8) + 1;
+		const cc_u32f start = ReadCartridgeLongWord(clownmdemu, cartridge_base + 0x1B4);
+		const cc_u32f end = ReadCartridgeLongWord(clownmdemu, cartridge_base + 0x1B8) + 1;
 		const cc_u32f size = NextPowerOfTwo(end - 0x200000);
 
 		clownmdemu->state->external_ram.size = CC_COUNT_OF(clownmdemu->state->external_ram.buffer);
@@ -444,6 +447,14 @@ void ClownMDEmu_Reset(const ClownMDEmu* const clownmdemu, const cc_bool cd_boot)
 			clownmdemu->state->external_ram.size = size;
 		}
 	}
+}
+
+void ClownMDEmu_Reset(const ClownMDEmu* const clownmdemu, const cc_bool cd_boot)
+{
+	Clown68000_ReadWriteCallbacks m68k_read_write_callbacks;
+	CPUCallbackUserData callback_user_data;
+
+	SetUpExternalRAM(clownmdemu);
 
 	clownmdemu->state->mega_cd.boot_from_cd = cd_boot;
 
