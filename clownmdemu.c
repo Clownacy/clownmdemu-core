@@ -399,7 +399,7 @@ static void SetUpExternalRAM(const ClownMDEmu* const clownmdemu)
 	/* If external RAM metadata cannot be found in the ROM header, search for it in the locked-on cartridge instead. */
 	/* This is needed for Sonic 3 & Knuckles to save data. */
 	if (ReadCartridgeWord(clownmdemu, 0x1B0) != ((cc_u16f)'R' << 8 | (cc_u16f)'A' << 0))
-		cartridge_base = ReadCartridgeLongWord(clownmdemu, 0x1A4) + 1;
+		cartridge_base = ReadCartridgeLongWord(clownmdemu, 0x1D4) + 1;
 
 	if (ReadCartridgeWord(clownmdemu, cartridge_base + 0x1B0) == ((cc_u16f)'R' << 8 | (cc_u16f)'A' << 0))
 	{
