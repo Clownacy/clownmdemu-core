@@ -1042,6 +1042,15 @@ static void DecodeInstruction(const Z80* const z80, const Z80_ReadAndWriteCallba
 	}
 }
 
+static cc_bool ComputeParity(cc_u8f value)
+{
+	value |= value >> 4;
+	value |= value >> 2;
+	value |= value >> 1;
+
+	return (value & 1) == 0;
+}
+
 #define SWAP(a, b) \
 	swap_holder = a; \
 	a = b; \
@@ -1061,7 +1070,7 @@ static void DecodeInstruction(const Z80* const z80, const Z80_ReadAndWriteCallba
 #define CONDITION_ZERO z80->state->f |= result_value == 0 ? FLAG_MASK_ZERO : 0
 #define CONDITION_HALF_CARRY CONDITION_HALF_CARRY_BASE(4)
 #define CONDITION_OVERFLOW CONDITION_OVERFLOW_BASE(7)
-#define CONDITION_PARITY z80->state->f |= z80->constant->parity_lookup[result_value]
+#define CONDITION_PARITY z80->state->f |= ComputeParity(result_value) ? FLAG_MASK_PARITY_OVERFLOW : 0
 #define CONDITION_CARRY CONDITION_CARRY_BASE(result_value_with_carry, 8)
 
 #define READ_SOURCE source_value = ReadOperand(z80, callbacks, instruction, (Z80_Operand)instruction->metadata->operands[0])
@@ -1291,7 +1300,7 @@ static void ExecuteInstruction(const Z80* const z80, const Z80_ReadAndWriteCallb
 			z80->state->f |= (z80->state->a >> (7 - FLAG_BIT_SIGN)) & FLAG_MASK_SIGN;
 			z80->state->f |= (z80->state->a == 0) << FLAG_BIT_ZERO;
 			z80->state->f |= ((original_a ^ z80->state->a) >> (4 - FLAG_BIT_HALF_CARRY)) & FLAG_MASK_HALF_CARRY; /* Binary carry. */
-			z80->state->f |= z80->constant->parity_lookup[z80->state->a];
+			z80->state->f |= ComputeParity(z80->state->a) ? FLAG_MASK_PARITY_OVERFLOW : 0;
 			z80->state->f |= (correction_factor >> (6 - FLAG_BIT_CARRY)) & FLAG_MASK_CARRY; /* Decimal carry. */
 
 			break;
@@ -2452,9 +2461,9 @@ static void ExecuteInstruction(const Z80* const z80, const Z80_ReadAndWriteCallb
 
 void Z80_Constant_Initialise(Z80_Constant* const constant)
 {
+#ifdef Z80_PRECOMPUTE_INSTRUCTION_METADATA
 	cc_u16f i;
 
-#ifdef Z80_PRECOMPUTE_INSTRUCTION_METADATA
 	/* Pre-compute instruction metadata, to speed up opcode decoding. */
 	for (i = 0; i < 0x100; ++i)
 	{
@@ -2469,18 +2478,6 @@ void Z80_Constant_Initialise(Z80_Constant* const constant)
 		DecodeInstructionMetadata(&constant->instruction_metadata_lookup_misc[i], INSTRUCTION_MODE_MISC, Z80_REGISTER_MODE_HL, i);
 	}
 #endif
-
-	/* Compute parity lookup table. */
-	for (i = 0; i < CC_COUNT_OF(constant->parity_lookup); ++i)
-	{
-		cc_u16f v = i;
-
-		v ^= v >> 4;
-		v ^= v >> 2;
-		v ^= v >> 1;
-
-		constant->parity_lookup[i] = (v & 1) == 0 ? FLAG_MASK_PARITY_OVERFLOW : 0;
-	}
 }
 
 void Z80_State_Initialise(Z80_State* const state)

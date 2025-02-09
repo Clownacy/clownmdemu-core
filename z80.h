@@ -172,7 +172,6 @@ typedef struct Z80_Constant
 	Z80_InstructionMetadata instruction_metadata_lookup_bits[3][0x100];
 	Z80_InstructionMetadata instruction_metadata_lookup_misc[0x100];
 #endif
-	cc_u8l parity_lookup[0x100];
 } Z80_Constant;
 
 typedef struct Z80_State
