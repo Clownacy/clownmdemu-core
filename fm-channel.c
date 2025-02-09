@@ -4,6 +4,12 @@
 
 #include "clowncommon/clowncommon.h"
 
+static cc_s16f ComputeFeedbackDivisor(const cc_u16f value)
+{
+	assert(value <= 9);
+	return 1 << (9 - value);
+}
+
 void FM_Channel_Constant_Initialise(FM_Channel_Constant* const constant)
 {
 	FM_Operator_Constant_Initialise(&constant->operators);
@@ -16,7 +22,7 @@ void FM_Channel_State_Initialise(FM_Channel_State* const state)
 	for (i = 0; i < CC_COUNT_OF(state->operators); ++i)
 		FM_Operator_State_Initialise(&state->operators[i]);
 
-	state->feedback_divisor = 1 << (9 - 0);
+	state->feedback_divisor = ComputeFeedbackDivisor(0);
 	state->algorithm = 0;
 
 	for (i = 0; i < CC_COUNT_OF(state->operator_1_previous_samples); ++i)
@@ -54,7 +60,7 @@ void FM_Channel_SetFrequencies(const FM_Channel* const channel, const cc_u16f f_
 
 void FM_Channel_SetFeedbackAndAlgorithm(const FM_Channel* const channel, const cc_u16f feedback, const cc_u16f algorithm)
 {
-	channel->state->feedback_divisor = 1 << (9 - feedback);
+	channel->state->feedback_divisor = ComputeFeedbackDivisor(feedback);
 	channel->state->algorithm = algorithm;
 }
 
@@ -152,7 +158,7 @@ cc_s16f FM_Channel_GetSample(const FM_Channel* const channel, const FM_LFO* cons
 	cc_s16f sample;
 
 	/* Compute operator 1's self-feedback modulation. */
-	if (state->feedback_divisor == 1 << (9 - 0))
+	if (state->feedback_divisor == ComputeFeedbackDivisor	(0))
 		feedback_modulation = 0;
 	else
 		feedback_modulation = (state->operator_1_previous_samples[0] + state->operator_1_previous_samples[1]) / state->feedback_divisor;

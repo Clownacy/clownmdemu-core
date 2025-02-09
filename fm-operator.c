@@ -71,7 +71,7 @@ void FM_Operator_Constant_Initialise(FM_Operator_Constant* const constant)
 		    invalid input for a log function, which we need to use below." */
 		const double phase_normalised = (double)((i << 1) + 1) / (double)(sine_table_length << 1);
 
-		/* "Calculate the pure sine value for the input.Note that we only build a sine
+		/* "Calculate the pure sine value for the input. Note that we only build a sine
 		    table for a quarter of the full oscillation (0-PI/2), since the upper two bits
 		    of the full phase are extracted by the external circuit." */
 		const double sin_result_normalized = sin(phase_normalised * (CC_PI / 2.0));
@@ -100,7 +100,7 @@ void FM_Operator_Constant_Initialise(FM_Operator_Constant* const constant)
 	/* Generate power lookup table. */
 	for (i = 0; i < pow_table_length; ++i)
 	{
-		/* "Normalize the current index to the range 0.0 - 1.0.Note that in this case, 0.0
+		/* "Normalize the current index to the range 0.0 - 1.0. Note that in this case, 0.0
 		    is a value which is never actually reached, since we start from i+1. They only
 		    did this to keep the result to an 11-bit output. It probably would have been
 		    better to simply subtract 1 from every final number and have 1.0 as the input
