@@ -773,7 +773,7 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 							const cc_s16f destination_value = frontend_callbacks->save_file_read((void*)frontend_callbacks->user_data);
 
 							/* End of file encountered too early, or mismatch. */
-							if (destination_value == -1 || destination_value != source_value)
+							if (destination_value == -1 || (cc_u16f)destination_value != source_value)
 								break;
 						}
 
