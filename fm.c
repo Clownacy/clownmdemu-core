@@ -213,18 +213,17 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 					/* Oddly, the YM2608 manual describes these timers being twice as fast as they are here. */
 					state->raw_timer_a_value &= 3;
 					state->raw_timer_a_value |= data << 2;
-					/* The '+1' is so that the timer expires when it tries to go BELOW 0. */
-					state->timers[0].value = FM_SAMPLE_RATE_DIVIDER * (1 + (0x400 - state->raw_timer_a_value));
+					state->timers[0].value = FM_SAMPLE_RATE_DIVIDER * (0x400 - state->raw_timer_a_value);
 					break;
 
 				case 0x25:
 					state->raw_timer_a_value &= ~3;
 					state->raw_timer_a_value |= data & 3;
-					state->timers[0].value = FM_SAMPLE_RATE_DIVIDER * (1 + (0x400 - state->raw_timer_a_value));
+					state->timers[0].value = FM_SAMPLE_RATE_DIVIDER * (0x400 - state->raw_timer_a_value);
 					break;
 
 				case 0x26:
-					state->timers[1].value = FM_SAMPLE_RATE_DIVIDER * (1 + (16 * (0x100 - data)));
+					state->timers[1].value = FM_SAMPLE_RATE_DIVIDER * (16 * (0x100 - data));
 					break;
 
 				case 0x27:
@@ -505,50 +504,64 @@ void FM_OutputSamples(const FM* const fm, cc_s16l* const sample_buffer, const cc
 	}
 }
 
-cc_u8f FM_Update(const FM* const fm, const cc_u32f cycles_to_do, void (* const fm_audio_to_be_generated)(const void *user_data, cc_u32f total_frames), const void* const user_data)
+static void UpdateTimers(const FM* const fm, const cc_u32f cycles_to_do)
 {
 	FM_State* const state = fm->state;
-	const cc_u32f total_frames = (state->leftover_cycles + cycles_to_do) / FM_SAMPLE_RATE_DIVIDER;
 
 	cc_u8f timer_index;
 
-	state->leftover_cycles = (state->leftover_cycles + cycles_to_do) % FM_SAMPLE_RATE_DIVIDER;
-
-	if (total_frames != 0)
-		fm_audio_to_be_generated(user_data, total_frames);
-
-	/* Decrement the timers. */
 	for (timer_index = 0; timer_index < CC_COUNT_OF(state->timers); ++timer_index)
 	{
 		FM_Timer* const timer = &state->timers[timer_index];
 
 		if (timer->counter != 0)
 		{
-			timer->counter -= CC_MIN(timer->counter, cycles_to_do);
+			cc_u32f cycles_remaining = cycles_to_do;
 
-			if (timer->counter == 0)
+			while (cycles_remaining != 0)
 			{
-				/* Set the 'timer expired' flag. */
-				state->status |= timer->enabled ? 1 << timer_index : 0;
+				const cc_u32f timer_delta = CC_MIN(timer->counter, cycles_remaining);
 
-				/* Reload the timer's counter. */
-				timer->counter = timer->value;
+				timer->counter -= timer_delta;
+				cycles_remaining -= timer_delta;
 
-				/* Perform CSM key-on/key-off logic. */
-				/* TODO: Shouldn't this be done in the actual update logic? */
-				if (state->channel_3_metadata.csm_mode_enabled && timer_index == 0)
+				if (timer->counter == 0)
 				{
-					cc_u8f operator_index;
+					/* Set the 'timer expired' flag. */
+					state->status |= timer->enabled ? 1 << timer_index : 0;
 
-					for (operator_index = 0; operator_index < CC_COUNT_OF(fm->channels[2].operators); ++operator_index)
+					/* Reload the timer's counter. */
+					timer->counter = timer->value;
+
+					/* Perform CSM key-on/key-off logic. */
+					/* TODO: Shouldn't this be done in the actual update logic? */
+					if (state->channel_3_metadata.csm_mode_enabled && timer_index == 0)
 					{
-						FM_Channel_SetKeyOn(&fm->channels[2], operator_index, cc_true);
-						FM_Channel_SetKeyOn(&fm->channels[2], operator_index, cc_false);
+						cc_u8f operator_index;
+
+						for (operator_index = 0; operator_index < CC_COUNT_OF(fm->channels[2].operators); ++operator_index)
+						{
+							FM_Channel_SetKeyOn(&fm->channels[2], operator_index, cc_true);
+							FM_Channel_SetKeyOn(&fm->channels[2], operator_index, cc_false);
+						}
 					}
 				}
 			}
 		}
 	}
+}
+
+cc_u8f FM_Update(const FM* const fm, const cc_u32f cycles_to_do, void (* const fm_audio_to_be_generated)(const void *user_data, cc_u32f total_frames), const void* const user_data)
+{
+	FM_State* const state = fm->state;
+	const cc_u32f total_frames = (state->leftover_cycles + cycles_to_do) / FM_SAMPLE_RATE_DIVIDER;
+
+	state->leftover_cycles = (state->leftover_cycles + cycles_to_do) % FM_SAMPLE_RATE_DIVIDER;
+
+	if (total_frames != 0)
+		fm_audio_to_be_generated(user_data, total_frames);
+
+	UpdateTimers(fm, cycles_to_do);
 
 	/* Decrement the BUSY flag counter. */
 	if (state->busy_flag_counter != 0)
