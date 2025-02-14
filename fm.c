@@ -274,7 +274,10 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 					const FM_Channel* const channel = &fm->channels[table[table_index]];
 
 					if (table_index == 3 || table_index == 7)
+					{
 						LogMessage("Key-on/off command uses invalid 'gap' channel index.");
+						break;
+					}
 
 					/* TODO: Is this operator ordering actually correct? */
 					FM_Channel_SetKeyOn(channel, 0, (data & (1 << 4)) != 0);
