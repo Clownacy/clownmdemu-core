@@ -150,8 +150,8 @@ void FM_State_Initialise(FM_State* const state)
 
 	for (i = 0; i < CC_COUNT_OF(state->timers); ++i)
 	{
-		state->timers[i].value = FM_SAMPLE_RATE_DIVIDER; /* The timer expires when it goes BELOW 0, so this is a trick to emulate that. */
-		state->timers[i].counter = FM_SAMPLE_RATE_DIVIDER;
+		state->timers[i].value = 0;
+		state->timers[i].counter = 0;
 		state->timers[i].enabled = cc_false;
 	}
 
@@ -213,17 +213,17 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 					/* Oddly, the YM2608 manual describes these timers being twice as fast as they are here. */
 					state->raw_timer_a_value &= 3;
 					state->raw_timer_a_value |= data << 2;
-					state->timers[0].value = FM_SAMPLE_RATE_DIVIDER * (0x400 - state->raw_timer_a_value);
+					state->timers[0].value = 0x400 - state->raw_timer_a_value;
 					break;
 
 				case 0x25:
 					state->raw_timer_a_value &= ~3;
 					state->raw_timer_a_value |= data & 3;
-					state->timers[0].value = FM_SAMPLE_RATE_DIVIDER * (0x400 - state->raw_timer_a_value);
+					state->timers[0].value = 0x400 - state->raw_timer_a_value;
 					break;
 
 				case 0x26:
-					state->timers[1].value = FM_SAMPLE_RATE_DIVIDER * (16 * (0x100 - data));
+					state->timers[1].value = 16 * (0x100 - data);
 					break;
 
 				case 0x27:
@@ -478,19 +478,19 @@ void FM_OutputSamples(const FM* const fm, cc_s16l* const sample_buffer, const cc
 
 	for (sample_buffer_pointer = sample_buffer; sample_buffer_pointer != sample_buffer_end; sample_buffer_pointer += 2)
 	{
-		cc_u16f i;
+		cc_u8f channel_index, timer_index;
 
 		FM_LFO_Advance(&state->lfo);
 
-		for (i = 0; i < CC_COUNT_OF(state->channels); ++i)
+		for (channel_index = 0; channel_index < CC_COUNT_OF(state->channels); ++channel_index)
 		{
-			const FM_ChannelMetadata* const channel_metadata = &state->channels[i];
-			const FM_Channel* const channel = &fm->channels[i];
+			const FM_ChannelMetadata* const channel_metadata = &state->channels[channel_index];
+			const FM_Channel* const channel = &fm->channels[channel_index];
 			const cc_bool pan_left = channel_metadata->pan_left;
 			const cc_bool pan_right = channel_metadata->pan_right;
 
-			const cc_bool is_dac = i == 5 && state->dac_enabled;
-			const cc_bool channel_disabled = is_dac ? fm->configuration->dac_channel_disabled : fm->configuration->fm_channels_disabled[i];
+			const cc_bool is_dac = channel_index == 5 && state->dac_enabled;
+			const cc_bool channel_disabled = is_dac ? fm->configuration->dac_channel_disabled : fm->configuration->fm_channels_disabled[channel_index];
 
 			const cc_s16f fm_sample = FM_Channel_GetSample(channel, &state->lfo);
 			const cc_s16f sample = is_dac ? dac_sample : fm_sample;
@@ -501,49 +501,29 @@ void FM_OutputSamples(const FM* const fm, cc_s16l* const sample_buffer, const cc
 				sample_buffer_pointer[1] += GetFinalSample(fm, sample, pan_right);
 			}
 		}
-	}
-}
 
-static void UpdateTimers(const FM* const fm, const cc_u32f cycles_to_do)
-{
-	FM_State* const state = fm->state;
-
-	cc_u8f timer_index;
-
-	for (timer_index = 0; timer_index < CC_COUNT_OF(state->timers); ++timer_index)
-	{
-		FM_Timer* const timer = &state->timers[timer_index];
-
-		if (timer->counter != 0)
+		for (timer_index = 0; timer_index < CC_COUNT_OF(state->timers); ++timer_index)
 		{
-			cc_u32f cycles_remaining = cycles_to_do;
+			FM_Timer* const timer = &state->timers[timer_index];
 
-			while (cycles_remaining != 0)
+			if (timer->counter != 0 && --timer->counter == 0)
 			{
-				const cc_u32f timer_delta = CC_MIN(timer->counter, cycles_remaining);
+				/* Set the 'timer expired' flag. */
+				state->status |= timer->enabled ? 1 << timer_index : 0;
 
-				timer->counter -= timer_delta;
-				cycles_remaining -= timer_delta;
+				/* Reload the timer's counter. */
+				timer->counter = timer->value;
 
-				if (timer->counter == 0)
+				/* Perform CSM key-on/key-off logic. */
+				/* TODO: Shouldn't this be done in the actual update logic? */
+				if (state->channel_3_metadata.csm_mode_enabled && timer_index == 0)
 				{
-					/* Set the 'timer expired' flag. */
-					state->status |= timer->enabled ? 1 << timer_index : 0;
+					cc_u8f operator_index;
 
-					/* Reload the timer's counter. */
-					timer->counter = timer->value;
-
-					/* Perform CSM key-on/key-off logic. */
-					/* TODO: Shouldn't this be done in the actual update logic? */
-					if (state->channel_3_metadata.csm_mode_enabled && timer_index == 0)
+					for (operator_index = 0; operator_index < CC_COUNT_OF(fm->channels[2].operators); ++operator_index)
 					{
-						cc_u8f operator_index;
-
-						for (operator_index = 0; operator_index < CC_COUNT_OF(fm->channels[2].operators); ++operator_index)
-						{
-							FM_Channel_SetKeyOn(&fm->channels[2], operator_index, cc_true);
-							FM_Channel_SetKeyOn(&fm->channels[2], operator_index, cc_false);
-						}
+						FM_Channel_SetKeyOn(&fm->channels[2], operator_index, cc_true);
+						FM_Channel_SetKeyOn(&fm->channels[2], operator_index, cc_false);
 					}
 				}
 			}
@@ -560,8 +540,6 @@ cc_u8f FM_Update(const FM* const fm, const cc_u32f cycles_to_do, void (* const f
 
 	if (total_frames != 0)
 		fm_audio_to_be_generated(user_data, total_frames);
-
-	UpdateTimers(fm, cycles_to_do);
 
 	/* Decrement the BUSY flag counter. */
 	if (state->busy_flag_counter != 0)
