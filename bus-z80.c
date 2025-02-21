@@ -43,7 +43,7 @@ cc_u16f Z80ReadCallbackWithCycle(const void* const user_data, const cc_u16f addr
 	else if (address >= 0x4000 && address <= 0x4003)
 	{
 		/* YM2612 */
-		/* TODO: Model 1 Mega Drives only do this for 0x4000 and 0x4002. */
+		/* TODO: Model 1 Mega Drives only do this for 0x4000. Accessing other ports will return the old status, and only for a short time. See Nuked OPN2 for more details. */
 		value = SyncFM(callback_user_data, target_cycle);
 	}
 	else if (address == 0x6000 || address == 0x6001)
