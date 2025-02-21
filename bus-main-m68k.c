@@ -69,6 +69,15 @@ void SyncM68k(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* const oth
 	SyncCPUCommon(clownmdemu, &other_state->sync.m68k, target_cycle.cycle, cc_false, SyncM68kCallback, &m68k_read_write_callbacks);
 }
 
+static cc_u32f GetBankedCartridgeAddress(const ClownMDEmu* const clownmdemu, const cc_u32f address)
+{
+	const cc_u32f masked_address = address & 0x3FFFFF;
+	const cc_u32f bank_size = 512 * 1024; /* 512KiB */
+	const cc_u32f bank_index = masked_address / bank_size;
+	const cc_u32f bank_offset = masked_address % bank_size;
+	return clownmdemu->state->cartridge_bankswitch[bank_index] * bank_size + bank_offset;
+}
+
 cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u32f address_word, const cc_bool do_high_byte, const cc_bool do_low_byte, const CycleMegaDrive target_cycle, const cc_bool is_vdp_dma)
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
@@ -101,10 +110,12 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 			else
 			{
 				/* Cartridge */
+				const cc_u32f cartridge_address = GetBankedCartridgeAddress(clownmdemu, address);
+
 				if (do_high_byte)
-					value |= frontend_callbacks->cartridge_read((void*)frontend_callbacks->user_data, (address & 0x3FFFFF) + 0) << 8;
+					value |= frontend_callbacks->cartridge_read((void*)frontend_callbacks->user_data, cartridge_address + 0) << 8;
 				if (do_low_byte)
-					value |= frontend_callbacks->cartridge_read((void*)frontend_callbacks->user_data, (address & 0x3FFFFF) + 1) << 0;
+					value |= frontend_callbacks->cartridge_read((void*)frontend_callbacks->user_data, cartridge_address + 1) << 0;
 			}
 		}
 		else
@@ -339,6 +350,11 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 	{
 		/* External RAM control */
 		LOG_MAIN_CPU_BUS_ERROR_0("Attempted to read from external RAM control register");
+	}
+	else if (address >= 0xA130F2 && address <= 0xA13100)
+	{
+		/* Cartridge bankswitching */
+		LOG_MAIN_CPU_BUS_ERROR_0("Attempted to read from cartridge bankswitch register");
 	}
 	/* TODO: According to Charles MacDonald's gen-hw.txt, the VDP stuff is mirrored in the following pattern:
 	MSB                       LSB
@@ -743,6 +759,12 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 		/* External RAM control */
 		if (do_low_byte && clownmdemu->state->external_ram.size != 0)
 			clownmdemu->state->external_ram.mapped_in = low_byte != 0;
+	}
+	else if (address >= 0xA130F2 && address <= 0xA13100)
+	{
+		/* Cartridge bankswitching */
+		if (do_low_byte)
+			clownmdemu->state->cartridge_bankswitch[(address - 0xA130F0) / 2] = low_byte; /* We deliberately make index 0 inaccessible, as bank 0 is always set to 0 on real hardware. */
 	}
 	else if (address == 0xC00000 || address == 0xC00002)
 	{

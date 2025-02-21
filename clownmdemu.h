@@ -190,6 +190,8 @@ typedef struct ClownMDEmu_State
 		cc_bool mapped_in;
 	} external_ram;
 
+	cc_u8l cartridge_bankswitch[8];
+
 	cc_u16l current_scanline;
 
 	struct

@@ -177,6 +177,9 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State* const state)
 	state->external_ram.device_type = 0;
 	state->external_ram.mapped_in = cc_false;
 
+	for (i = 0; i < CC_COUNT_OF(state->cartridge_bankswitch); ++i)
+		state->cartridge_bankswitch[i] = i;
+
 	/* Mega CD */
 	state->mega_cd.m68k.cycle_countdown = 1;
 	state->mega_cd.m68k.bus_requested = cc_true;
