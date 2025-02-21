@@ -741,7 +741,7 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 	else if (address == 0xA130F0)
 	{
 		/* External RAM control */
-		if (do_low_byte)
+		if (do_low_byte && clownmdemu->state->external_ram.size != 0)
 			clownmdemu->state->external_ram.mapped_in = low_byte != 0;
 	}
 	else if (address == 0xC00000 || address == 0xC00002)
