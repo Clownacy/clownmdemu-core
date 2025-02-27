@@ -2540,7 +2540,9 @@ cc_u16f Z80_DoCycle(const Z80* const z80, const Z80_ReadAndWriteCallbacks* const
 		z80->state->interrupts_enabled = cc_false;
 		z80->state->interrupt_pending = cc_false;
 
-		/* TODO: Interrupt duration. */
+		/* TODO: Other interrupt durations. */
+		z80->state->cycles += 13; /* Interrupt mode 1 duration. */
+
 		--z80->state->stack_pointer;
 		z80->state->stack_pointer &= 0xFFFF;
 		callbacks->write(callbacks->user_data, z80->state->stack_pointer, z80->state->program_counter >> 8);
