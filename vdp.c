@@ -352,6 +352,9 @@ static cc_u16f GetHScrollTableOffset(const VDP_State* const state, const cc_u16f
 		case VDP_HSCROLL_MODE_FULL:
 			return 0;
 
+		case VDP_HSCROLL_MODE_INVALID:
+			return ((scanline >> state->double_resolution_enabled) % 8) * 4;
+
 		case VDP_HSCROLL_MODE_1CELL:
 			return (scanline >> tile_info->height_power << tile_info->height_power) * 4;
 
@@ -960,9 +963,7 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 							break;
 
 						case 1:
-							/* TODO: Some unauthorised EA games use this, and it acts as
-							   a slightly unstable version of one of the other modes. */
-							LogMessage("Prohibitied H-scroll mode selected");
+							vdp->state->hscroll_mode = VDP_HSCROLL_MODE_INVALID;
 							break;
 
 						case 2:
