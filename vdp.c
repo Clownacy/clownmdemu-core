@@ -1034,69 +1034,34 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 					break;
 
 				case 16:
-				{
 					/* SCROLL SIZE */
-					const cc_u16f width_index  = (data >> 0) & 3;
-					const cc_u16f height_index = (data >> 4) & 3;
+					/* https://gendev.spritesmind.net/forum/viewtopic.php?p=31307#p31307 */
+					vdp->state->plane_height_bitmask = (data << 1) | 0x1F;
 
-					if ((width_index == 3 && height_index != 0) || (height_index == 3 && width_index != 0))
+					switch (data & 3)
 					{
-						/* TODO: So... what should happen? */
-						LogMessage("Selected plane size exceeds 64x64/32x128/128x32");
-					}
-					else
-					{
-						switch (height_index)
-						{
-							case 0:
-								vdp->state->plane_height_bitmask = 0x1F;
-								break;
-
-							case 1:
-								vdp->state->plane_height_bitmask = 0x3F;
-								break;
-
-							case 2:
-								/* I swear some dumb Electronic Arts game uses this. */
-								LogMessage("Prohibited plane height mode '2' selected - should use '0' instead");
-								/* This appears to be what happens on real hardware. */
-								/* TODO: Jorge claims that this works in a different way:
-								   https://board.mddc.dev/threads/md-vdp-research-thread.76/ */
-								vdp->state->plane_height_bitmask = 0x1F;
-								break;
-
-							case 3:
-								vdp->state->plane_height_bitmask = 0x7F;
-								break;
-						}
-
-						switch (width_index)
-						{
 						case 0:
 							vdp->state->plane_width_bitmask = 0x1F;
+							vdp->state->plane_height_bitmask &= 0x7F;
 							break;
 
 						case 1:
 							vdp->state->plane_width_bitmask = 0x3F;
+							vdp->state->plane_height_bitmask &= 0x3F;
 							break;
 
 						case 2:
-							/* I swear some dumb Electronic Arts game uses this. */
-							LogMessage("Prohibited plane width mode '2' selected - all rows will be copies of the top row");
-							/* This appears to be what happens on real hardware. */
-							/* TODO: Check that the plane width is not just inherited from previous writes. */
 							vdp->state->plane_width_bitmask = 0x1F;
-							vdp->state->plane_height_bitmask = 0;
+							vdp->state->plane_height_bitmask &= 0;
 							break;
 
 						case 3:
 							vdp->state->plane_width_bitmask = 0x7F;
+							vdp->state->plane_height_bitmask &= 0x1F;
 							break;
-						}
 					}
 
 					break;
-				}
 
 				case 17:
 					/* WINDOW H POSITION */
