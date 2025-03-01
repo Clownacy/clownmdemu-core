@@ -303,13 +303,14 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 	}
 	else
 	{
-		const cc_u16f channel_index = state->address & 3;
-		FM_ChannelMetadata* const channel_metadata = &state->channels[state->port + channel_index];
-		const FM_Channel* const channel = &fm->channels[state->port + channel_index];
+		const cc_u16f slot_index = state->address & 3;
+		const cc_u16f channel_index = state->port + slot_index;
+		FM_ChannelMetadata* const channel_metadata = &state->channels[channel_index];
+		const FM_Channel* const channel = &fm->channels[channel_index];
 
 		/* There is no fourth channel per slot. */
 		/* TODO: See how real hardware handles this. */
-		if (channel_index == 3)
+		if (slot_index == 3)
 		{
 			LogMessage("Attempted to access invalid fourth FM slot channel (address was 0x%02" CC_PRIXFAST8 ")", state->address);
 		}
@@ -403,7 +404,7 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 						if (state->port == 0)
 						{
 							static const cc_u8l operator_mappings[3] = {1, 0, 2}; /* Oddly, the operators are switched-around here, just like the accumulation logic. */ /* TODO: Look into this some more. */
-							const cc_u8f operator_index = operator_mappings[channel_index];
+							const cc_u8f operator_index = operator_mappings[slot_index];
 							const cc_u16f frequency = data | (state->cached_upper_frequency_bits_fm3_multi_frequency << 8);
 
 							state->channel_3_metadata.frequencies[operator_index] = frequency;
