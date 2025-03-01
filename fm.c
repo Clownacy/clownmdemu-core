@@ -150,8 +150,8 @@ void FM_State_Initialise(FM_State* const state)
 
 	for (i = 0; i < CC_COUNT_OF(state->timers); ++i)
 	{
-		state->timers[i].value = 0;
-		state->timers[i].counter = 0;
+		state->timers[i].value = 0x400;
+		state->timers[i].counter = 0x400;
 		state->timers[i].enabled = cc_false;
 	}
 
@@ -509,7 +509,7 @@ void FM_OutputSamples(const FM* const fm, cc_s16l* const sample_buffer, const cc
 		{
 			FM_Timer* const timer = &state->timers[timer_index];
 
-			if (timer->counter != 0 && --timer->counter == 0)
+			if (--timer->counter == 0)
 			{
 				/* Set the 'timer expired' flag. */
 				state->status |= timer->enabled ? 1 << timer_index : 0;
@@ -518,7 +518,6 @@ void FM_OutputSamples(const FM* const fm, cc_s16l* const sample_buffer, const cc
 				timer->counter = timer->value;
 
 				/* Perform CSM key-on/key-off logic. */
-				/* TODO: Shouldn't this be done in the actual update logic? */
 				if (state->channel_3_metadata.csm_mode_enabled && timer_index == 0)
 				{
 					cc_u8f operator_index;
