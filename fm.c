@@ -360,7 +360,7 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 
 					case 0x90 / 0x10:
 						/* SSG-EG. */
-						FM_Channel_SetSSGEG(channel, data);
+						FM_Channel_SetSSGEG(channel, operator_index, data);
 						break;
 				}
 			}

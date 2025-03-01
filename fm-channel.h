@@ -63,7 +63,6 @@ void FM_Channel_Parameters_Initialise(FM_Channel *channel, const FM_Channel_Cons
 void FM_Channel_SetFrequency(const FM_Channel *channel, cc_u8f operator_index, cc_u16f f_number_and_block);
 void FM_Channel_SetFrequencies(const FM_Channel *channel, cc_u16f f_number_and_block);
 void FM_Channel_SetFeedbackAndAlgorithm(const FM_Channel *channel, cc_u16f feedback, cc_u16f algorithm);
-void FM_Channel_SetSSGEG(const FM_Channel *channel, cc_u8f ssgeg);
 void FM_Channel_SetModulationSensitivity(const FM_Channel *channel, cc_u8f amplitude, cc_u8f frequency);
 
 /* Per-operator. */
@@ -74,6 +73,7 @@ void FM_Channel_SetKeyScaleAndAttackRate(const FM_Channel *channel, cc_u16f oper
 void FM_Channel_SetDecayRate(const FM_Channel *channel, cc_u16f operator_index, cc_u16f decay_rate);
 void FM_Channel_SetSustainRate(const FM_Channel *channel, cc_u16f operator_index, cc_u16f sustain_rate);
 void FM_Channel_SetSustainLevelAndReleaseRate(const FM_Channel *channel, cc_u16f operator_index, cc_u16f sustain_level, cc_u16f release_rate);
+void FM_Channel_SetSSGEG(const FM_Channel *channel, cc_u8f operator_index, cc_u8f ssgeg);
 void FM_Channel_SetAmplitudeModulationOn(const FM_Channel *channel, cc_u16f operator_index, cc_bool amplitude_modulation_on);
 
 cc_s16f FM_Channel_GetSample(const FM_Channel *channel, const FM_LFO *lfo);

@@ -64,12 +64,9 @@ void FM_Channel_SetFeedbackAndAlgorithm(const FM_Channel* const channel, const c
 	channel->state->algorithm = algorithm;
 }
 
-void FM_Channel_SetSSGEG(const FM_Channel* const channel, const cc_u8f ssgeg)
+void FM_Channel_SetSSGEG(const FM_Channel* const channel, const cc_u8f operator_index, const cc_u8f ssgeg)
 {
-	cc_u16f i;
-
-	for (i = 0; i < CC_COUNT_OF(channel->state->operators); ++i)
-		FM_Operator_SetSSGEG(channel->operators[i].state, ssgeg);
+	FM_Operator_SetSSGEG(channel->operators[operator_index].state, ssgeg);
 }
 
 void FM_Channel_SetModulationSensitivity(const FM_Channel* const channel, const cc_u8f amplitude, const cc_u8f frequency)
