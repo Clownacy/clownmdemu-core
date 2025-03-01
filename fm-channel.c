@@ -71,8 +71,7 @@ void FM_Channel_SetSSGEG(const FM_Channel* const channel, const cc_u8f operator_
 
 void FM_Channel_SetModulationSensitivity(const FM_Channel* const channel, const cc_u8f amplitude, const cc_u8f frequency)
 {
-	static const cc_u8l amplitude_modulation_shifts[4] = {7, 3, 1, 0};
-	channel->state->amplitude_modulation_shift = amplitude_modulation_shifts[amplitude];
+	channel->state->amplitude_modulation_shift = 7 >> amplitude;
 	channel->state->phase_modulation_sensitivity = frequency;
 }
 
