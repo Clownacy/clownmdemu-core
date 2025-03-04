@@ -4,6 +4,7 @@
 
 #include "cdda.h"
 #include "fm.h"
+#include "low-pass-filter.h"
 #include "pcm.h"
 #include "psg.h"
 
@@ -113,6 +114,23 @@ void SyncCPUCommon(const ClownMDEmu* const clownmdemu, SyncCPUState* const sync,
 static void FMCallbackWrapper(const ClownMDEmu* const clownmdemu, cc_s16l* const sample_buffer, const size_t total_frames)
 {
 	FM_OutputSamples(&clownmdemu->fm, sample_buffer, total_frames);
+
+	if (!clownmdemu->configuration->general.low_pass_filter_disabled)
+	{
+		ClownMDEmu_State* const state = clownmdemu->state;
+
+		size_t i;
+
+		/* https://www.meme.net.au/butterworth.html
+		   Configured for a cut-off of 2842Hz at 53267Hz.
+		   53267Hz is the YM2612's sample rate.
+		   2842Hz is the cut-off frequency of a VA4 Mega Drive's low-pass filter,
+		   which is implemented as an RC filter with a 10K resistor and a 5600pf capacitor.
+		   2842 = 1 / (2 * pi * (10 * (10 ^ 3)) * (5600 * (10 ^ -12))) */
+		/* TODO: PAL frequency. */
+		for (i = 0; i < CC_COUNT_OF(state->low_pass_filters.fm); ++i)
+			LowPassFilter_Apply(&state->low_pass_filters.fm[i], &sample_buffer[i], total_frames, 2, LOW_PASS_FILTER_COMPUTE_MAGIC(4.910, 6.910));
+	}
 }
 
 static void GenerateFMAudio(const void* const user_data, const cc_u32f total_frames)
@@ -130,6 +148,22 @@ cc_u8f SyncFM(CPUCallbackUserData* const other_state, const CycleMegaDrive targe
 static void GeneratePSGAudio(const ClownMDEmu* const clownmdemu, cc_s16l* const sample_buffer, const size_t total_frames)
 {
 	PSG_Update(&clownmdemu->psg, sample_buffer, total_frames);
+
+	if (!clownmdemu->configuration->general.low_pass_filter_disabled)
+	{
+		ClownMDEmu_State* const state = clownmdemu->state;
+
+		size_t i;
+
+		/* https://www.meme.net.au/butterworth.html
+		   Configured for a cut-off of 2842Hz at 223722Hz.
+		   223722Hz is the YM2612's sample rate.
+		   2842Hz is the cut-off frequency of a VA4 Mega Drive's low-pass filter,
+		   which is implemented as an RC filter with a 10K resistor and a 5600pf capacitor.
+		   2842 = 1 / (2 * pi * (10 * (10 ^ 3)) * (5600 * (10 ^ -12))) */
+		/* TODO: PAL frequency. */
+		LowPassFilter_Apply(&state->low_pass_filters.psg, sample_buffer, total_frames, 1, LOW_PASS_FILTER_COMPUTE_MAGIC(24.044, 26.044));
+	}
 }
 
 void SyncPSG(CPUCallbackUserData* const other_state, const CycleMegaDrive target_cycle)

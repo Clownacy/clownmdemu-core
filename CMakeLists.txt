@@ -36,6 +36,8 @@ add_library(clownmdemu-core STATIC
 	"io-port.h"
 	"log.c"
 	"log.h"
+	"low-pass-filter.c"
+	"low-pass-filter.h"
 	"pcm.c"
 	"pcm.h"
 	"psg.c"

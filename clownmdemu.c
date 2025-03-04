@@ -12,6 +12,7 @@
 #include "clown68000/interpreter/clown68000.h"
 #include "fm.h"
 #include "log.h"
+#include "low-pass-filter.h"
 #include "psg.h"
 #include "vdp.h"
 #include "z80.h"
@@ -224,6 +225,12 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State* const state)
 	state->mega_cd.boot_from_cd = cc_false;
 	state->mega_cd.hblank_address = 0xFFFF;
 	state->mega_cd.delayed_dma_word = 0;
+
+	/* Low-pass filters. */
+	for (i = 0; i < CC_COUNT_OF(state->low_pass_filters.fm); ++i)
+		LowPassFilter_Initialise(&state->low_pass_filters.fm[i]);
+
+	LowPassFilter_Initialise(&state->low_pass_filters.psg);
 }
 
 void ClownMDEmu_Parameters_Initialise(ClownMDEmu* const clownmdemu, const ClownMDEmu_Configuration* const configuration, const ClownMDEmu_Constant* const constant, ClownMDEmu_State* const state, const ClownMDEmu_Callbacks* const callbacks)

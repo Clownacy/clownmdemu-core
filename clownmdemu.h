@@ -12,6 +12,7 @@
 #include "controller.h"
 #include "fm.h"
 #include "io-port.h"
+#include "low-pass-filter.h"
 #include "pcm.h"
 #include "psg.h"
 #include "vdp.h"
@@ -139,6 +140,7 @@ typedef struct ClownMDEmu_Configuration
 	{
 		ClownMDEmu_Region region;
 		ClownMDEmu_TVStandard tv_standard;
+		cc_bool low_pass_filter_disabled;
 	} general;
 
 	VDP_Configuration vdp;
@@ -248,6 +250,12 @@ typedef struct ClownMDEmu_State
 		cc_u16l hblank_address;
 		cc_u16l delayed_dma_word;
 	} mega_cd;
+
+	struct
+	{
+		LowPassFilterState fm[2];
+		LowPassFilterState psg;
+	} low_pass_filters;
 } ClownMDEmu_State;
 
 struct ClownMDEmu;
