@@ -153,11 +153,9 @@ static void GeneratePSGAudio(const ClownMDEmu* const clownmdemu, cc_s16l* const 
 	{
 		ClownMDEmu_State* const state = clownmdemu->state;
 
-		size_t i;
-
 		/* https://www.meme.net.au/butterworth.html
 		   Configured for a cut-off of 2842Hz at 223722Hz.
-		   223722Hz is the YM2612's sample rate.
+		   223722Hz is the SN76489's sample rate.
 		   2842Hz is the cut-off frequency of a VA4 Mega Drive's low-pass filter,
 		   which is implemented as an RC filter with a 10K resistor and a 5600pf capacitor.
 		   2842 = 1 / (2 * pi * (10 * (10 ^ 3)) * (5600 * (10 ^ -12))) */
