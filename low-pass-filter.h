@@ -14,7 +14,7 @@ typedef struct LowPassFilterState
 	cc_s16l previous_sample, previous_output;
 } LowPassFilterState;
 
-void LowPassFilter_Initialise(LowPassFilterState *state);
-void LowPassFilter_Apply(LowPassFilterState *state, cc_s16l *sample_buffer, size_t total_frames, cc_u8f stride, cc_u32f magic1, cc_u32f magic2);
+void LowPassFilter_Initialise(LowPassFilterState *states, cc_u8f total_channels);
+void LowPassFilter_Apply(LowPassFilterState *states, cc_u8f total_channels, cc_s16l *sample_buffer, size_t total_frames, cc_u32f magic1, cc_u32f magic2);
 
 #endif /* LOW_PASS_FILTER_H */

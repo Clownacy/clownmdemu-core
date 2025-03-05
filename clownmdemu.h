@@ -254,7 +254,7 @@ typedef struct ClownMDEmu_State
 	struct
 	{
 		LowPassFilterState fm[2];
-		LowPassFilterState psg;
+		LowPassFilterState psg[1];
 	} low_pass_filters;
 } ClownMDEmu_State;
 
