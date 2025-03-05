@@ -301,13 +301,19 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 
 				case 0x2A:
 					/* DAC sample. */
-					/* Convert from unsigned 8-bit PCM to signed 9-bit PCM. */
-					state->dac_sample = ((cc_s16f)data - 0x80) * 2;
+					state->dac_sample &= 1u;
+					state->dac_sample |= (cc_u16f)data << 1;
 					break;
 
 				case 0x2B:
 					/* DAC enable/disable. */
 					state->dac_enabled = (data & 0x80) != 0;
+					break;
+
+				case 0x2C:
+					/* LST test 2 */
+					state->dac_sample &= ~1u;
+					state->dac_sample |= (data >> 3) & 1;
 					break;
 			}
 		}
@@ -485,7 +491,8 @@ static cc_s16f GetFinalSample(const FM* const fm, cc_s16f sample, const cc_bool 
 void FM_OutputSamples(const FM* const fm, cc_s16l* const sample_buffer, const cc_u32f total_frames)
 {
 	FM_State* const state = fm->state;
-	const cc_s16f dac_sample = state->dac_sample;
+	/* Convert from unsigned 9-bit PCM to signed 9-bit PCM. */
+	const cc_s16f dac_sample = (cc_s16f)state->dac_sample - 0x100;
 
 	const cc_s16l* const sample_buffer_end = &sample_buffer[total_frames * 2];
 
