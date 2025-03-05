@@ -115,6 +115,16 @@ The 9th DAC sample bit.
 
 #include "log.h"
 
+static cc_u16f FM_ConvertTimerAValue(const cc_u16f value)
+{
+	return 0x400 - value;
+}
+
+static cc_u16f FM_ConvertTimerBValue(const cc_u16f value)
+{
+	return 0x10 * (0x100 - value);
+}
+
 void FM_Constant_Initialise(FM_Constant* const constant)
 {
 	FM_Channel_Constant_Initialise(&constant->channels);
@@ -148,12 +158,13 @@ void FM_State_Initialise(FM_State* const state)
 
 	state->raw_timer_a_value = 0;
 
-	for (i = 0; i < CC_COUNT_OF(state->timers); ++i)
-	{
-		state->timers[i].value = 0x400;
-		state->timers[i].counter = 0x400;
-		state->timers[i].enabled = cc_false;
-	}
+	state->timers[0].value = FM_ConvertTimerAValue(0);
+	state->timers[0].counter = FM_ConvertTimerAValue(0);
+	state->timers[0].enabled = cc_false;
+
+	state->timers[1].value = FM_ConvertTimerBValue(0);
+	state->timers[1].counter = FM_ConvertTimerBValue(0);
+	state->timers[1].enabled = cc_false;
 
 	state->cached_address_27 = 0;
 	state->cached_upper_frequency_bits = state->cached_upper_frequency_bits_fm3_multi_frequency = 0;
@@ -213,17 +224,17 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 					/* Oddly, the YM2608 manual describes these timers being twice as fast as they are here. */
 					state->raw_timer_a_value &= 3;
 					state->raw_timer_a_value |= data << 2;
-					state->timers[0].value = 0x400 - state->raw_timer_a_value;
+					state->timers[0].value = FM_ConvertTimerAValue(state->raw_timer_a_value);
 					break;
 
 				case 0x25:
 					state->raw_timer_a_value &= ~3;
 					state->raw_timer_a_value |= data & 3;
-					state->timers[0].value = 0x400 - state->raw_timer_a_value;
+					state->timers[0].value = FM_ConvertTimerAValue(state->raw_timer_a_value);
 					break;
 
 				case 0x26:
-					state->timers[1].value = 16 * (0x100 - data);
+					state->timers[1].value = FM_ConvertTimerBValue(data);
 					break;
 
 				case 0x27:
