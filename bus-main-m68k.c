@@ -215,6 +215,7 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 		/* I/O AREA */
 		/* TODO: The missing ports. */
 		/* TODO: Detect when this is accessed without obtaining the Z80 bus and log a warning. */
+		/* TODO: According to 'gen-hw.txt', these can be accessed by their high bytes too. */
 		switch (address)
 		{
 			case 0xA10000:
