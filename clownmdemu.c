@@ -305,7 +305,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 		{
 			if (clownmdemu->state->vdp.double_resolution_enabled)
 			{
-				VDP_RenderScanline(&clownmdemu->vdp, scanline * 2, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
+				VDP_RenderScanline(&clownmdemu->vdp, scanline * 2 + 0, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
 				VDP_RenderScanline(&clownmdemu->vdp, scanline * 2 + 1, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
 			}
 			else
@@ -314,6 +314,16 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 			}
 
 			/* Fire a H-Int if we've reached the requested line */
+			/* TODO: There is some strange behaviour surrounding how H-Int is asserted. */
+			/* https://gendev.spritesmind.net/forum/viewtopic.php?t=183 */
+			/* TODO: The interrupt should occur at the START of H-Blank, not the end. */
+			/* Lemmings 2 appears to rely on this so that the V-counter is 1 less than it would otherwise be, or else the game will not boot. */
+			/* http://gendev.spritesmind.net/forum/viewtopic.php?t=388&start=45 */
+			/* TODO: Timing info here: */
+			/* http://gendev.spritesmind.net/forum/viewtopic.php?p=8201#p8201 */
+			/* http://gendev.spritesmind.net/forum/viewtopic.php?p=8443#p8443 */
+			/* http://gendev.spritesmind.net/forum/viewtopic.php?t=3058 */
+			/* http://gendev.spritesmind.net/forum/viewtopic.php?t=519 */
 			if (h_int_counter-- == 0)
 			{
 				h_int_counter = clownmdemu->state->vdp.h_int_interval;
