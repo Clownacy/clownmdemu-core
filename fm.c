@@ -279,7 +279,7 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 				{
 					/* Key on/off. */
 					/* There's a gap between channels 3 and 4. */
-					/* TODO - Check what happens if you try to access the 'gap' channels on real hardware. */
+					/* TODO: Check what happens if you try to access the 'gap' channels on real hardware. */
 					static const cc_u8f table[8] = {0, 1, 2, 0, 3, 4, 5, 0};
 					const cc_u8f table_index = data % CC_COUNT_OF(table);
 					const FM_Channel* const channel = &fm->channels[table[table_index]];

@@ -368,7 +368,7 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 	else if (address == 0xC00000 || address == 0xC00002)
 	{
 		/* VDP data port */
-		/* TODO - Reading from the data port causes real Mega Drives to crash (if the VDP isn't in read mode) */
+		/* TODO: Reading from the data port causes real Mega Drives to crash (if the VDP isn't in read mode). */
 		value = VDP_ReadData(&clownmdemu->vdp);
 	}
 	else if (address == 0xC00004 || address == 0xC00006)
@@ -397,7 +397,7 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 	else if (address >= 0xC00010 && address <= 0xC00016)
 	{
 		/* PSG */
-		/* TODO - What's supposed to happen here, if you read from the PSG? */
+		/* TODO: What's supposed to happen here, if you read from the PSG? */
 		/* TODO: It freezes the 68k, that's what:
 		   https://forums.sonicretro.org/index.php?posts/1066059/ */
 		LOG_MAIN_CPU_BUS_ERROR_0("Attempted to read from PSG; this will freeze a real Mega Drive");
@@ -489,7 +489,7 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 				if (do_low_byte)
 					frontend_callbacks->cartridge_written((void*)frontend_callbacks->user_data, (address & 0x3FFFFF) + 1, low_byte);
 
-				/* TODO - This is temporary, just to catch possible bugs in the 68k emulator */
+				/* TODO: This is temporary, just to catch possible bugs in the 68k emulator */
 				LOG_MAIN_CPU_BUS_ERROR_1("Attempted to write to ROM address 0x%" CC_PRIXFAST32, address);
 			}
 		}

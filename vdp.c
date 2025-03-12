@@ -759,7 +759,7 @@ cc_u16f VDP_ReadControl(const VDP* const vdp)
 	   boot code makes use of this feature. */
 	vdp->state->access.write_pending = cc_false;
 
-	/* TODO - The other flags. */
+	/* TODO: The other flags. */
 	return 0x3400 | (fifo_empty << 9) | (vdp->state->currently_in_vblank << 3);
 }
 
@@ -823,7 +823,7 @@ void VDP_WriteData(const VDP* const vdp, const cc_u16f value, const VDP_ColourUp
 	}
 }
 
-/* TODO - Retention of partial commands */
+/* TODO: Retention of partial commands. */
 void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_ColourUpdatedCallback colour_updated_callback, const void* const colour_updated_callback_user_data, const VDP_ReadCallback read_callback, const void* const read_callback_user_data, const VDP_KDebugCallback kdebug_callback, const void* const kdebug_callback_user_data)
 {
 	if (vdp->state->access.write_pending || (value & 0xC000) != 0x8000)
@@ -952,7 +952,7 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 				case 11:
 					/* MODE SET REGISTER NO.3 */
 
-					/* TODO - External interrupt */
+					/* TODO: External interrupt. */
 
 					vdp->state->vscroll_mode = data & 4 ? VDP_VSCROLL_MODE_2CELL : VDP_VSCROLL_MODE_FULL;
 

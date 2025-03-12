@@ -22,7 +22,7 @@
 extern "C" {
 #endif
 
-/* TODO - Documentation */
+/* TODO: Documentation. */
 
 #define CLOWNMDEMU_PARAMETERS_INITIALISE(CONFIGURATION, CONSTANT, STATE, CALLBACKS) { \
 		(CONFIGURATION), \
