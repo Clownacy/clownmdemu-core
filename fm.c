@@ -199,11 +199,8 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 
 	/* Set BUSY flag. */
 	state->status |= 0x80;
-	/* The YM2612's BUSY flag is always active for exactly 32 internal cycles.
-	   If I remember correctly, the YM3438 actually gives the BUSY flag
-	   different durations based on the pending operation. */
-	/* TODO: YM3438 BUSY flag durations. */
-	state->busy_flag_counter = 32 * 6;
+	/* The YM2612's BUSY flag is always active for exactly 32 internal cycles. */
+	state->busy_flag_counter = 32 * FM_PRESCALER;
 
 	if (state->address < 0x30)
 	{

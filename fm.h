@@ -12,8 +12,10 @@
    Dividing by 8 is simpler than dividing by 6, so that was opted for instead. */
 #define FM_VOLUME_DIVIDER 8
 
-/* 6 for the hardcoded prescale, 6 for the number of channels, and 4 for the number of operators per channel. */
-#define FM_SAMPLE_RATE_DIVIDER (6 * 6 * 4)
+#define FM_PRESCALER 6
+
+/* 6 for the number of channels, and 4 for the number of operators per channel. */
+#define FM_SAMPLE_RATE_DIVIDER (FM_PRESCALER * 6 * 4)
 
 #define FM_PARAMETERS_INITIALISE(CONFIGURATION, CONSTANT, STATE) { \
 		(CONFIGURATION), \
