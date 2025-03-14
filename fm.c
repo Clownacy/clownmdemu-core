@@ -209,7 +209,7 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 			switch (state->address)
 			{
 				default:
-					LogMessage("Unrecognised FM address latched (0x%02" CC_PRIXFAST8 ")", state->address);
+					LogMessage("Unrecognised FM address latched (0x%02" CC_PRIXLEAST8 ")", state->address);
 					break;
 
 				case 0x22:
@@ -326,7 +326,7 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 		/* TODO: See how real hardware handles this. */
 		if (slot_index == 3)
 		{
-			LogMessage("Attempted to access invalid fourth FM slot channel (address was 0x%02" CC_PRIXFAST8 ")", state->address);
+			LogMessage("Attempted to access invalid fourth FM slot channel (address was 0x%02" CC_PRIXLEAST8 ")", state->address);
 		}
 		else
 		{
@@ -338,7 +338,7 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 				switch (state->address / 0x10)
 				{
 					default:
-						LogMessage("Unrecognised FM address latched (0x%02" CC_PRIXFAST8 ")", state->address);
+						LogMessage("Unrecognised FM address latched (0x%02" CC_PRIXLEAST8 ")", state->address);
 						break;
 
 					case 0x30 / 0x10:
@@ -384,7 +384,7 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 				switch (state->address / 4)
 				{
 					default:
-						LogMessage("Unrecognised FM address latched (0x%02" CC_PRIXFAST8 ")", state->address);
+						LogMessage("Unrecognised FM address latched (0x%02" CC_PRIXLEAST8 ")", state->address);
 						break;
 
 					case 0xA0 / 4:
