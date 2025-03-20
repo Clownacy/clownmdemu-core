@@ -155,6 +155,7 @@ void FM_State_Initialise(FM_State* const state)
 
 	state->dac_sample = 0;
 	state->dac_enabled = cc_false;
+	state->dac_test = cc_false;
 
 	state->raw_timer_a_value = 0;
 
@@ -308,9 +309,10 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 					break;
 
 				case 0x2C:
-					/* LST test 2 */
+					/* LSI test 2 */
 					state->dac_sample &= ~1u;
 					state->dac_sample |= (data >> 3) & 1;
+					state->dac_test = (data & (1 << 5)) != 0;
 					break;
 			}
 		}
@@ -508,7 +510,7 @@ void FM_OutputSamples(const FM* const fm, cc_s16l* const sample_buffer, const cc
 			const cc_bool pan_left = channel_metadata->pan_left;
 			const cc_bool pan_right = channel_metadata->pan_right;
 
-			const cc_bool is_dac = channel_index == 5 && state->dac_enabled;
+			const cc_bool is_dac = (channel_index == 5 && state->dac_enabled) || state->dac_test;
 			const cc_bool channel_disabled = is_dac ? fm->configuration->dac_channel_disabled : fm->configuration->fm_channels_disabled[channel_index];
 
 			const cc_s16f fm_sample = FM_Channel_GetSample(channel, &state->lfo);

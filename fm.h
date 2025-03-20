@@ -93,7 +93,7 @@ typedef struct FM_State
 	cc_u8l port;
 	cc_u8l address;
 	cc_u16l dac_sample;
-	cc_bool dac_enabled;
+	cc_bool dac_enabled, dac_test;
 	cc_u16l raw_timer_a_value;
 	FM_Timer timers[2];
 	cc_u8l cached_address_27;
