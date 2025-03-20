@@ -456,7 +456,7 @@ static void SetUpExternalRAM(const ClownMDEmu* const clownmdemu)
 		{
 			LogMessage("Invalid external RAM end address - should be after start address but was before it instead");
 		}
-		else if (size >= CC_COUNT_OF(clownmdemu->state->external_ram.buffer))
+		else if (size > CC_COUNT_OF(clownmdemu->state->external_ram.buffer))
 		{
 			LogMessage("External RAM is too large - must be 0x%" CC_PRIXFAST32 " bytes or less, but was 0x%" CC_PRIXFAST32, (cc_u32f)CC_COUNT_OF(clownmdemu->state->external_ram.buffer), size);
 		}

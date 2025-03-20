@@ -98,6 +98,7 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 
 				if (index >= clownmdemu->state->external_ram.size)
 				{
+					/* TODO: According to Genesis Plus GX, SRAM is actually mirrored past its end. */
 					value = 0xFFFF;
 					LOG_MAIN_CPU_BUS_ERROR_2("Attempted to read past the end of external RAM (0x%" CC_PRIXFAST32 " when the external RAM ends at 0x%" CC_PRIXLEAST16 ")", index, clownmdemu->state->external_ram.size);
 				}
@@ -460,6 +461,7 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 
 				if (index >= clownmdemu->state->external_ram.size)
 				{
+					/* TODO: According to Genesis Plus GX, SRAM is actually mirrored past its end. */
 					LOG_MAIN_CPU_BUS_ERROR_2("Attempted to write past the end of external RAM (0x%" CC_PRIXFAST32 " when the external RAM ends at 0x%" CC_PRIXLEAST16 ")", index, clownmdemu->state->external_ram.size);
 				}
 				else

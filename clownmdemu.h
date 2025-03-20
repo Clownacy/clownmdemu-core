@@ -184,8 +184,8 @@ typedef struct ClownMDEmu_State
 
 	struct
 	{
-		cc_u8l buffer[0x4000]; /* This is the size required by Phantasy Star 4. */
-		cc_u16l size;
+		cc_u8l buffer[0x10000]; /* 64 KiB is the maximum that I have ever seen used (by homebrew). */
+		cc_u32l size;
 		cc_bool non_volatile;
 		cc_u8l data_size;
 		cc_u8l device_type;
