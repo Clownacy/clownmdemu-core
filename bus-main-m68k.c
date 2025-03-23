@@ -389,6 +389,7 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 	{
 		/* H/V COUNTER */
 		/* TODO: The V counter emulation is incredibly inaccurate: the timing is likely wrong, and it should be incremented while in the blanking areas too. */
+		/* TODO: Apparently in interlace mode 1, the lowest bit of the V-counter is set to the hidden ninth bit. */
 		const cc_u8f h_counter = GetHCounterValue(clownmdemu, target_cycle);
 		const cc_u8f v_counter = clownmdemu->state->vdp.double_resolution_enabled
 			? ((clownmdemu->state->current_scanline & 0x7F) << 1) | ((clownmdemu->state->current_scanline & 0x80) >> 7)

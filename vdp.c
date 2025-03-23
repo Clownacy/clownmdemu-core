@@ -1008,6 +1008,7 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 							   EA games use this. Apparently it creates an image that is slightly broken in
 							   some way. */
 							vdp->state->double_resolution_enabled = cc_false;
+							LogMessage("Invalid interlace setting '2' used.");
 							break;
 
 						case 3:
