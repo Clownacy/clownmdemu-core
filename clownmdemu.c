@@ -261,8 +261,10 @@ void ClownMDEmu_Parameters_Initialise(ClownMDEmu* const clownmdemu, const ClownM
 
 void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 {
+	ClownMDEmu_State* const state = clownmdemu->state;
+
 	const cc_u16f television_vertical_resolution = GetTelevisionVerticalResolution(clownmdemu);
-	const cc_u16f console_vertical_resolution = (clownmdemu->state->vdp.v30_enabled ? 30 : 28) * 8; /* 240 and 224 */
+	const cc_u16f console_vertical_resolution = (state->vdp.v30_enabled ? 30 : 28) * 8; /* 240 and 224 */
 	const CycleMegaDrive cycles_per_frame_mega_drive = GetMegaDriveCyclesPerFrame(clownmdemu);
 	const cc_u16f cycles_per_scanline = cycles_per_frame_mega_drive.cycle / television_vertical_resolution;
 	const CycleMegaCD cycles_per_frame_mega_cd = MakeCycleMegaCD(clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(CLOWNMDEMU_MCD_MASTER_CLOCK) : CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(CLOWNMDEMU_MCD_MASTER_CLOCK));
@@ -274,13 +276,13 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 	cpu_callback_user_data.clownmdemu = clownmdemu;
 	cpu_callback_user_data.sync.m68k.current_cycle = 0;
 	/* TODO: This is awful; stop doing this. */
-	cpu_callback_user_data.sync.m68k.cycle_countdown = &clownmdemu->state->m68k.cycle_countdown;
+	cpu_callback_user_data.sync.m68k.cycle_countdown = &state->m68k.cycle_countdown;
 	cpu_callback_user_data.sync.z80.current_cycle = 0;
-	cpu_callback_user_data.sync.z80.cycle_countdown = &clownmdemu->state->z80.cycle_countdown;
+	cpu_callback_user_data.sync.z80.cycle_countdown = &state->z80.cycle_countdown;
 	cpu_callback_user_data.sync.mcd_m68k.current_cycle = 0;
-	cpu_callback_user_data.sync.mcd_m68k.cycle_countdown = &clownmdemu->state->mega_cd.m68k.cycle_countdown;
+	cpu_callback_user_data.sync.mcd_m68k.cycle_countdown = &state->mega_cd.m68k.cycle_countdown;
 	cpu_callback_user_data.sync.mcd_m68k_irq3.current_cycle = 0;
-	cpu_callback_user_data.sync.mcd_m68k_irq3.cycle_countdown = &clownmdemu->state->mega_cd.irq.irq3_countdown;
+	cpu_callback_user_data.sync.mcd_m68k_irq3.cycle_countdown = &state->mega_cd.irq.irq3_countdown;
 	cpu_callback_user_data.sync.fm.current_cycle = 0;
 	cpu_callback_user_data.sync.psg.current_cycle = 0;
 	cpu_callback_user_data.sync.pcm.current_cycle = 0;
@@ -288,13 +290,13 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 		cpu_callback_user_data.sync.io_ports[i].current_cycle = 0;
 
 	/* Reload H-Int counter at the top of the screen, just like real hardware does */
-	h_int_counter = clownmdemu->state->vdp.h_int_interval;
+	h_int_counter = state->vdp.h_int_interval;
 
-	clownmdemu->state->vdp.currently_in_vblank = cc_false;
+	state->vdp.currently_in_vblank = cc_false;
 
-	for (clownmdemu->state->current_scanline = 0; clownmdemu->state->current_scanline < television_vertical_resolution; ++clownmdemu->state->current_scanline)
+	for (state->current_scanline = 0; state->current_scanline < television_vertical_resolution; ++state->current_scanline)
 	{
-		const cc_u16f scanline = clownmdemu->state->current_scanline;
+		const cc_u16f scanline = state->current_scanline;
 		const CycleMegaDrive current_cycle = MakeCycleMegaDrive(cycles_per_scanline * (1 + scanline));
 
 		/* Sync the 68k, since it's the one thing that can influence the VDP */
@@ -303,7 +305,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 		/* Only render scanlines and generate H-Ints for scanlines that the console outputs to */
 		if (scanline < console_vertical_resolution)
 		{
-			if (clownmdemu->state->vdp.double_resolution_enabled)
+			if (state->vdp.double_resolution_enabled)
 			{
 				VDP_RenderScanline(&clownmdemu->vdp, scanline * 2 + 0, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
 				VDP_RenderScanline(&clownmdemu->vdp, scanline * 2 + 1, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
@@ -326,17 +328,17 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 			/* http://gendev.spritesmind.net/forum/viewtopic.php?t=519 */
 			if (h_int_counter-- == 0)
 			{
-				h_int_counter = clownmdemu->state->vdp.h_int_interval;
+				h_int_counter = state->vdp.h_int_interval;
 
 				/* Do H-Int */
-				if (clownmdemu->state->vdp.h_int_enabled)
+				if (state->vdp.h_int_enabled)
 					Clown68000_Interrupt(clownmdemu->m68k, 4);
 			}
 		}
 		else if (scanline == console_vertical_resolution) /* Check if we have reached the end of the console-output scanlines */
 		{
 			/* Do V-Int */
-			if (clownmdemu->state->vdp.v_int_enabled)
+			if (state->vdp.v_int_enabled)
 				Clown68000_Interrupt(clownmdemu->m68k, 6);
 
 			/* According to Charles MacDonald's gen-hw.txt, this occurs regardless of the 'v_int_enabled' setting. */
@@ -344,7 +346,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 			Z80_Interrupt(&clownmdemu->z80, cc_true);
 
 			/* Flag that we have entered the V-blank region */
-			clownmdemu->state->vdp.currently_in_vblank = cc_true;
+			state->vdp.currently_in_vblank = cc_true;
 		}
 		else if (scanline == console_vertical_resolution + 1)
 		{
@@ -366,14 +368,14 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 
 	/* Fire IRQ1 if needed. */
 	/* TODO: This is a hack. Look into when this interrupt should actually be done. */
-	if (clownmdemu->state->mega_cd.irq.irq1_pending)
+	if (state->mega_cd.irq.irq1_pending)
 	{
-		clownmdemu->state->mega_cd.irq.irq1_pending = cc_false;
+		state->mega_cd.irq.irq1_pending = cc_false;
 		Clown68000_Interrupt(clownmdemu->mcd_m68k, 1);
 	}
 
 	/* TODO: This should be done 75 times a second (in sync with the CDD interrupt), not 60! */
-	CDDA_UpdateFade(&clownmdemu->state->mega_cd.cdda);
+	CDDA_UpdateFade(&state->mega_cd.cdda);
 }
 
 static cc_u8f ReadCartridgeByte(const ClownMDEmu* const clownmdemu, const cc_u32f address)
@@ -412,6 +414,8 @@ static cc_u32f NextPowerOfTwo(cc_u32f v)
 
 static void SetUpExternalRAM(const ClownMDEmu* const clownmdemu)
 {
+	ClownMDEmu_State* const state = clownmdemu->state;
+
 	cc_u32f cartridge_base = 0;
 
 	/* If external RAM metadata cannot be found in the ROM header, search for it in the locked-on cartridge instead. */
@@ -427,28 +431,28 @@ static void SetUpExternalRAM(const ClownMDEmu* const clownmdemu)
 		const cc_u32f end = ReadCartridgeLongWord(clownmdemu, cartridge_base + 0x1B8) + 1;
 		const cc_u32f size = NextPowerOfTwo(end - 0x200000);
 
-		clownmdemu->state->external_ram.size = CC_COUNT_OF(clownmdemu->state->external_ram.buffer);
-		clownmdemu->state->external_ram.non_volatile = (metadata & 0x4000) != 0;
-		clownmdemu->state->external_ram.data_size = (metadata >> 11) & 3;
-		clownmdemu->state->external_ram.device_type = (metadata >> 5) & 7;
+		state->external_ram.size = CC_COUNT_OF(state->external_ram.buffer);
+		state->external_ram.non_volatile = (metadata & 0x4000) != 0;
+		state->external_ram.data_size = (metadata >> 11) & 3;
+		state->external_ram.device_type = (metadata >> 5) & 7;
 
 		if (metadata_junk_bits != 0xA000)
 			LogMessage("External RAM metadata data at cartridge address 0x1B2 has incorrect junk bits - should be 0xA000, but was 0x%" CC_PRIXFAST16, metadata_junk_bits);
 
-		if (clownmdemu->state->external_ram.device_type != 1 && clownmdemu->state->external_ram.device_type != 2)
-			LogMessage("Invalid external RAM device type - should be 1 or 2, but was %" CC_PRIXLEAST8, clownmdemu->state->external_ram.device_type);
+		if (state->external_ram.device_type != 1 && state->external_ram.device_type != 2)
+			LogMessage("Invalid external RAM device type - should be 1 or 2, but was %" CC_PRIXLEAST8, state->external_ram.device_type);
 
 		/* TODO: Add support for EEPROM. */
-		if (clownmdemu->state->external_ram.data_size == 1 || clownmdemu->state->external_ram.device_type == 2)
+		if (state->external_ram.data_size == 1 || state->external_ram.device_type == 2)
 			LogMessage("EEPROM external RAM is not yet supported - use SRAM instead");
 
 		/* TODO: Should we just disable SRAM in these events? */
 		/* TODO: SRAM should probably not be disabled in the first case, since the Sonic 1 disassembly makes this mistake by default. */
-		if (clownmdemu->state->external_ram.data_size != 3 && start != 0x200000)
+		if (state->external_ram.data_size != 3 && start != 0x200000)
 		{
 			LogMessage("Invalid external RAM start address - should be 0x200000, but was 0x%" CC_PRIXFAST32, start);
 		}
-		else if (clownmdemu->state->external_ram.data_size == 3 && start != 0x200001)
+		else if (state->external_ram.data_size == 3 && start != 0x200001)
 		{
 			LogMessage("Invalid external RAM start address - should be 0x200001, but was 0x%" CC_PRIXFAST32, start);
 		}
@@ -456,25 +460,27 @@ static void SetUpExternalRAM(const ClownMDEmu* const clownmdemu)
 		{
 			LogMessage("Invalid external RAM end address - should be after start address but was before it instead");
 		}
-		else if (size > CC_COUNT_OF(clownmdemu->state->external_ram.buffer))
+		else if (size > CC_COUNT_OF(state->external_ram.buffer))
 		{
-			LogMessage("External RAM is too large - must be 0x%" CC_PRIXFAST32 " bytes or less, but was 0x%" CC_PRIXFAST32, (cc_u32f)CC_COUNT_OF(clownmdemu->state->external_ram.buffer), size);
+			LogMessage("External RAM is too large - must be 0x%" CC_PRIXFAST32 " bytes or less, but was 0x%" CC_PRIXFAST32, (cc_u32f)CC_COUNT_OF(state->external_ram.buffer), size);
 		}
 		else
 		{
-			clownmdemu->state->external_ram.size = size;
+			state->external_ram.size = size;
 		}
 	}
 }
 
 void ClownMDEmu_Reset(const ClownMDEmu* const clownmdemu, const cc_bool cd_boot)
 {
+	ClownMDEmu_State* const state = clownmdemu->state;
+
 	Clown68000_ReadWriteCallbacks m68k_read_write_callbacks;
 	CPUCallbackUserData callback_user_data;
 
 	SetUpExternalRAM(clownmdemu);
 
-	clownmdemu->state->mega_cd.boot_from_cd = cd_boot;
+	state->mega_cd.boot_from_cd = cd_boot;
 
 	if (cd_boot)
 	{
@@ -483,7 +489,7 @@ void ClownMDEmu_Reset(const ClownMDEmu* const clownmdemu, const cc_bool cd_boot)
 		const cc_u16f boot_header_offset = 0x6000;
 		const cc_u16f ip_start_default = 0x200;
 		const cc_u16f ip_length_default = 0x600;
-		cc_u16l* const sector_words = &clownmdemu->state->mega_cd.prg_ram.buffer[boot_header_offset / 2];
+		cc_u16l* const sector_words = &state->mega_cd.prg_ram.buffer[boot_header_offset / 2];
 		/*cc_u8l region;*/
 
 		/* Read first sector. */
@@ -496,24 +502,24 @@ void ClownMDEmu_Reset(const ClownMDEmu* const clownmdemu, const cc_bool cd_boot)
 		/*region = sector_bytes[0x1F0];*/
 
 		/* Don't allow overflowing the PRG-RAM array. */
-		sp_length = CC_MIN(CC_COUNT_OF(clownmdemu->state->mega_cd.prg_ram.buffer) * 2 - boot_header_offset, sp_length);
+		sp_length = CC_MIN(CC_COUNT_OF(state->mega_cd.prg_ram.buffer) * 2 - boot_header_offset, sp_length);
 
 		/* Read Initial Program. */
-		memcpy(clownmdemu->state->mega_cd.word_ram.buffer, &sector_words[ip_start_default / 2], ip_length_default);
+		memcpy(state->mega_cd.word_ram.buffer, &sector_words[ip_start_default / 2], ip_length_default);
 
 		/* Load additional Initial Program data if necessary. */
 		if (ip_start != ip_start_default || ip_length != ip_length_default)
-			CDSectorsTo68kRAM(clownmdemu->callbacks, &clownmdemu->state->mega_cd.word_ram.buffer[ip_length_default / 2], ip_start, 32 * CDC_SECTOR_SIZE);
+			CDSectorsTo68kRAM(clownmdemu->callbacks, &state->mega_cd.word_ram.buffer[ip_length_default / 2], ip_start, 32 * CDC_SECTOR_SIZE);
 
 		/* This is what Sega's BIOS does. */
-		memcpy(clownmdemu->state->m68k.ram, clownmdemu->state->mega_cd.word_ram.buffer, sizeof(clownmdemu->state->m68k.ram) / 2);
+		memcpy(state->m68k.ram, state->mega_cd.word_ram.buffer, sizeof(state->m68k.ram) / 2);
 
 		/* Read Sub Program. */
-		CDSectorsTo68kRAM(clownmdemu->callbacks, &clownmdemu->state->mega_cd.prg_ram.buffer[boot_header_offset / 2], sp_start, sp_length);
+		CDSectorsTo68kRAM(clownmdemu->callbacks, &state->mega_cd.prg_ram.buffer[boot_header_offset / 2], sp_start, sp_length);
 
 		/* Give WORD-RAM to the SUB-CPU. */
-		clownmdemu->state->mega_cd.word_ram.dmna = cc_true;
-		clownmdemu->state->mega_cd.word_ram.ret = cc_false;
+		state->mega_cd.word_ram.dmna = cc_true;
+		state->mega_cd.word_ram.ret = cc_false;
 	}
 
 	callback_user_data.clownmdemu = clownmdemu;
