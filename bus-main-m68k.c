@@ -392,7 +392,7 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 		const cc_u8f h_counter = GetHCounterValue(clownmdemu, target_cycle);
 		const cc_u8f v_counter = clownmdemu->state->vdp.double_resolution_enabled
 			? ((clownmdemu->state->current_scanline & 0x7F) << 1) | ((clownmdemu->state->current_scanline & 0x80) >> 7)
-			: clownmdemu->state->current_scanline;
+			: (clownmdemu->state->current_scanline & 0xFF);
 		value = v_counter << 8 | h_counter;
 	}
 	else if (address >= 0xC00010 && address <= 0xC00016)
