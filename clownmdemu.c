@@ -259,6 +259,47 @@ void ClownMDEmu_Parameters_Initialise(ClownMDEmu* const clownmdemu, const ClownM
 	clownmdemu->pcm.state = &state->mega_cd.pcm;
 }
 
+/* Very useful H-Counter/V-Counter information:
+   https://gendev.spritesmind.net/forum/viewtopic.php?t=3058
+   https://gendev.spritesmind.net/forum/viewtopic.php?t=768 */
+
+static cc_u16f CyclesUntilHorizontalSync(const ClownMDEmu* const clownmdemu)
+{
+	const cc_u16f h32_divider = 5;
+
+	if (clownmdemu->state->vdp.h40_enabled)
+	{
+		const cc_u16f h40_divider = 4;
+	
+		const cc_u16f left_blanking   =   2 * h32_divider
+		                              +  62 * h40_divider;
+		const cc_u16f left_border     =  26 * h40_divider;
+		const cc_u16f active_display  = 640 * h40_divider;
+		const cc_u16f right_border    =  28 * h40_divider;
+		const cc_u16f right_blanking  =  18 * h40_divider;
+	/*	const cc_u16f horizontal_sync =  15 * h32_divider
+		                              +   2 * h40_divider
+		                              +  15 * h32_divider
+		                              +   2 * h40_divider
+		                              +  15 * h32_divider
+		                              +   2 * h40_divider
+		                              +  13 * h32_divider;*/
+
+		return left_blanking + left_border + active_display + right_border + right_blanking;
+	}
+	else
+	{	
+		const cc_u16f left_blanking   =  48 * h32_divider;
+		const cc_u16f left_border     =  26 * h32_divider;
+		const cc_u16f active_display  = 512 * h32_divider;
+		const cc_u16f right_border    =  28 * h32_divider;
+		const cc_u16f right_blanking  =  18 * h32_divider;
+	/*	const cc_u16f horizontal_sync =  52 * h32_divider;*/
+
+		return left_blanking + left_border + active_display + right_border + right_blanking;
+	}
+}
+
 void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 {
 	ClownMDEmu_State* const state = clownmdemu->state;
@@ -267,6 +308,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 	const cc_u16f console_vertical_resolution = (state->vdp.v30_enabled ? 30 : 28) * 8; /* 240 and 224 */
 	const CycleMegaDrive cycles_per_frame_mega_drive = GetMegaDriveCyclesPerFrame(clownmdemu);
 	const cc_u16f cycles_per_scanline = cycles_per_frame_mega_drive.cycle / television_vertical_resolution;
+	const cc_u16f cycles_until_horizontal_sync = CyclesUntilHorizontalSync(clownmdemu);
 	const CycleMegaCD cycles_per_frame_mega_cd = MakeCycleMegaCD(clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(CLOWNMDEMU_MCD_MASTER_CLOCK) : CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(CLOWNMDEMU_MCD_MASTER_CLOCK));
 
 	CPUCallbackUserData cpu_callback_user_data;
@@ -297,24 +339,14 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 	for (state->current_scanline = 0; state->current_scanline < television_vertical_resolution; ++state->current_scanline)
 	{
 		const cc_u16f scanline = state->current_scanline;
+		const CycleMegaDrive current_cycle_minus_horizontal_sync = MakeCycleMegaDrive(cycles_per_scanline * scanline + cycles_until_horizontal_sync);
 		const CycleMegaDrive current_cycle = MakeCycleMegaDrive(cycles_per_scanline * (1 + scanline));
 
 		/* Sync the 68k, since it's the one thing that can influence the VDP */
-		SyncM68k(clownmdemu, &cpu_callback_user_data, current_cycle);
+		SyncM68k(clownmdemu, &cpu_callback_user_data, current_cycle_minus_horizontal_sync);
 
-		/* Only render scanlines and generate H-Ints for scanlines that the console outputs to */
 		if (scanline < console_vertical_resolution)
 		{
-			if (state->vdp.double_resolution_enabled)
-			{
-				VDP_RenderScanline(&clownmdemu->vdp, scanline * 2 + 0, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
-				VDP_RenderScanline(&clownmdemu->vdp, scanline * 2 + 1, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
-			}
-			else
-			{
-				VDP_RenderScanline(&clownmdemu->vdp, scanline, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
-			}
-
 			/* Fire a H-Int if we've reached the requested line */
 			/* TODO: There is some strange behaviour surrounding how H-Int is asserted. */
 			/* https://gendev.spritesmind.net/forum/viewtopic.php?t=183 */
@@ -333,6 +365,22 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 				/* Do H-Int */
 				if (state->vdp.h_int_enabled)
 					Clown68000_Interrupt(clownmdemu->m68k, 4);
+			}
+		}
+
+		SyncM68k(clownmdemu, &cpu_callback_user_data, current_cycle);
+
+		/* Only render scanlines and generate H-Ints for scanlines that the console outputs to */
+		if (scanline < console_vertical_resolution)
+		{
+			if (state->vdp.double_resolution_enabled)
+			{
+				VDP_RenderScanline(&clownmdemu->vdp, scanline * 2 + 0, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
+				VDP_RenderScanline(&clownmdemu->vdp, scanline * 2 + 1, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
+			}
+			else
+			{
+				VDP_RenderScanline(&clownmdemu->vdp, scanline, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
 			}
 		}
 		else if (scanline == console_vertical_resolution) /* Check if we have reached the end of the console-output scanlines */
