@@ -979,7 +979,8 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 
 				case 12:
 					/* MODE SET REGISTER NO.4 */
-					/* TODO */
+					/* TODO: Mode 1. */
+					/* TODO: This register is latched on V-Int: https://gendev.spritesmind.net/forum/viewtopic.php?t=768 */
 					vdp->state->h40_enabled = (data & ((1 << 7) | (1 << 0))) != 0;
 					vdp->state->shadow_highlight_enabled = (data & (1 << 3)) != 0;
 
