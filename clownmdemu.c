@@ -358,6 +358,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 			/* http://gendev.spritesmind.net/forum/viewtopic.php?p=8443#p8443 */
 			/* http://gendev.spritesmind.net/forum/viewtopic.php?t=3058 */
 			/* http://gendev.spritesmind.net/forum/viewtopic.php?t=519 */
+			/* TODO: H-Int and V-Int use a pending flag: https://gendev.spritesmind.net/forum/viewtopic.php?t=3290 */
 			if (h_int_counter-- == 0)
 			{
 				h_int_counter = state->vdp.h_int_interval;
