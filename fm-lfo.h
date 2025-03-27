@@ -12,6 +12,7 @@ typedef struct FM_LFO
 } FM_LFO;
 
 void FM_LFO_Initialise(FM_LFO *state);
-void FM_LFO_Advance(FM_LFO *state);
+cc_bool FM_LFO_SetEnabled(FM_LFO *state, cc_bool enabled);
+cc_bool FM_LFO_Advance(FM_LFO *state);
 
 #endif

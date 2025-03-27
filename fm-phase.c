@@ -4,7 +4,7 @@
 
 #include "clowncommon/clowncommon.h"
 
-static cc_u32f RecalculatePhaseStep(const FM_Phase_State* const phase, const FM_LFO* const lfo, const cc_u8f phase_modulation_sensitivity)
+static cc_u32f RecalculatePhaseStep(const FM_Phase_State* const phase, const cc_u8f modulation, const cc_u8f modulation_sensitivity)
 {
 	/* First, obtain some values. */
 
@@ -72,9 +72,9 @@ static cc_u32f RecalculatePhaseStep(const FM_Phase_State* const phase, const FM_
 	const cc_u16f detune = detune_lookup[block][key_codes[f_number >> 7]][phase->detune % CC_COUNT_OF(detune_lookup[0][0])];
 
 	/* The phase modulation is a wave, which is made of the same quadrant mirrored repeatedly. */
-	const cc_bool phase_modulation_is_negative_lobe = (lfo->phase_modulation & 0x10) != 0;
-	const cc_bool phase_modulation_is_mirrored_size_of_lobe = (lfo->phase_modulation & 8) != 0;
-	const cc_u8f phase_modulation_absolute_quadrant = (lfo->phase_modulation & 7) ^ (phase_modulation_is_mirrored_size_of_lobe ? 7 : 0);
+	const cc_bool phase_modulation_is_negative_lobe = (modulation & 0x10) != 0;
+	const cc_bool phase_modulation_is_mirrored_size_of_lobe = (modulation & 8) != 0;
+	const cc_u8f phase_modulation_absolute_quadrant = (modulation & 7) ^ (phase_modulation_is_mirrored_size_of_lobe ? 7 : 0);
 
 	/* Finally, calculate the phase step. */
 	cc_u32f step;
@@ -97,11 +97,11 @@ static cc_u32f RecalculatePhaseStep(const FM_Phase_State* const phase, const FM_
 	};
 
 	const cc_u16f f_number_upper_nybbles = f_number >> 4;
-	const cc_u8l* const shifts = lfo_shift_lookup[phase_modulation_sensitivity][phase_modulation_absolute_quadrant];
+	const cc_u8l* const shifts = lfo_shift_lookup[modulation_sensitivity][phase_modulation_absolute_quadrant];
 	step = (f_number_upper_nybbles >> shifts[0]) + (f_number_upper_nybbles >> shifts[1]);
 
-	if (phase_modulation_sensitivity > 5)
-		step <<= phase_modulation_sensitivity - 5;
+	if (modulation_sensitivity > 5)
+		step <<= modulation_sensitivity - 5;
 
 	step >>= 2;
 #else
@@ -155,8 +155,8 @@ static cc_u32f RecalculatePhaseStep(const FM_Phase_State* const phase, const FM_
 
 void FM_Phase_State_Initialise(FM_Phase_State* const phase)
 {
-	FM_Phase_SetFrequency(phase, 0);
-	FM_Phase_SetDetuneAndMultiplier(phase, 0, 0);
+	FM_Phase_SetFrequency(phase, 0, 0, 0);
+	FM_Phase_SetDetuneAndMultiplier(phase, 0, 0, 0, 0);
 	FM_Phase_Reset(phase);
 }
 
@@ -165,20 +165,25 @@ cc_u16f FM_Phase_GetKeyCode(const FM_Phase_State* const phase)
 	return phase->key_code;
 }
 
-void FM_Phase_SetFrequency(FM_Phase_State* const phase, const cc_u16f f_number_and_block)
+void FM_Phase_SetFrequency(FM_Phase_State* const phase, const cc_u8f modulation, const cc_u8f sensitivity, const cc_u16f f_number_and_block)
 {
 	phase->f_number_and_block = f_number_and_block;
 	phase->key_code = f_number_and_block >> 9;
 
-	/*phase->step = RecalculatePhaseStep(phase);*/
+	phase->step = RecalculatePhaseStep(phase, modulation, sensitivity);
 }
 
-void FM_Phase_SetDetuneAndMultiplier(FM_Phase_State* const phase, const cc_u16f detune, const cc_u16f multiplier)
+void FM_Phase_SetDetuneAndMultiplier(FM_Phase_State* const phase, const cc_u8f modulation, const cc_u8f sensitivity, const cc_u16f detune, const cc_u16f multiplier)
 {
 	phase->detune = detune;
 	phase->multiplier = multiplier == 0 ? 1 : multiplier * 2;
 
-	/*phase->step = RecalculatePhaseStep(phase);*/
+	phase->step = RecalculatePhaseStep(phase, modulation, sensitivity);
+}
+
+void FM_Phase_SetModulationAndSensitivity(FM_Phase_State* const phase, const cc_u8f modulation, const cc_u8f sensitivity)
+{
+	phase->step = RecalculatePhaseStep(phase, modulation, sensitivity);
 }
 
 void FM_Phase_Reset(FM_Phase_State* const phase)
@@ -188,10 +193,7 @@ void FM_Phase_Reset(FM_Phase_State* const phase)
 
 cc_u32f FM_Phase_Increment(FM_Phase_State* const phase, const FM_LFO* const lfo, const cc_u8f phase_modulation_sensitivity)
 {
-	/* TODO: Only call this here when LFO is enabled. */
-	phase->position += RecalculatePhaseStep(phase, lfo, phase_modulation_sensitivity);
-
-	/*phase->position += phase->step;*/
+	phase->position += phase->step;
 
 	return phase->position;
 }

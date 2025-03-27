@@ -214,7 +214,14 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 					break;
 
 				case 0x22:
-					state->lfo.enabled = (data & 8) != 0;
+					if (FM_LFO_SetEnabled(&state->lfo, (data & 8) != 0))
+					{
+						const FM_Channel *channel;
+
+						for (channel = &fm->channels[0]; channel < &fm->channels[CC_COUNT_OF(fm->channels)]; ++channel)
+							FM_Channel_SetPhaseModulation(channel, state->lfo.phase_modulation);
+					}
+
 					state->lfo.frequency = data & 7;
 					break;
 
@@ -265,7 +272,7 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 						state->channel_3_metadata.per_operator_frequencies_enabled = fm3_per_operator_frequencies_enabled;
 
 						for (i = 0; i < CC_COUNT_OF(fm->channels[2].operators); ++i)
-							FM_Channel_SetFrequency(&fm->channels[2], i, state->channel_3_metadata.frequencies[fm3_per_operator_frequencies_enabled ? i : 3]);
+							FM_Channel_SetFrequency(&fm->channels[2], i, state->lfo.phase_modulation, state->channel_3_metadata.frequencies[fm3_per_operator_frequencies_enabled ? i : 3]);
 					}
 
 					state->channel_3_metadata.csm_mode_enabled = (data & 0xC0) == 0x80;
@@ -345,7 +352,7 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 
 					case 0x30 / 0x10:
 						/* Detune and multiplier. */
-						FM_Channel_SetDetuneAndMultiplier(channel, operator_index, (data >> 4) & 7, data & 0xF);
+						FM_Channel_SetDetuneAndMultiplier(channel, operator_index, state->lfo.phase_modulation, (data >> 4) & 7, data & 0xF);
 						break;
 
 					case 0x40 / 0x10:
@@ -400,12 +407,12 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 
 							if (state->channel_3_metadata.per_operator_frequencies_enabled)
 							{
-								FM_Channel_SetFrequency(&fm->channels[2], 3, frequency);
+								FM_Channel_SetFrequency(&fm->channels[2], 3, state->lfo.phase_modulation, frequency);
 								break;
 							}
 						}
 
-						FM_Channel_SetFrequencies(channel, frequency);
+						FM_Channel_SetFrequencies(channel, state->lfo.phase_modulation, frequency);
 						break;
 					}
 
@@ -426,7 +433,7 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 							state->channel_3_metadata.frequencies[operator_index] = frequency;
 
 							if (state->channel_3_metadata.per_operator_frequencies_enabled)
-								FM_Channel_SetFrequency(&fm->channels[2], operator_index, frequency);
+								FM_Channel_SetFrequency(&fm->channels[2], operator_index, state->lfo.phase_modulation, frequency);
 						}
 
 						break;
@@ -446,7 +453,7 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 						channel_metadata->pan_left = (data & 0x80) != 0;
 						channel_metadata->pan_right = (data & 0x40) != 0;
 
-						FM_Channel_SetModulationSensitivity(channel, (data >> 4) & 3, data & 7);
+						FM_Channel_SetModulationSensitivity(channel, state->lfo.phase_modulation, (data >> 4) & 3, data & 7);
 						break;
 				}
 			}
@@ -501,7 +508,13 @@ void FM_OutputSamples(const FM* const fm, cc_s16l* const sample_buffer, const cc
 	{
 		cc_u8f channel_index, timer_index;
 
-		FM_LFO_Advance(&state->lfo);
+		if (FM_LFO_Advance(&state->lfo))
+		{
+			const FM_Channel *channel;
+
+			for (channel = &fm->channels[0]; channel < &fm->channels[CC_COUNT_OF(fm->channels)]; ++channel)
+				FM_Channel_SetPhaseModulation(channel, state->lfo.phase_modulation);
+		}
 
 		for (channel_index = 0; channel_index < CC_COUNT_OF(state->channels); ++channel_index)
 		{

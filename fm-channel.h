@@ -60,14 +60,15 @@ void FM_Channel_State_Initialise(FM_Channel_State *state);
 void FM_Channel_Parameters_Initialise(FM_Channel *channel, const FM_Channel_Constant *constant, FM_Channel_State *state);
 
 /* Per-channel. */
-void FM_Channel_SetFrequency(const FM_Channel *channel, cc_u8f operator_index, cc_u16f f_number_and_block);
-void FM_Channel_SetFrequencies(const FM_Channel *channel, cc_u16f f_number_and_block);
+void FM_Channel_SetFrequency(const FM_Channel *channel, cc_u8f operator_index, cc_u8f modulation, cc_u16f f_number_and_block);
+void FM_Channel_SetFrequencies(const FM_Channel *channel, cc_u8f modulation, cc_u16f f_number_and_block);
 void FM_Channel_SetFeedbackAndAlgorithm(const FM_Channel *channel, cc_u16f feedback, cc_u16f algorithm);
-void FM_Channel_SetModulationSensitivity(const FM_Channel *channel, cc_u8f amplitude, cc_u8f frequency);
+void FM_Channel_SetModulationSensitivity(const FM_Channel *channel, cc_u8f phase_modulation, cc_u8f amplitude, cc_u8f phase);
+void FM_Channel_SetPhaseModulation(const FM_Channel *channel, cc_u8f phase_modulation);
 
 /* Per-operator. */
 void FM_Channel_SetKeyOn(const FM_Channel *channel, cc_u16f operator_index, cc_bool key_on);
-void FM_Channel_SetDetuneAndMultiplier(const FM_Channel *channel, cc_u16f operator_index, cc_u16f detune, cc_u16f multiplier);
+void FM_Channel_SetDetuneAndMultiplier(const FM_Channel *channel, cc_u16f operator_index, cc_u8f modulation, cc_u16f detune, cc_u16f multiplier);
 void FM_Channel_SetTotalLevel(const FM_Channel *channel, cc_u16f operator_index, cc_u16f total_level);
 void FM_Channel_SetKeyScaleAndAttackRate(const FM_Channel *channel, cc_u16f operator_index, cc_u16f key_scale, cc_u16f attack_rate);
 void FM_Channel_SetDecayRate(const FM_Channel *channel, cc_u16f operator_index, cc_u16f decay_rate);

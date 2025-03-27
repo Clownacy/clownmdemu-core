@@ -28,6 +28,7 @@ void FM_Channel_State_Initialise(FM_Channel_State* const state)
 	for (i = 0; i < CC_COUNT_OF(state->operator_1_previous_samples); ++i)
 		state->operator_1_previous_samples[i] = 0;
 
+	/* TODO: Shouldn't 'amplitude_modulation_shift' be initialised to 7? */
 	state->amplitude_modulation_shift = state->phase_modulation_sensitivity = 0;
 }
 
@@ -45,17 +46,17 @@ void FM_Channel_Parameters_Initialise(FM_Channel* const channel, const FM_Channe
 	}
 }
 
-void FM_Channel_SetFrequency(const FM_Channel* const channel, const cc_u8f operator_index, const cc_u16f f_number_and_block)
+void FM_Channel_SetFrequency(const FM_Channel* const channel, const cc_u8f operator_index, const cc_u8f modulation, const cc_u16f f_number_and_block)
 {
-	FM_Operator_SetFrequency(channel->operators[operator_index].state, f_number_and_block);
+	FM_Operator_SetFrequency(channel->operators[operator_index].state, modulation, channel->state->phase_modulation_sensitivity, f_number_and_block);
 }
 
-void FM_Channel_SetFrequencies(const FM_Channel* const channel, const cc_u16f f_number_and_block)
+void FM_Channel_SetFrequencies(const FM_Channel* const channel, const cc_u8f modulation, const cc_u16f f_number_and_block)
 {
 	cc_u16f i;
 
 	for (i = 0; i < CC_COUNT_OF(channel->state->operators); ++i)
-		FM_Operator_SetFrequency(channel->operators[i].state, f_number_and_block);
+		FM_Operator_SetFrequency(channel->operators[i].state, modulation, channel->state->phase_modulation_sensitivity, f_number_and_block);
 }
 
 void FM_Channel_SetFeedbackAndAlgorithm(const FM_Channel* const channel, const cc_u16f feedback, const cc_u16f algorithm)
@@ -69,10 +70,25 @@ void FM_Channel_SetSSGEG(const FM_Channel* const channel, const cc_u8f operator_
 	FM_Operator_SetSSGEG(channel->operators[operator_index].state, ssgeg);
 }
 
-void FM_Channel_SetModulationSensitivity(const FM_Channel* const channel, const cc_u8f amplitude, const cc_u8f frequency)
+static void FM_Channel_SetPhaseModulationAndSensitivity(const FM_Channel* const channel, const cc_u8f phase_modulation, const cc_u8f phase_modulation_sensitivity)
+{
+	cc_u16f i;
+
+	for (i = 0; i < CC_COUNT_OF(channel->state->operators); ++i)
+		FM_Operator_SetPhaseModulationAndSensitivity(channel->operators[i].state, phase_modulation, phase_modulation_sensitivity);
+}
+
+void FM_Channel_SetModulationSensitivity(const FM_Channel* const channel, const cc_u8f phase_modulation, const cc_u8f amplitude, const cc_u8f phase)
 {
 	channel->state->amplitude_modulation_shift = 7 >> amplitude;
-	channel->state->phase_modulation_sensitivity = frequency;
+	channel->state->phase_modulation_sensitivity = phase;
+
+	FM_Channel_SetPhaseModulationAndSensitivity(channel, phase_modulation, phase);
+}
+
+void FM_Channel_SetPhaseModulation(const FM_Channel* const channel, const cc_u8f phase_modulation)
+{
+	FM_Channel_SetPhaseModulationAndSensitivity(channel, phase_modulation, channel->state->phase_modulation_sensitivity);
 }
 
 void FM_Channel_SetKeyOn(const FM_Channel* const channel, const cc_u16f operator_index, const cc_bool key_on)
@@ -80,9 +96,9 @@ void FM_Channel_SetKeyOn(const FM_Channel* const channel, const cc_u16f operator
 	FM_Operator_SetKeyOn(channel->operators[operator_index].state, key_on);
 }
 
-void FM_Channel_SetDetuneAndMultiplier(const FM_Channel* const channel, const cc_u16f operator_index, const cc_u16f detune, const cc_u16f multiplier)
+void FM_Channel_SetDetuneAndMultiplier(const FM_Channel* const channel, const cc_u16f operator_index, const cc_u8f modulation, const cc_u16f detune, const cc_u16f multiplier)
 {
-	FM_Operator_SetDetuneAndMultiplier(channel->operators[operator_index].state, detune, multiplier);
+	FM_Operator_SetDetuneAndMultiplier(channel->operators[operator_index].state, modulation, channel->state->phase_modulation_sensitivity, detune, multiplier);
 }
 
 void FM_Channel_SetTotalLevel(const FM_Channel* const channel, const cc_u16f operator_index, const cc_u16f total_level)
@@ -154,7 +170,7 @@ cc_s16f FM_Channel_GetSample(const FM_Channel* const channel, const FM_LFO* cons
 	cc_s16f sample;
 
 	/* Compute operator 1's self-feedback modulation. */
-	if (state->feedback_divisor == ComputeFeedbackDivisor	(0))
+	if (state->feedback_divisor == ComputeFeedbackDivisor(0))
 		feedback_modulation = 0;
 	else
 		feedback_modulation = (state->operator_1_previous_samples[0] + state->operator_1_previous_samples[1]) / state->feedback_divisor;
