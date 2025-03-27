@@ -158,8 +158,8 @@ cc_s16f FM_Channel_GetSample(const FM_Channel* const channel, const FM_LFO* cons
 
 	/* TODO: Cache 'channel->state' and 'channel->state->amplitude_modulation_shift'. */
 	const FM_Operator* const operator1 = &channel->operators[0];
-	const FM_Operator* const operator2 = &channel->operators[2]; /* Yes, these really are swapped. */
-	const FM_Operator* const operator3 = &channel->operators[1];
+	const FM_Operator* const operator2 = &channel->operators[1];
+	const FM_Operator* const operator3 = &channel->operators[2];
 	const FM_Operator* const operator4 = &channel->operators[3];
 
 	cc_s16f feedback_modulation;

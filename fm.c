@@ -342,7 +342,8 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 			if (state->address < 0xA0)
 			{
 				/* Per-operator. */
-				const cc_u16f operator_index = (state->address >> 2) & 3;
+				static const cc_u8l operator_mappings[4] = {0, 2, 1, 3}; /* The bits are backwards, so this lookup table will reverse them. */
+				const cc_u16f operator_index = operator_mappings[(state->address >> 2) & 3];
 
 				switch (state->address / 0x10)
 				{
@@ -426,7 +427,7 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 						/* Frequency low bits (multi-frequency). */
 						if (state->port == 0)
 						{
-							static const cc_u8l operator_mappings[3] = {1, 0, 2}; /* Oddly, the operators are switched-around here, just like the accumulation logic. */ /* TODO: Look into this some more. */
+							static const cc_u8l operator_mappings[3] = {2, 0, 1}; /* Oddly, the operators are switched-around here, just like the accumulation logic. */ /* TODO: Look into this some more. */
 							const cc_u8f operator_index = operator_mappings[slot_index];
 							const cc_u16f frequency = data | (state->cached_upper_frequency_bits_fm3_multi_frequency << 8);
 
