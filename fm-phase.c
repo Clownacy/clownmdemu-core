@@ -191,7 +191,7 @@ void FM_Phase_Reset(FM_Phase_State* const phase)
 	phase->position = 0;
 }
 
-cc_u32f FM_Phase_Increment(FM_Phase_State* const phase, const FM_LFO* const lfo, const cc_u8f phase_modulation_sensitivity)
+cc_u32f FM_Phase_Increment(FM_Phase_State* const phase)
 {
 	phase->position += phase->step;
 

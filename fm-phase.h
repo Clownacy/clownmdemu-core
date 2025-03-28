@@ -3,8 +3,6 @@
 
 #include "clowncommon/clowncommon.h"
 
-#include "fm-lfo.h"
-
 typedef struct FM_Phase_State
 {
 	cc_u32l position;
@@ -25,6 +23,6 @@ void FM_Phase_SetDetuneAndMultiplier(FM_Phase_State *phase, cc_u8f modulation, c
 void FM_Phase_SetModulationAndSensitivity(FM_Phase_State *phase, cc_u8f modulation, cc_u8f sensitivity);
 
 void FM_Phase_Reset(FM_Phase_State *phase);
-cc_u32f FM_Phase_Increment(FM_Phase_State *phase, const FM_LFO *lfo, cc_u8f phase_modulation_sensitivity);
+cc_u32f FM_Phase_Increment(FM_Phase_State *phase);
 
 #endif /* FM_PHASE_H */

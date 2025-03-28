@@ -527,7 +527,7 @@ void FM_OutputSamples(const FM* const fm, cc_s16l* const sample_buffer, const cc
 			const cc_bool is_dac = (channel_index == 5 && state->dac_enabled) || state->dac_test;
 			const cc_bool channel_disabled = is_dac ? fm->configuration->dac_channel_disabled : fm->configuration->fm_channels_disabled[channel_index];
 
-			const cc_s16f fm_sample = FM_Channel_GetSample(channel, &state->lfo);
+			const cc_s16f fm_sample = FM_Channel_GetSample(channel, state->lfo.amplitude_modulation);
 			const cc_s16f sample = is_dac ? dac_sample : fm_sample;
 
 			if (!channel_disabled)

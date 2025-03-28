@@ -3,7 +3,6 @@
 
 #include "clowncommon/clowncommon.h"
 
-#include "fm-lfo.h"
 #include "fm-phase.h"
 
 /* TODO: Rename. */
@@ -74,6 +73,6 @@ void FM_Operator_SetSustainLevelAndReleaseRate(FM_Operator_State *state, cc_u16f
 void FM_Operator_SetAmplitudeModulationOn(FM_Operator_State *state, cc_bool amon);
 void FM_Operator_SetPhaseModulationAndSensitivity(FM_Operator_State *state, cc_u8f modulation, cc_u8f sensitivity);
 
-cc_s16f FM_Operator_Process(const FM_Operator *fm_operator, const FM_LFO *lfo, cc_u8f amplitude_modulation_shift, cc_u8f phase_modulation_sensitivity, cc_s16f phase_modulation);
+cc_s16f FM_Operator_Process(const FM_Operator *fm_operator, cc_u8f amplitude_modulation, cc_u8f amplitude_modulation_shift, cc_s16f phase_modulation);
 
 #endif /* FM_OPERATOR_H */
