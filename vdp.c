@@ -484,10 +484,13 @@ static void RenderSprites(cc_u8l (* const sprite_metapixels)[2], VDP_State* cons
 		const cc_u16f sprite_index = state->sprite_table_address + sprite_row_cache_entry->table_index * 8;
 		const cc_u16f width = sprite_row_cache_entry->width;
 		const cc_u16f height = sprite_row_cache_entry->height;
-		const VDP_TileMetadata tile = VDP_DecomposeTileMetadata(VDP_ReadVRAMWord(state, sprite_index + 4));
+		const cc_u16f word = VDP_ReadVRAMWord(state, sprite_index + 4);
+		const cc_u16f sprite_tile_index = VDP_GetTileIndex(word);
+		const cc_bool x_flip = VDP_GetTileXFlip(word);
+		const cc_bool y_flip = VDP_GetTileYFlip(word);
 		const cc_u16f x = VDP_ReadVRAMWord(state, sprite_index + 6) & 0x1FF;
 
-		const cc_u8f metapixel_high_bits = (tile.priority << 2) | tile.palette_line;
+		const cc_u8f metapixel_high_bits = (word >> 13) & 7;
 
 		cc_u16f y_in_sprite = sprite_row_cache_entry->y_in_sprite;
 
@@ -512,12 +515,12 @@ static void RenderSprites(cc_u8l (* const sprite_metapixels)[2], VDP_State* cons
 
 			cc_u16f j;
 
-			y_in_sprite = tile.y_flip ? (height << tile_info->height_power) - y_in_sprite - 1 : y_in_sprite;
+			y_in_sprite = y_flip ? (height << tile_info->height_power) - y_in_sprite - 1 : y_in_sprite;
 
 			for (j = 0; j < width; ++j)
 			{
-				const cc_u16f x_in_sprite = tile.x_flip ? width - j - 1 : j;
-				const cc_u16f tile_index = tile.tile_index + (y_in_sprite >> tile_info->height_power) + x_in_sprite * height;
+				const cc_u16f x_in_sprite = x_flip ? width - j - 1 : j;
+				const cc_u16f tile_index = sprite_tile_index + (y_in_sprite >> tile_info->height_power) + x_in_sprite * height;
 				const cc_u16f pixel_y_in_tile = y_in_sprite & tile_info->height_mask;
 
 				/* Get raw tile data that contains the desired metapixel */
@@ -528,7 +531,7 @@ static void RenderSprites(cc_u8l (* const sprite_metapixels)[2], VDP_State* cons
 				for (k = 0; k < TILE_WIDTH; ++k)
 				{
 					/* Get the X coordinate of the pixel in the tile */
-					const cc_u8f pixel_x_in_tile = k ^ (tile.x_flip ? 7 : 0);
+					const cc_u8f pixel_x_in_tile = k ^ (x_flip ? 7 : 0);
 
 					/* Obtain the index into the palette line */
 					const cc_u8f nibble_shift = (~pixel_x_in_tile & 1) << 2;
