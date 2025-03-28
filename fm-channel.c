@@ -155,7 +155,6 @@ cc_s16f FM_Channel_GetSample(const FM_Channel* const channel, const cc_u8f ampli
 	FM_Channel_State* const state = channel->state;
 	const cc_u8f amplitude_modulation_shift = state->amplitude_modulation_shift;
 
-	/* TODO: Cache 'channel->state' and 'channel->state->amplitude_modulation_shift'. */
 	const FM_Operator* const operator1 = &channel->operators[0];
 	const FM_Operator* const operator2 = &channel->operators[1];
 	const FM_Operator* const operator3 = &channel->operators[2];
