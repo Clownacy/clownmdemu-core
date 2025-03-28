@@ -369,9 +369,10 @@ static cc_u16f GetVScrollTableOffset(const VDP_State* const state, const cc_u8f 
 	}
 }
 
-static void RenderTile(const VDP* const vdp, const cc_u8f start, const cc_u8f end, const cc_u16f pixel_y_in_plane, const cc_u16f vram_address, const TileInfo* const tile_info, cc_u8l** const metapixels_pointer)
+static void RenderTile(const VDP* const vdp, const cc_u16f pixel_y_in_plane, const cc_u16f vram_address, const TileInfo* const tile_info, cc_u8l** const metapixels_pointer)
 {
 	const cc_u16f word = VDP_ReadVRAMWord(vdp->state, vram_address);
+	const cc_bool x_flip = VDP_GetTileXFlip(word);
 
 	/* Get the Y coordinate of the pixel in the tile */
 	const cc_u16f pixel_y_in_tile = (pixel_y_in_plane & tile_info->height_mask) ^ (VDP_GetTileYFlip(word) ? tile_info->height_mask : 0);
@@ -379,40 +380,35 @@ static void RenderTile(const VDP* const vdp, const cc_u8f start, const cc_u8f en
 	/* Get raw tile data that contains the desired metapixel */
 	const cc_u8l* const tile_data = &vdp->state->vram[(VDP_GetTileIndex(word) * tile_info->size + pixel_y_in_tile * 4) % CC_COUNT_OF(vdp->state->vram)];
 
-	const cc_u8f byte_index_xor = VDP_GetTileXFlip(word) ? 7 : 0;
+	const cc_u8f byte_index_xor = x_flip ? 3 : 0;
+	const cc_u8f nybble_shift_1 = x_flip ? 0 : 4;
+	const cc_u8f nybble_shift_2 = x_flip ? 4 : 0;
 
 	const cc_u8l (* const blit_lookup)[1 << 4] = vdp->constant->blit_lookup[(word >> 13) & 7];
 
 	cc_u8f i;
 
-	for (i = start; i < end && i < TILE_WIDTH; ++i)
+	for (i = 0; i < TILE_WIDTH / 2; ++i)
 	{
-		/* Get the X coordinate of the pixel in the tile */
-		const cc_u8f pixel_x_in_tile = i ^ byte_index_xor;
+		const cc_u8f byte = tile_data[i ^ byte_index_xor];
 
-		/* Obtain the index into the palette line */
-		const cc_u8f nibble_shift = (~pixel_x_in_tile & 1) << 2;
-		const cc_u8f palette_line_index = (tile_data[pixel_x_in_tile / 2] >> nibble_shift) & 0xF;
-
-		**metapixels_pointer = blit_lookup[**metapixels_pointer][palette_line_index];
+		**metapixels_pointer = blit_lookup[**metapixels_pointer][(byte >> nybble_shift_1) & 0xF];
+		++*metapixels_pointer;
+		**metapixels_pointer = blit_lookup[**metapixels_pointer][(byte >> nybble_shift_2) & 0xF];
 		++*metapixels_pointer;
 	}
 }
 
-static void RenderTilePair(const VDP* const vdp, const cc_u16f start, const cc_u16f end, const cc_u16f pixel_y_in_plane, const cc_u16f vram_address, const TileInfo* const tile_info, cc_u8l** const metapixels_pointer)
+/* TODO: Scrap this and just use RenderTile directly. */
+static void RenderTilePair(const VDP* const vdp, const cc_u16f pixel_y_in_plane, const cc_u16f vram_address, const TileInfo* const tile_info, cc_u8l** const metapixels_pointer)
 {
 	cc_u8f i;
 
 	for (i = 0; i < TILE_PAIR_COUNT; ++i)
-	{
-		const cc_u8f lower = TILE_WIDTH * i;
-		const cc_u8f upper = lower + TILE_WIDTH;
-
-		RenderTile(vdp, CC_CLAMP(lower, upper, start) - lower, CC_CLAMP(lower, upper, end) - lower, pixel_y_in_plane, vram_address + i * 2, tile_info, metapixels_pointer);
-	}
+		RenderTile(vdp, pixel_y_in_plane, vram_address + i * 2, tile_info, metapixels_pointer);
 }
 
-static void RenderScrollingPlane(const VDP* const vdp, const cc_u8f start, const cc_u8f end, const TileInfo* const tile_info, const cc_u16f scanline, const cc_u8f plane_index, const cc_u16f plane_x_offset, const cc_u16f scroll_offset, cc_u8l* const metapixels)
+static void RenderScrollingPlane(const VDP* const vdp, const cc_u8f start, const cc_u8f end, const TileInfo* const tile_info, const cc_u16f scanline, const cc_u8f plane_index, const cc_u16f plane_x_offset, cc_u8l* const metapixels)
 {
 	VDP_State* const state = vdp->state;
 
@@ -446,7 +442,7 @@ static void RenderScrollingPlane(const VDP* const vdp, const cc_u8f start, const
 		const cc_u16f tile_y = (pixel_y_in_plane >> tile_height_power) & plane_height_bitmask;
 		const cc_u16f vram_address = plane_address + (tile_y * plane_pitch + tile_x) * 2;
 
-		RenderTilePair(vdp, i == start ? scroll_offset : 0, i == end ? scroll_offset : TILE_PAIR_WIDTH, pixel_y_in_plane, vram_address, tile_info, &metapixels_pointer);
+		RenderTilePair(vdp, pixel_y_in_plane, vram_address, tile_info, &metapixels_pointer);
 	}
 }
 
@@ -465,7 +461,7 @@ static void RenderWindowPlane(const VDP* const vdp, const cc_u8f start, const cc
 	/* Render tiles */
 	for (i = start; i < end && i < SCANLINE_WIDTH_IN_TILE_PAIRS; ++i)
 	{
-		RenderTilePair(vdp, 0, TILE_PAIR_WIDTH, scanline, vram_address, tile_info, &metapixels_pointer);
+		RenderTilePair(vdp, scanline, vram_address, tile_info, &metapixels_pointer);
 		vram_address += 4;
 	}
 }
@@ -565,13 +561,13 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 
 	cc_u16f i;
 
-	/* TODO: Should this just be the normal scanline width? */
-	cc_u8l plane_metapixels[SCANLINE_WIDTH_IN_TILE_PAIRS * TILE_PAIR_WIDTH];
+	cc_u8l plane_metapixels_buffer[TILE_PAIR_WIDTH - 1 + SCANLINE_WIDTH_IN_TILE_PAIRS * TILE_PAIR_WIDTH];
+	cc_u8l* const plane_metapixels = &plane_metapixels_buffer[TILE_PAIR_WIDTH - 1];
 
 	assert(scanline < VDP_MAX_SCANLINES);
 
 	/* Fill the scanline buffer with the background colour */
-	for (i = 0; i < CC_COUNT_OF(plane_metapixels); ++i)
+	for (i = 0; i < SCANLINE_WIDTH_IN_TILE_PAIRS * TILE_PAIR_WIDTH; ++i)
 		plane_metapixels[i] = state->background_colour;
 
 	if (state->display_enabled)
@@ -613,7 +609,7 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 				/* Get the value used to offset the reads from the plane map */
 				const cc_u16f plane_x_offset = -(hscroll / TILE_PAIR_WIDTH);
 
-				RenderScrollingPlane(vdp, left_boundary, right_boundary, &tile_info, scanline, plane_index, plane_x_offset, scroll_offset, plane_metapixels);
+				RenderScrollingPlane(vdp, left_boundary, right_boundary, &tile_info, scanline, plane_index, plane_x_offset, plane_metapixels - scroll_offset);
 			}
 
 			/* Right-aligned window plane. */
