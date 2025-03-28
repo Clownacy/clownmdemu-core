@@ -553,6 +553,94 @@ static void RenderSprites(cc_u8l (* const sprite_metapixels)[2], VDP_State* cons
 	state->allow_sprite_masking = cc_false;
 }
 
+static void RenderScanline(const VDP* const vdp, const cc_u16f scanline, const TileInfo* const tile_info, cc_u8l* const plane_metapixels, cc_u8l (* const sprite_metapixels)[2], const cc_bool window_plane, const VDP_ScanlineRenderedCallback scanline_rendered_callback, const void* const scanline_rendered_callback_user_data)
+{
+	const VDP_Constant* const constant = vdp->constant;
+	VDP_State* const state = vdp->state;
+
+	const cc_bool full_window_plane_line = (scanline < state->window.vertical_boundary) != state->window.aligned_bottom;
+
+	const cc_u8f left_boundary = full_window_plane_line ? 0 : state->window.aligned_right == window_plane ? state->window.horizontal_boundary : 0;
+	const cc_u8f right_boundary = full_window_plane_line ? window_plane ? SCANLINE_WIDTH_IN_TILE_PAIRS : 0 : state->window.aligned_right == window_plane ? SCANLINE_WIDTH_IN_TILE_PAIRS : state->window.horizontal_boundary;
+
+	const cc_u16f left_boundary_pixels = left_boundary * TILE_PAIR_WIDTH;
+	const cc_u16f right_boundary_pixels = right_boundary * TILE_PAIR_WIDTH;
+
+	cc_u16f i;
+	cc_u8f plane_index;
+
+	if (left_boundary == right_boundary)
+		return;
+
+	/* Fill the scanline buffer with the background colour */
+	for (i = left_boundary_pixels; i < right_boundary_pixels; ++i)
+		plane_metapixels[i] = state->background_colour;
+
+	if (state->display_enabled)
+	{
+		/* *********** */
+		/* Draw planes */
+		/* *********** */
+		for (plane_index = 2; plane_index-- > 0; )
+		{
+			/* Notably, we allow Plane A to render in the Window Plane's place when the latter is disabled. */
+			if (window_plane && plane_index == 0 && !vdp->configuration->window_disabled)
+			{
+				/* Left-aligned window plane. */
+				RenderWindowPlane(vdp, left_boundary, right_boundary, scanline, tile_info, plane_metapixels);
+			}
+			else
+			{
+				/* Scrolling plane. */
+				if (!vdp->configuration->planes_disabled[plane_index])
+				{
+					const cc_u16f hscroll = VDP_ReadVRAMWord(state, state->hscroll_address + plane_index * 2 + GetHScrollTableOffset(state, scanline));
+
+					/* Get the value used to offset the writes to the metapixel buffer */
+					const cc_u16f scroll_offset = TILE_PAIR_WIDTH - (hscroll % TILE_PAIR_WIDTH);
+
+					/* Get the value used to offset the reads from the plane map */
+					const cc_u16f plane_x_offset = -(hscroll / TILE_PAIR_WIDTH);
+
+					RenderScrollingPlane(vdp, left_boundary, right_boundary, tile_info, scanline, plane_index, plane_x_offset, plane_metapixels - scroll_offset);
+				}
+			}
+		}
+
+		/* ************************************ *
+		 * Blit sprite pixels onto plane pixels *
+		 * ************************************ */
+
+		{
+			const cc_u8l *sprite_metapixels_pointer = sprite_metapixels[MAX_SPRITE_WIDTH - 1 + left_boundary_pixels];
+			cc_u8l *plane_metapixels_pointer = &plane_metapixels[left_boundary_pixels];
+
+			if (state->shadow_highlight_enabled)
+			{
+				/* TODO: start, end */
+				for (i = left_boundary_pixels; i < right_boundary_pixels; ++i)
+				{
+					*plane_metapixels_pointer = constant->blit_lookup_shadow_highlight[sprite_metapixels_pointer[1]][*plane_metapixels_pointer][sprite_metapixels_pointer[0]];
+					++plane_metapixels_pointer;
+					sprite_metapixels_pointer += 2;
+				}
+			}
+			else
+			{
+				for (i = left_boundary_pixels; i < right_boundary_pixels; ++i)
+				{
+					*plane_metapixels_pointer = constant->blit_lookup[sprite_metapixels_pointer[1]][*plane_metapixels_pointer][sprite_metapixels_pointer[0]] & 0x3F;
+					++plane_metapixels_pointer;
+					sprite_metapixels_pointer += 2;
+				}
+			}
+		}
+	}
+
+	/* Send pixels to the frontend to be displayed */
+	scanline_rendered_callback((void*)scanline_rendered_callback_user_data, scanline, plane_metapixels, left_boundary_pixels, right_boundary_pixels, (state->h40_enabled ? 40 : 32) * TILE_WIDTH, (state->v30_enabled ? 30 : 28) << tile_info->height_power);
+}
+
 void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_ScanlineRenderedCallback scanline_rendered_callback, const void* const scanline_rendered_callback_user_data)
 {
 	const VDP_Constant* const constant = vdp->constant;
@@ -564,154 +652,79 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 	cc_u8l plane_metapixels_buffer[TILE_PAIR_WIDTH - 1 + SCANLINE_WIDTH_IN_TILE_PAIRS * TILE_PAIR_WIDTH];
 	cc_u8l* const plane_metapixels = &plane_metapixels_buffer[TILE_PAIR_WIDTH - 1];
 
+	/* The padding bytes of the left and right are for allowing sprites to overdraw at the
+	   edges of the screen. */
+	cc_u8l sprite_metapixels[(MAX_SPRITE_WIDTH - 1) + VDP_MAX_SCANLINE_WIDTH + (MAX_SPRITE_WIDTH - 1)][2];
+
 	assert(scanline < VDP_MAX_SCANLINES);
 
-	/* Fill the scanline buffer with the background colour */
-	for (i = 0; i < SCANLINE_WIDTH_IN_TILE_PAIRS * TILE_PAIR_WIDTH; ++i)
-		plane_metapixels[i] = state->background_colour;
+	/* ************ *
+	 * Draw sprites *
+	 * ************ */
 
-	if (state->display_enabled)
+	/* Update the sprite row cache if needed */
+	if (state->sprite_row_cache.needs_updating)
 	{
-		/* ***** *
-		 * Setup *
-		 * ***** */
+		/* Caching and preprocessing some of the sprite table allows the renderer to avoid
+			scanning the entire sprite table every time it renders a scanline. The VDP actually
+			partially caches its sprite data too, though I don't know if it's for the same purpose. */
+		const cc_u16f max_sprites = state->h40_enabled ? 80 : 64;
 
-		/* The padding bytes of the left and right are for allowing sprites to overdraw at the
-		   edges of the screen. */
-		cc_u8l sprite_metapixels[(MAX_SPRITE_WIDTH - 1) + VDP_MAX_SCANLINE_WIDTH + (MAX_SPRITE_WIDTH - 1)][2];
+		cc_u16f sprite_index;
+		cc_u16f sprites_remaining = max_sprites;
 
-		cc_u8f plane_index;
+		state->sprite_row_cache.needs_updating = cc_false;
 
-		/* *********** */
-		/* Draw planes */
-		/* *********** */
-		for (plane_index = 2; plane_index-- > 0; )
+		/* Make it so we write to the start of the rows */
+		for (i = 0; i < CC_COUNT_OF(state->sprite_row_cache.rows); ++i)
+			state->sprite_row_cache.rows[i].total = 0;
+
+		sprite_index = 0;
+
+		do
 		{
-			/* Notably, we allow Plane A to render in the Window Plane's place when the latter is disabled. */
-			/* TODO: Test if this works properly in Interlace Mode 2. */
-			const cc_bool window_plane_active = plane_index == 0 && !vdp->configuration->window_disabled;
-			const cc_bool full_window_plane_line = window_plane_active && (scanline < state->window.vertical_boundary) != state->window.aligned_bottom;
+			const VDP_CachedSprite cached_sprite = VDP_GetCachedSprite(state, sprite_index);
+			const cc_u16f blank_lines = 128 << state->double_resolution_enabled;
 
-			const cc_u8f left_boundary = full_window_plane_line ? 0 : window_plane_active && !state->window.aligned_right ? state->window.horizontal_boundary : 0;
-			const cc_u8f right_boundary = full_window_plane_line ? 0 : window_plane_active && state->window.aligned_right ? state->window.horizontal_boundary : SCANLINE_WIDTH_IN_TILE_PAIRS;
-
-			/* Left-aligned window plane. */
-			RenderWindowPlane(vdp, 0, left_boundary, scanline, &tile_info, plane_metapixels);
-
-			/* Scrolling plane. */
-			if (!vdp->configuration->planes_disabled[plane_index])
+			/* This loop only processes rows that are on-screen. */
+			for (i = CC_MAX(blank_lines, cached_sprite.y); i < CC_MIN(blank_lines + ((state->v30_enabled ? 30 : 28) << tile_info.height_power), cached_sprite.y + (cached_sprite.height << tile_info.height_power)); ++i)
 			{
-				const cc_u16f hscroll = VDP_ReadVRAMWord(state, state->hscroll_address + plane_index * 2 + GetHScrollTableOffset(state, scanline));
+				struct VDP_SpriteRowCacheRow* const row = &state->sprite_row_cache.rows[i - blank_lines];
 
-				/* Get the value used to offset the writes to the metapixel buffer */
-				const cc_u16f scroll_offset = TILE_PAIR_WIDTH - (hscroll % TILE_PAIR_WIDTH);
+				/* Don't write more sprites than are allowed to be drawn on this line */
+				if (row->total != (state->h40_enabled ? 20 : 16))
+				{
+					struct VDP_SpriteRowCacheEntry* const sprite_row_cache_entry = &row->sprites[row->total++];
 
-				/* Get the value used to offset the reads from the plane map */
-				const cc_u16f plane_x_offset = -(hscroll / TILE_PAIR_WIDTH);
-
-				RenderScrollingPlane(vdp, left_boundary, right_boundary, &tile_info, scanline, plane_index, plane_x_offset, plane_metapixels - scroll_offset);
+					sprite_row_cache_entry->table_index = (cc_u8l)sprite_index;
+					sprite_row_cache_entry->width = (cc_u8l)cached_sprite.width;
+					sprite_row_cache_entry->height = (cc_u8l)cached_sprite.height;
+					sprite_row_cache_entry->y_in_sprite = (cc_u8l)(i - cached_sprite.y);
+				}
 			}
 
-			/* Right-aligned window plane. */
-			RenderWindowPlane(vdp, right_boundary, SCANLINE_WIDTH_IN_TILE_PAIRS, scanline, &tile_info, plane_metapixels);
+			if (cached_sprite.link >= max_sprites)
+			{
+				/* Invalid link - bail before it can cause a crash.
+					According to Nemesis, this is actually what real hardware does too:
+					http://gendev.spritesmind.net/forum/viewtopic.php?p=8364#p8364 */
+				break;
+			}
+
+			sprite_index = cached_sprite.link;
 		}
-
-		/* ************ *
-		 * Draw sprites *
-		 * ************ */
-
-		/* Update the sprite row cache if needed */
-		if (state->sprite_row_cache.needs_updating)
-		{
-			/* Caching and preprocessing some of the sprite table allows the renderer to avoid
-			   scanning the entire sprite table every time it renders a scanline. The VDP actually
-			   partially caches its sprite data too, though I don't know if it's for the same purpose. */
-			const cc_u16f max_sprites = state->h40_enabled ? 80 : 64;
-
-			cc_u16f sprite_index;
-			cc_u16f sprites_remaining = max_sprites;
-
-			state->sprite_row_cache.needs_updating = cc_false;
-
-			/* Make it so we write to the start of the rows */
-			for (i = 0; i < CC_COUNT_OF(state->sprite_row_cache.rows); ++i)
-				state->sprite_row_cache.rows[i].total = 0;
-
-			sprite_index = 0;
-
-			do
-			{
-				const VDP_CachedSprite cached_sprite = VDP_GetCachedSprite(state, sprite_index);
-				const cc_u16f blank_lines = 128 << state->double_resolution_enabled;
-
-				/* This loop only processes rows that are on-screen. */
-				for (i = CC_MAX(blank_lines, cached_sprite.y); i < CC_MIN(blank_lines + ((state->v30_enabled ? 30 : 28) << tile_info.height_power), cached_sprite.y + (cached_sprite.height << tile_info.height_power)); ++i)
-				{
-					struct VDP_SpriteRowCacheRow* const row = &state->sprite_row_cache.rows[i - blank_lines];
-
-					/* Don't write more sprites than are allowed to be drawn on this line */
-					if (row->total != (state->h40_enabled ? 20 : 16))
-					{
-						struct VDP_SpriteRowCacheEntry* const sprite_row_cache_entry = &row->sprites[row->total++];
-
-						sprite_row_cache_entry->table_index = (cc_u8l)sprite_index;
-						sprite_row_cache_entry->width = (cc_u8l)cached_sprite.width;
-						sprite_row_cache_entry->height = (cc_u8l)cached_sprite.height;
-						sprite_row_cache_entry->y_in_sprite = (cc_u8l)(i - cached_sprite.y);
-					}
-				}
-
-				if (cached_sprite.link >= max_sprites)
-				{
-					/* Invalid link - bail before it can cause a crash.
-					   According to Nemesis, this is actually what real hardware does too:
-					   http://gendev.spritesmind.net/forum/viewtopic.php?p=8364#p8364 */
-					break;
-				}
-
-				sprite_index = cached_sprite.link;
-			}
-			while (sprite_index != 0 && --sprites_remaining != 0);
-		}
-
-		/* Clear the scanline buffer, so that the sprite blitter
-		   knows which pixels haven't been drawn yet. */
-		memset(sprite_metapixels, 0, sizeof(sprite_metapixels));
-
-		if (!vdp->configuration->sprites_disabled)
-			RenderSprites(sprite_metapixels, state, scanline, &tile_info);
-
-		/* ************************************ *
-		 * Blit sprite pixels onto plane pixels *
-		 * ************************************ */
-
-		{
-			const cc_u8l *sprite_metapixels_pointer = sprite_metapixels[MAX_SPRITE_WIDTH - 1];
-			cc_u8l *plane_metapixels_pointer = plane_metapixels;
-
-			if (state->shadow_highlight_enabled)
-			{
-				for (i = 0; i < VDP_MAX_SCANLINE_WIDTH; ++i)
-				{
-					*plane_metapixels_pointer = constant->blit_lookup_shadow_highlight[sprite_metapixels_pointer[1]][*plane_metapixels_pointer][sprite_metapixels_pointer[0]];
-					++plane_metapixels_pointer;
-					sprite_metapixels_pointer += 2;
-				}
-			}
-			else
-			{
-				for (i = 0; i < VDP_MAX_SCANLINE_WIDTH; ++i)
-				{
-					*plane_metapixels_pointer = constant->blit_lookup[sprite_metapixels_pointer[1]][*plane_metapixels_pointer][sprite_metapixels_pointer[0]] & 0x3F;
-					++plane_metapixels_pointer;
-					sprite_metapixels_pointer += 2;
-				}
-			}
-		}
+		while (sprite_index != 0 && --sprites_remaining != 0);
 	}
 
-	/* Send pixels to the frontend to be displayed */
-	scanline_rendered_callback((void*)scanline_rendered_callback_user_data, scanline, plane_metapixels, (state->h40_enabled ? 40 : 32) * TILE_WIDTH, (state->v30_enabled ? 30 : 28) << tile_info.height_power);
+	/* Clear the scanline buffer, so that the sprite blitter
+		knows which pixels haven't been drawn yet. */
+	memset(sprite_metapixels, 0, sizeof(sprite_metapixels));
+
+	if (!vdp->configuration->sprites_disabled)
+		RenderSprites(sprite_metapixels, state, scanline, &tile_info);
+
+	RenderScanline(vdp, scanline, &tile_info, plane_metapixels, sprite_metapixels, cc_true,  scanline_rendered_callback, scanline_rendered_callback_user_data);
+	RenderScanline(vdp, scanline, &tile_info, plane_metapixels, sprite_metapixels, cc_false, scanline_rendered_callback, scanline_rendered_callback_user_data);
 }
 
 cc_u16f VDP_ReadData(const VDP* const vdp)

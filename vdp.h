@@ -175,7 +175,7 @@ typedef struct VDP
 	VDP_State *state;
 } VDP;
 
-typedef void (*VDP_ScanlineRenderedCallback)(void *user_data, cc_u16f scanline, const cc_u8l *pixels, cc_u16f screen_width, cc_u16f screen_height);
+typedef void (*VDP_ScanlineRenderedCallback)(void *user_data, cc_u16f scanline, const cc_u8l *pixels, cc_u16f left_boundary, cc_u16f right_boundary, cc_u16f screen_width, cc_u16f screen_height);
 typedef void (*VDP_ColourUpdatedCallback)(void *user_data, cc_u16f index, cc_u16f colour);
 typedef cc_u16f (*VDP_ReadCallback)(void *user_data, cc_u32f address);
 typedef void (*VDP_KDebugCallback)(void *user_data, const char *string);
