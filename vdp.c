@@ -664,8 +664,8 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 				if (cached_sprite.link >= max_sprites)
 				{
 					/* Invalid link - bail before it can cause a crash.
-						According to Nemesis, this is actually what real hardware does too:
-						http://gendev.spritesmind.net/forum/viewtopic.php?p=8364#p8364 */
+					   According to Nemesis, this is actually what real hardware does too:
+					   http://gendev.spritesmind.net/forum/viewtopic.php?p=8364#p8364 */
 					break;
 				}
 
