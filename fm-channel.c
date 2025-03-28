@@ -10,6 +10,11 @@ static cc_s16f ComputeFeedbackDivisor(const cc_u16f value)
 	return 1 << (9 - value);
 }
 
+static void SetAmplitudeModulation(FM_Channel_State* const state, const cc_u8f amplitude_modulation)
+{
+	state->amplitude_modulation_shift = 7 >> amplitude_modulation;
+}
+
 void FM_Channel_State_Initialise(FM_Channel_State* const state)
 {
 	cc_u16f i;
@@ -23,8 +28,8 @@ void FM_Channel_State_Initialise(FM_Channel_State* const state)
 	for (i = 0; i < CC_COUNT_OF(state->operator_1_previous_samples); ++i)
 		state->operator_1_previous_samples[i] = 0;
 
-	/* TODO: Shouldn't 'amplitude_modulation_shift' be initialised to 7? */
-	state->amplitude_modulation_shift = state->phase_modulation_sensitivity = 0;
+	SetAmplitudeModulation(state, 0);
+	state->phase_modulation_sensitivity = 0;
 }
 
 void FM_Channel_Parameters_Initialise(FM_Channel* const channel, const FM_Channel_Constant* const constant, FM_Channel_State* const state)
@@ -65,7 +70,7 @@ static void FM_Channel_SetPhaseModulationAndSensitivity(const FM_Channel* const 
 
 void FM_Channel_SetModulationSensitivity(const FM_Channel* const channel, const cc_u8f phase_modulation, const cc_u8f amplitude, const cc_u8f phase)
 {
-	channel->state->amplitude_modulation_shift = 7 >> amplitude;
+	SetAmplitudeModulation(channel->state, amplitude);
 	channel->state->phase_modulation_sensitivity = phase;
 
 	FM_Channel_SetPhaseModulationAndSensitivity(channel, phase_modulation, phase);
