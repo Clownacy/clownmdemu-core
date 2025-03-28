@@ -4,7 +4,7 @@
 
 #include "clowncommon/clowncommon.h"
 
-static cc_s16f ComputeFeedbackDivisor(const cc_u16f value)
+static cc_u8f ComputeFeedbackDivisor(const cc_u8f value)
 {
 	assert(value <= 9);
 	return 9 - value;
@@ -54,7 +54,7 @@ void FM_Channel_SetFrequencies(const FM_Channel* const channel, const cc_u8f mod
 		FM_Operator_SetFrequency(channel->operators[i].state, modulation, channel->state->phase_modulation_sensitivity, f_number_and_block);
 }
 
-void FM_Channel_SetFeedbackAndAlgorithm(const FM_Channel* const channel, const cc_u16f feedback, const cc_u16f algorithm)
+void FM_Channel_SetFeedbackAndAlgorithm(const FM_Channel* const channel, const cc_u8f feedback, const cc_u8f algorithm)
 {
 	channel->state->feedback_divisor = ComputeFeedbackDivisor(feedback);
 	channel->state->algorithm = algorithm;
@@ -81,26 +81,21 @@ void FM_Channel_SetPhaseModulation(const FM_Channel* const channel, const cc_u8f
 	FM_Channel_SetPhaseModulationAndSensitivity(channel, phase_modulation, channel->state->phase_modulation_sensitivity);
 }
 
-/* Portable equivalent to bit-shifting. */
-/* TODO: Instead, maybe convert all signed integers to unsigned so that we can implement
-   two's-compliment manually which would allow us to be able to perform simple bit-shifting instead. */
-static cc_s16f FM_Channel_DiscardLowerBits(const cc_s16f total_bits_to_discard, const cc_s16f value)
+static cc_u16f FM_Channel_Signed14BitToUnsigned9Bit(const cc_u16f value)
 {
-	const cc_s16f divisor = 1 << total_bits_to_discard;
-	return (value - (value < 0 ? divisor - 1 : 0)) / divisor;
+	return (value + (1 << (14 - 1))) >> (14 - 9);
 }
 
-static cc_s16f FM_Channel_14BitTo9Bit(const cc_s16f value)
+/* Wacky logic to efficiently perform a signed clamp on an unsigned value. */
+#define FM_CLAMP_SIGNED_ON_UNSIGNED(BITS, MIN, MAX, VALUE) \
+	(CC_CLAMP((1 << ((BITS) - 1)) + (MIN), (1 << ((BITS) - 1)) + (MAX), (VALUE)) - (1 << ((BITS) - 2)))
+
+static cc_u16f FM_Channel_MixSamples(const cc_u16f a, const cc_u16f b)
 {
-	return FM_Channel_DiscardLowerBits(14 - 9, value);
+	return FM_CLAMP_SIGNED_ON_UNSIGNED(9 + 1, -0x100, 0xFF, a + b);
 }
 
-static cc_s16f FM_Channel_MixSamples(const cc_s16f a, const cc_s16f b)
-{
-	return CC_CLAMP(-0x100, 0xFF, a + b);
-}
-
-cc_s16f FM_Channel_GetSample(const FM_Channel* const channel, const cc_u8f amplitude_modulation)
+cc_u16f FM_Channel_GetSample(const FM_Channel* const channel, const cc_u8f amplitude_modulation)
 {
 	FM_Channel_State* const state = channel->state;
 	const cc_u8f amplitude_modulation_shift = state->amplitude_modulation_shift;
@@ -110,18 +105,23 @@ cc_s16f FM_Channel_GetSample(const FM_Channel* const channel, const cc_u8f ampli
 	const FM_Operator* const operator3 = &channel->operators[2];
 	const FM_Operator* const operator4 = &channel->operators[3];
 
-	cc_s16f feedback_modulation;
-	cc_s16f operator_1_sample;
-	cc_s16f operator_2_sample;
-	cc_s16f operator_3_sample;
-	cc_s16f operator_4_sample;
-	cc_s16f sample;
+	cc_u16f feedback_modulation;
+	cc_u16f operator_1_sample;
+	cc_u16f operator_2_sample;
+	cc_u16f operator_3_sample;
+	cc_u16f operator_4_sample;
+	cc_u16f sample;
 
 	/* Compute operator 1's self-feedback modulation. */
 	if (state->feedback_divisor == ComputeFeedbackDivisor(0))
+	{
 		feedback_modulation = 0;
+	}
 	else
-		feedback_modulation = (state->operator_1_previous_samples[0] + state->operator_1_previous_samples[1]) / (1 << state->feedback_divisor);
+	{
+		feedback_modulation = (state->operator_1_previous_samples[0] + state->operator_1_previous_samples[1]) >> state->feedback_divisor;
+		feedback_modulation = CC_SIGN_EXTEND(cc_u16f, 15 - state->feedback_divisor, feedback_modulation);
+	}
 
 	/* Feed the operators into each other to produce the final sample. */
 	/* Note that the operators output a 14-bit sample, meaning that, if all four are summed, then the result is a 16-bit sample,
@@ -140,7 +140,7 @@ cc_s16f FM_Channel_GetSample(const FM_Channel* const channel, const cc_u8f ampli
 			operator_3_sample = FM_Operator_Process(operator3, amplitude_modulation, amplitude_modulation_shift, operator_2_sample);
 			operator_4_sample = FM_Operator_Process(operator4, amplitude_modulation, amplitude_modulation_shift, operator_3_sample);
 
-			sample = FM_Channel_14BitTo9Bit(operator_4_sample);
+			sample = FM_Channel_Signed14BitToUnsigned9Bit(operator_4_sample);
 
 			break;
 
@@ -152,7 +152,7 @@ cc_s16f FM_Channel_GetSample(const FM_Channel* const channel, const cc_u8f ampli
 			operator_3_sample = FM_Operator_Process(operator3, amplitude_modulation, amplitude_modulation_shift, operator_1_sample + operator_2_sample);
 			operator_4_sample = FM_Operator_Process(operator4, amplitude_modulation, amplitude_modulation_shift, operator_3_sample);
 
-			sample = FM_Channel_14BitTo9Bit(operator_4_sample);
+			sample = FM_Channel_Signed14BitToUnsigned9Bit(operator_4_sample);
 
 			break;
 
@@ -165,7 +165,7 @@ cc_s16f FM_Channel_GetSample(const FM_Channel* const channel, const cc_u8f ampli
 
 			operator_4_sample = FM_Operator_Process(operator4, amplitude_modulation, amplitude_modulation_shift, operator_1_sample + operator_3_sample);
 
-			sample = FM_Channel_14BitTo9Bit(operator_4_sample);
+			sample = FM_Channel_Signed14BitToUnsigned9Bit(operator_4_sample);
 
 			break;
 
@@ -178,7 +178,7 @@ cc_s16f FM_Channel_GetSample(const FM_Channel* const channel, const cc_u8f ampli
 
 			operator_4_sample = FM_Operator_Process(operator4, amplitude_modulation, amplitude_modulation_shift, operator_2_sample + operator_3_sample);
 
-			sample = FM_Channel_14BitTo9Bit(operator_4_sample);
+			sample = FM_Channel_Signed14BitToUnsigned9Bit(operator_4_sample);
 
 			break;
 
@@ -190,8 +190,8 @@ cc_s16f FM_Channel_GetSample(const FM_Channel* const channel, const cc_u8f ampli
 			operator_3_sample = FM_Operator_Process(operator3, amplitude_modulation, amplitude_modulation_shift, 0);
 			operator_4_sample = FM_Operator_Process(operator4, amplitude_modulation, amplitude_modulation_shift, operator_3_sample);
 
-			sample = FM_Channel_14BitTo9Bit(operator_2_sample);
-			sample = FM_Channel_MixSamples(sample, FM_Channel_14BitTo9Bit(operator_4_sample));
+			sample = FM_Channel_Signed14BitToUnsigned9Bit(operator_2_sample);
+			sample = FM_Channel_MixSamples(sample, FM_Channel_Signed14BitToUnsigned9Bit(operator_4_sample));
 
 			break;
 
@@ -203,9 +203,9 @@ cc_s16f FM_Channel_GetSample(const FM_Channel* const channel, const cc_u8f ampli
 			operator_3_sample = FM_Operator_Process(operator3, amplitude_modulation, amplitude_modulation_shift, operator_1_sample);
 			operator_4_sample = FM_Operator_Process(operator4, amplitude_modulation, amplitude_modulation_shift, operator_1_sample);
 
-			sample = FM_Channel_14BitTo9Bit(operator_2_sample);
-			sample = FM_Channel_MixSamples(sample, FM_Channel_14BitTo9Bit(operator_3_sample));
-			sample = FM_Channel_MixSamples(sample, FM_Channel_14BitTo9Bit(operator_4_sample));
+			sample = FM_Channel_Signed14BitToUnsigned9Bit(operator_2_sample);
+			sample = FM_Channel_MixSamples(sample, FM_Channel_Signed14BitToUnsigned9Bit(operator_3_sample));
+			sample = FM_Channel_MixSamples(sample, FM_Channel_Signed14BitToUnsigned9Bit(operator_4_sample));
 
 			break;
 
@@ -218,9 +218,9 @@ cc_s16f FM_Channel_GetSample(const FM_Channel* const channel, const cc_u8f ampli
 
 			operator_4_sample = FM_Operator_Process(operator4, amplitude_modulation, amplitude_modulation_shift, 0);
 
-			sample = FM_Channel_14BitTo9Bit(operator_2_sample);
-			sample = FM_Channel_MixSamples(sample, FM_Channel_14BitTo9Bit(operator_3_sample));
-			sample = FM_Channel_MixSamples(sample, FM_Channel_14BitTo9Bit(operator_4_sample));
+			sample = FM_Channel_Signed14BitToUnsigned9Bit(operator_2_sample);
+			sample = FM_Channel_MixSamples(sample, FM_Channel_Signed14BitToUnsigned9Bit(operator_3_sample));
+			sample = FM_Channel_MixSamples(sample, FM_Channel_Signed14BitToUnsigned9Bit(operator_4_sample));
 
 			break;
 
@@ -234,10 +234,10 @@ cc_s16f FM_Channel_GetSample(const FM_Channel* const channel, const cc_u8f ampli
 
 			operator_4_sample = FM_Operator_Process(operator4, amplitude_modulation, amplitude_modulation_shift, 0);
 
-			sample = FM_Channel_14BitTo9Bit(operator_1_sample);
-			sample = FM_Channel_MixSamples(sample, FM_Channel_14BitTo9Bit(operator_2_sample));
-			sample = FM_Channel_MixSamples(sample, FM_Channel_14BitTo9Bit(operator_3_sample));
-			sample = FM_Channel_MixSamples(sample, FM_Channel_14BitTo9Bit(operator_4_sample));
+			sample = FM_Channel_Signed14BitToUnsigned9Bit(operator_1_sample);
+			sample = FM_Channel_MixSamples(sample, FM_Channel_Signed14BitToUnsigned9Bit(operator_2_sample));
+			sample = FM_Channel_MixSamples(sample, FM_Channel_Signed14BitToUnsigned9Bit(operator_3_sample));
+			sample = FM_Channel_MixSamples(sample, FM_Channel_Signed14BitToUnsigned9Bit(operator_4_sample));
 
 			break;
 	}

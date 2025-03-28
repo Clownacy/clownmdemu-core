@@ -40,10 +40,10 @@ typedef struct FM_Channel_Constant
 typedef struct FM_Channel_State
 {
 	FM_Operator_State operators[4];
-	cc_s16l feedback_divisor;
+	cc_u8l feedback_divisor;
 	cc_u16l algorithm;
-	cc_s16l operator_1_previous_samples[2];
-	cc_u8f amplitude_modulation_shift, phase_modulation_sensitivity;
+	cc_u16l operator_1_previous_samples[2];
+	cc_u8l amplitude_modulation_shift, phase_modulation_sensitivity;
 } FM_Channel_State;
 
 typedef struct FM_Channel
@@ -61,7 +61,7 @@ void FM_Channel_Parameters_Initialise(FM_Channel *channel, const FM_Channel_Cons
 /* Per-channel. */
 #define FM_Channel_SetFrequency(channel, operator_index, modulation, f_number_and_block) FM_Operator_SetFrequency((channel)->operators[operator_index].state, modulation, (channel)->state->phase_modulation_sensitivity, f_number_and_block)
 void FM_Channel_SetFrequencies(const FM_Channel *channel, cc_u8f modulation, cc_u16f f_number_and_block);
-void FM_Channel_SetFeedbackAndAlgorithm(const FM_Channel *channel, cc_u16f feedback, cc_u16f algorithm);
+void FM_Channel_SetFeedbackAndAlgorithm(const FM_Channel *channel, cc_u8f feedback, cc_u8f algorithm);
 void FM_Channel_SetModulationSensitivity(const FM_Channel *channel, cc_u8f phase_modulation, cc_u8f amplitude, cc_u8f phase);
 void FM_Channel_SetPhaseModulation(const FM_Channel *channel, cc_u8f phase_modulation);
 
@@ -76,6 +76,6 @@ void FM_Channel_SetPhaseModulation(const FM_Channel *channel, cc_u8f phase_modul
 #define FM_Channel_SetSSGEG(channel, operator_index, ssgeg) FM_Operator_SetSSGEG((channel)->operators[operator_index].state, ssgeg)
 #define FM_Channel_SetAmplitudeModulationOn(channel, operator_index, amplitude_modulation_on) FM_Operator_SetAmplitudeModulationOn((channel)->operators[operator_index].state, amplitude_modulation_on)
 
-cc_s16f FM_Channel_GetSample(const FM_Channel *channel, cc_u8f amplitude_modulation);
+cc_u16f FM_Channel_GetSample(const FM_Channel *channel, cc_u8f amplitude_modulation);
 
 #endif /* FM_CHANNEL_H */

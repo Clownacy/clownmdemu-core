@@ -377,7 +377,7 @@ static cc_u16f UpdateEnvelope(FM_Operator_State* const state, const cc_u8f ampli
 	return CC_MIN(0x3FF, GetSSGEGCorrectedAttenuation(state, !state->key_on) + final_amplitude_modulation + state->total_level);
 }
 
-cc_s16f FM_Operator_Process(const FM_Operator* const fm_operator, const cc_u8f amplitude_modulation, const cc_u8f amplitude_modulation_shift, const cc_s16f phase_modulation)
+cc_u16f FM_Operator_Process(const FM_Operator* const fm_operator, const cc_u8f amplitude_modulation, const cc_u8f amplitude_modulation_shift, const cc_u16f phase_modulation)
 {
 	/* Update and obtain phase and make it 10-bit (the upper bits are discarded later). */
 	const cc_u16f phase = FM_Phase_Increment(&fm_operator->state->phase) >> 10;
@@ -404,11 +404,11 @@ cc_s16f FM_Operator_Process(const FM_Operator* const fm_operator, const cc_u8f a
 	const cc_u16f combined_attenuation = phase_as_attenuation + (attenuation << 2);
 
 	/* Convert from logarithm (decibel) back to linear (sound pressure). */
-	const cc_s16f sample_absolute = InversePow2(fm_operator->constant, combined_attenuation);
+	const cc_u16f sample_absolute = InversePow2(fm_operator->constant, combined_attenuation);
 
 	/* Restore the sign bit that we extracted earlier. */
-	const cc_s16f sample = (phase_is_in_negative_wave ? -sample_absolute : sample_absolute);
+	const cc_u16f sample = phase_is_in_negative_wave ? 0 - sample_absolute : sample_absolute;
 
-	/* Return the 14-bit sample. */
+	/* Return the sign-extended 14-bit sample. */
 	return sample;
 }

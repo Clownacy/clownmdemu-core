@@ -495,11 +495,12 @@ static cc_s16f GetFinalSample(const FM* const fm, cc_s16f sample, const cc_bool 
 	return sample * fm_volume_multiplier / FM_VOLUME_DIVIDER;
 }
 
+#define FM_Unsigned9BitToSigned9Bit(value) ((cc_s16f)(value) - 0x100)
+
 void FM_OutputSamples(const FM* const fm, cc_s16l* const sample_buffer, const cc_u32f total_frames)
 {
 	FM_State* const state = fm->state;
-	/* Convert from unsigned 9-bit PCM to signed 9-bit PCM. */
-	const cc_s16f dac_sample = (cc_s16f)state->dac_sample - 0x100;
+	const cc_s16f dac_sample = FM_Unsigned9BitToSigned9Bit(state->dac_sample);
 
 	const cc_s16l* const sample_buffer_end = &sample_buffer[total_frames * 2];
 
@@ -527,7 +528,7 @@ void FM_OutputSamples(const FM* const fm, cc_s16l* const sample_buffer, const cc
 			const cc_bool is_dac = (channel_index == 5 && state->dac_enabled) || state->dac_test;
 			const cc_bool channel_disabled = is_dac ? fm->configuration->dac_channel_disabled : fm->configuration->fm_channels_disabled[channel_index];
 
-			const cc_s16f fm_sample = FM_Channel_GetSample(channel, state->lfo.amplitude_modulation);
+			const cc_s16f fm_sample = FM_Unsigned9BitToSigned9Bit(FM_Channel_GetSample(channel, state->lfo.amplitude_modulation));
 			const cc_s16f sample = is_dac ? dac_sample : fm_sample;
 
 			if (!channel_disabled)

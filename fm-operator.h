@@ -73,6 +73,6 @@ void FM_Operator_SetSustainLevelAndReleaseRate(FM_Operator_State *state, cc_u16f
 #define FM_Operator_SetAmplitudeModulationOn(state, amon) ((state)->amplitude_modulation_on = (amon))
 #define FM_Operator_SetPhaseModulationAndSensitivity(state, modulation, sensitivity) FM_Phase_SetModulationAndSensitivity(&(state)->phase, modulation, sensitivity)
 
-cc_s16f FM_Operator_Process(const FM_Operator *fm_operator, cc_u8f amplitude_modulation, cc_u8f amplitude_modulation_shift, cc_s16f phase_modulation);
+cc_u16f FM_Operator_Process(const FM_Operator *fm_operator, cc_u8f amplitude_modulation, cc_u8f amplitude_modulation_shift, cc_u16f phase_modulation);
 
 #endif /* FM_OPERATOR_H */
