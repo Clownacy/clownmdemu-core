@@ -492,7 +492,21 @@ static void RenderSprites(cc_u8l (* const sprite_metapixels)[2], VDP_State* cons
 
 		const cc_u8f metapixel_high_bits = (word >> 13) & 7;
 
+		const cc_u8f byte_index_xor = x_flip ? 3 : 0;
+
 		cc_u16f y_in_sprite = sprite_row_cache_entry->y_in_sprite;
+		cc_u8f nybble_shift[2];
+
+		if (x_flip)
+		{
+			nybble_shift[0] = 0;
+			nybble_shift[1] = 4;
+		}
+		else
+		{
+			nybble_shift[0] = 4;
+			nybble_shift[1] = 0;
+		}
 
 		/* This is a masking sprite: prevent all remaining sprites from being drawn */
 		if (x == 0)
@@ -528,22 +542,24 @@ static void RenderSprites(cc_u8l (* const sprite_metapixels)[2], VDP_State* cons
 
 				cc_u16f k;
 
-				for (k = 0; k < TILE_WIDTH; ++k)
+				for (k = 0; k < TILE_WIDTH / 2; ++k)
 				{
-					/* Get the X coordinate of the pixel in the tile */
-					const cc_u8f pixel_x_in_tile = k ^ (x_flip ? 7 : 0);
+					const cc_u8f byte = tile_data[k ^ byte_index_xor];
 
-					/* Obtain the index into the palette line */
-					const cc_u8f nibble_shift = (~pixel_x_in_tile & 1) << 2;
-					const cc_u8f palette_line_index = (tile_data[pixel_x_in_tile / 2] >> nibble_shift) & 0xF;
+					cc_u8f l;
 
-					const cc_u8f mask = 0 - (cc_u8f)((*metapixels_pointer == 0) & (palette_line_index != 0));
+					for (l = 0; l < CC_COUNT_OF(nybble_shift); ++l)
+					{
+						const cc_u8f palette_line_index = (byte >> nybble_shift[l]) & 0xF;
 
-					*metapixels_pointer++ |= palette_line_index & mask;
-					*metapixels_pointer++ |= metapixel_high_bits & mask;
+						const cc_u8f mask = 0 - (cc_u8f)((*metapixels_pointer == 0) & (palette_line_index != 0));
 
-					if (--pixel_limit == 0)
-						return;
+						*metapixels_pointer++ |= palette_line_index & mask;
+						*metapixels_pointer++ |= metapixel_high_bits & mask;
+
+						if (--pixel_limit == 0)
+							return;
+					}
 				}
 			}
 		}
