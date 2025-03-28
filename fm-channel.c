@@ -137,7 +137,7 @@ void FM_Channel_SetAmplitudeModulationOn(const FM_Channel* const channel, const 
 static cc_s16f FM_Channel_DiscardLowerBits(const cc_s16f total_bits_to_discard, const cc_s16f value)
 {
 	const cc_s16f divisor = 1 << total_bits_to_discard;
-	return (value - ((divisor - 1) * (value < 0))) / divisor;
+	return (value - (value < 0 ? divisor - 1 : 0)) / divisor;
 }
 
 static cc_s16f FM_Channel_14BitTo9Bit(const cc_s16f value)
