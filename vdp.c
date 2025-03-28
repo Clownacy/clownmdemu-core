@@ -680,7 +680,7 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 		}
 
 		/* Clear the scanline buffer, so that the sprite blitter
-			knows which pixels haven't been drawn yet. */
+		   knows which pixels haven't been drawn yet. */
 		memset(sprite_metapixels, 0, sizeof(sprite_metapixels));
 
 		if (!vdp->configuration->sprites_disabled)
