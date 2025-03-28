@@ -366,15 +366,21 @@ static void UpdateEnvelopeADSR(FM_Operator_State* const state)
 	}
 }
 
-static cc_u16f UpdateEnvelope(FM_Operator_State* const state, const cc_u8f amplitude_modulation, const cc_u8f amplitude_modulation_shift)
+static cc_u16f GetEnvelopeAttenuation(FM_Operator_State* const state, const cc_u8f amplitude_modulation, const cc_u8f amplitude_modulation_shift)
 {
 	const cc_u8f final_amplitude_modulation = state->amplitude_modulation_on ? amplitude_modulation >> amplitude_modulation_shift : 0;
+	const cc_u16f attenuation = GetSSGEGCorrectedAttenuation(state, !state->key_on) + final_amplitude_modulation + state->total_level;
 
+	/* TODO: TL isn't added here if this is FM3 and CSM is enabled! */
+	return CC_MIN(0x3FF, attenuation);
+}
+
+static cc_u16f UpdateEnvelope(FM_Operator_State* const state, const cc_u8f amplitude_modulation, const cc_u8f amplitude_modulation_shift)
+{
 	UpdateEnvelopeSSGEG(state);
 	UpdateEnvelopeADSR(state);
 
-	/* TODO: TL isn't added here if this is FM3 and CSM is enabled! */
-	return CC_MIN(0x3FF, GetSSGEGCorrectedAttenuation(state, !state->key_on) + final_amplitude_modulation + state->total_level);
+	return GetEnvelopeAttenuation(state, amplitude_modulation, amplitude_modulation_shift);
 }
 
 cc_u16f FM_Operator_Process(const FM_Operator* const fm_operator, const cc_u8f amplitude_modulation, const cc_u8f amplitude_modulation_shift, const cc_u16f phase_modulation)
