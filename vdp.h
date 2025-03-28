@@ -192,6 +192,11 @@ void VDP_WriteControl(const VDP *vdp, cc_u16f value, VDP_ColourUpdatedCallback c
 cc_u16f VDP_ReadVRAMWord(const VDP_State *state, cc_u16f address);
 VDP_TileMetadata VDP_DecomposeTileMetadata(cc_u16f packed_tile_metadata);
 VDP_CachedSprite VDP_GetCachedSprite(const VDP_State *state, cc_u16f sprite_index);
+#define VDP_GetTileIndex(metadata) ((metadata) & 0x7FF)
+#define VDP_GetTilePaletteLine(metadata) (((metadata) >> 13) & 3)
+#define VDP_GetTileXFlip(metadata) (((metadata) & 0x800) != 0)
+#define VDP_GetTileYFlip(metadata) (((metadata) & 0x1000) != 0)
+#define VDP_GetTilePriority(metadata) (((metadata) & 0x8000) != 0)
 
 #ifdef __cplusplus
 }

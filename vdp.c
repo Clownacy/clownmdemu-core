@@ -371,18 +371,17 @@ static cc_u16f GetVScrollTableOffset(const VDP_State* const state, const cc_u8f 
 
 static void RenderTile(const VDP* const vdp, const cc_u8f start, const cc_u8f end, const cc_u16f pixel_y_in_plane, const cc_u16f vram_address, const TileInfo* const tile_info, cc_u8l** const metapixels_pointer)
 {
-	const VDP_TileMetadata tile = VDP_DecomposeTileMetadata(VDP_ReadVRAMWord(vdp->state, vram_address));
+	const cc_u16f word = VDP_ReadVRAMWord(vdp->state, vram_address);
 
 	/* Get the Y coordinate of the pixel in the tile */
-	const cc_u16f pixel_y_in_tile = (pixel_y_in_plane & tile_info->height_mask) ^ (tile.y_flip ? tile_info->height_mask : 0);
+	const cc_u16f pixel_y_in_tile = (pixel_y_in_plane & tile_info->height_mask) ^ (VDP_GetTileYFlip(word) ? tile_info->height_mask : 0);
 
 	/* Get raw tile data that contains the desired metapixel */
-	const cc_u8l* const tile_data = &vdp->state->vram[(tile.tile_index * tile_info->size + pixel_y_in_tile * 4) % CC_COUNT_OF(vdp->state->vram)];
+	const cc_u8l* const tile_data = &vdp->state->vram[(VDP_GetTileIndex(word) * tile_info->size + pixel_y_in_tile * 4) % CC_COUNT_OF(vdp->state->vram)];
 
-	const cc_u8f byte_index_xor = tile.x_flip ? 7 : 0;
-	const cc_u8f metapixel_upper_bits = (tile.priority << 2) | tile.palette_line;
+	const cc_u8f byte_index_xor = VDP_GetTileXFlip(word) ? 7 : 0;
 
-	const cc_u8l (* const blit_lookup)[1 << 4] = vdp->constant->blit_lookup[metapixel_upper_bits];
+	const cc_u8l (* const blit_lookup)[1 << 4] = vdp->constant->blit_lookup[(word >> 13) & 7];
 
 	cc_u8f i;
 
@@ -1151,11 +1150,11 @@ VDP_TileMetadata VDP_DecomposeTileMetadata(const cc_u16f packed_tile_metadata)
 {
 	VDP_TileMetadata tile_metadata;
 
-	tile_metadata.tile_index = packed_tile_metadata & 0x7FF;
-	tile_metadata.palette_line = (packed_tile_metadata >> 13) & 3;
-	tile_metadata.x_flip = (packed_tile_metadata & 0x800) != 0;
-	tile_metadata.y_flip = (packed_tile_metadata & 0x1000) != 0;
-	tile_metadata.priority = (packed_tile_metadata & 0x8000) != 0;
+	tile_metadata.tile_index = VDP_GetTileIndex(packed_tile_metadata);
+	tile_metadata.palette_line = VDP_GetTilePaletteLine(packed_tile_metadata);
+	tile_metadata.x_flip = VDP_GetTileXFlip(packed_tile_metadata);
+	tile_metadata.y_flip = VDP_GetTileYFlip(packed_tile_metadata);
+	tile_metadata.priority = VDP_GetTilePriority(packed_tile_metadata);
 
 	return tile_metadata;
 }
