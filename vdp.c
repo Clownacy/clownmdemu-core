@@ -341,26 +341,11 @@ void VDP_State_Initialise(VDP_State* const state)
 	state->kdebug_buffer[CC_COUNT_OF(state->kdebug_buffer) - 1] = '\0';
 }
 
-static cc_u16f GetHScrollTableOffset(const VDP_State* const state, const cc_u16f scanline, const TileInfo* const tile_info)
+static cc_u16f GetHScrollTableOffset(const VDP_State* const state, const cc_u16f scanline)
 {
-	switch (state->hscroll_mode)
-	{
-		default:
-			/* Should never happen. */
-			assert(0);
-			/* Fallthrough */
-		case VDP_HSCROLL_MODE_FULL:
-			return 0;
+	static const cc_u8l masks[4] = {0x00, 0x07, 0xF8, 0xFF};
 
-		case VDP_HSCROLL_MODE_INVALID:
-			return ((scanline >> state->double_resolution_enabled) % 8) * 4;
-
-		case VDP_HSCROLL_MODE_1CELL:
-			return (scanline >> tile_info->height_power << tile_info->height_power) * 4;
-
-		case VDP_HSCROLL_MODE_1LINE:
-			return (scanline >> state->double_resolution_enabled) * 4;
-	}
+	return ((scanline >> state->double_resolution_enabled) & masks[state->hscroll_mode]) * 4;
 }
 
 static cc_u16f GetVScrollTableOffset(const VDP_State* const state, const cc_u8f tile_pair)
@@ -616,7 +601,7 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 			/* Scrolling plane. */
 			if (!vdp->configuration->planes_disabled[plane_index])
 			{
-				const cc_u16f hscroll = VDP_ReadVRAMWord(state, state->hscroll_address + plane_index * 2 + GetHScrollTableOffset(state, scanline, &tile_info));
+				const cc_u16f hscroll = VDP_ReadVRAMWord(state, state->hscroll_address + plane_index * 2 + GetHScrollTableOffset(state, scanline));
 
 				/* Get the value used to offset the writes to the metapixel buffer */
 				const cc_u16f scroll_offset = TILE_PAIR_WIDTH - (hscroll % TILE_PAIR_WIDTH);
