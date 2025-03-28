@@ -7,7 +7,7 @@
 static cc_s16f ComputeFeedbackDivisor(const cc_u16f value)
 {
 	assert(value <= 9);
-	return 1 << (9 - value);
+	return 9 - value;
 }
 
 static void SetAmplitudeModulation(FM_Channel_State* const state, const cc_u8f amplitude_modulation)
@@ -121,7 +121,7 @@ cc_s16f FM_Channel_GetSample(const FM_Channel* const channel, const cc_u8f ampli
 	if (state->feedback_divisor == ComputeFeedbackDivisor(0))
 		feedback_modulation = 0;
 	else
-		feedback_modulation = (state->operator_1_previous_samples[0] + state->operator_1_previous_samples[1]) / state->feedback_divisor;
+		feedback_modulation = (state->operator_1_previous_samples[0] + state->operator_1_previous_samples[1]) / (1 << state->feedback_divisor);
 
 	/* Feed the operators into each other to produce the final sample. */
 	/* Note that the operators output a 14-bit sample, meaning that, if all four are summed, then the result is a 16-bit sample,
