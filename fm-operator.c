@@ -144,11 +144,6 @@ void FM_Operator_State_Initialise(FM_Operator_State* const state)
 	state->key_on = cc_false;
 }
 
-void FM_Operator_SetFrequency(FM_Operator_State* const state, const cc_u8f modulation, const cc_u8f sensitivity, const cc_u16f f_number_and_block)
-{
-	FM_Phase_SetFrequency(&state->phase, modulation, sensitivity, f_number_and_block);
-}
-
 void FM_Operator_SetKeyOn(FM_Operator_State* const state, const cc_bool key_on)
 {
 	/* An envelope cannot be key-on'd if it isn't key-off'd, and vice versa. */
@@ -185,11 +180,6 @@ void FM_Operator_SetSSGEG(FM_Operator_State* const state, const cc_u8f ssgeg)
 	state->ssgeg.hold      = (ssgeg & (1u << 0)) != 0 && state->ssgeg.enabled;
 }
 
-void FM_Operator_SetDetuneAndMultiplier(FM_Operator_State* const state, const cc_u8f modulation, const cc_u8f sensitivity, const cc_u16f detune, const cc_u16f multiplier)
-{
-	FM_Phase_SetDetuneAndMultiplier(&state->phase, modulation, sensitivity, detune, multiplier);
-}
-
 void FM_Operator_SetTotalLevel(FM_Operator_State* const state, const cc_u16f total_level)
 {
 	/* Convert from 7-bit to 10-bit. */
@@ -202,32 +192,12 @@ void FM_Operator_SetKeyScaleAndAttackRate(FM_Operator_State* const state, const 
 	state->rates[FM_OPERATOR_ENVELOPE_MODE_ATTACK] = attack_rate;
 }
 
-void FM_Operator_SetDecayRate(FM_Operator_State* const state, const cc_u16f decay_rate)
-{
-	state->rates[FM_OPERATOR_ENVELOPE_MODE_DECAY] = decay_rate;
-}
-
-void FM_Operator_SetSustainRate(FM_Operator_State* const state, const cc_u16f sustain_rate)
-{
-	state->rates[FM_OPERATOR_ENVELOPE_MODE_SUSTAIN] = sustain_rate;
-}
-
 void FM_Operator_SetSustainLevelAndReleaseRate(FM_Operator_State* const state, const cc_u16f sustain_level, const cc_u16f release_rate)
 {
 	state->sustain_level = sustain_level == 0xF ? 0x3E0 : sustain_level * 0x20;
 
 	/* Convert from 4-bit to 5-bit to match the others. */
 	state->rates[FM_OPERATOR_ENVELOPE_MODE_RELEASE] = (release_rate << 1) | 1;
-}
-
-void FM_Operator_SetAmplitudeModulationOn(FM_Operator_State* const state, const cc_bool amplitude_modulation_on)
-{
-	state->amplitude_modulation_on = amplitude_modulation_on;
-}
-
-void FM_Operator_SetPhaseModulationAndSensitivity(FM_Operator_State* const state, const cc_u8f modulation, const cc_u8f sensitivity)
-{
-	FM_Phase_SetModulationAndSensitivity(&state->phase, modulation, sensitivity);
 }
 
 static cc_u16f GetEnvelopeDelta(FM_Operator_State* const state)

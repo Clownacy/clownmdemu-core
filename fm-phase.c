@@ -160,11 +160,6 @@ void FM_Phase_State_Initialise(FM_Phase_State* const phase)
 	FM_Phase_Reset(phase);
 }
 
-cc_u16f FM_Phase_GetKeyCode(const FM_Phase_State* const phase)
-{
-	return phase->key_code;
-}
-
 void FM_Phase_SetFrequency(FM_Phase_State* const phase, const cc_u8f modulation, const cc_u8f sensitivity, const cc_u16f f_number_and_block)
 {
 	phase->f_number_and_block = f_number_and_block;
@@ -184,16 +179,4 @@ void FM_Phase_SetDetuneAndMultiplier(FM_Phase_State* const phase, const cc_u8f m
 void FM_Phase_SetModulationAndSensitivity(FM_Phase_State* const phase, const cc_u8f modulation, const cc_u8f sensitivity)
 {
 	phase->step = RecalculatePhaseStep(phase, modulation, sensitivity);
-}
-
-void FM_Phase_Reset(FM_Phase_State* const phase)
-{
-	phase->position = 0;
-}
-
-cc_u32f FM_Phase_Increment(FM_Phase_State* const phase)
-{
-	phase->position += phase->step;
-
-	return phase->position;
 }

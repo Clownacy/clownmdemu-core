@@ -10,11 +10,6 @@ static cc_s16f ComputeFeedbackDivisor(const cc_u16f value)
 	return 1 << (9 - value);
 }
 
-void FM_Channel_Constant_Initialise(FM_Channel_Constant* const constant)
-{
-	FM_Operator_Constant_Initialise(&constant->operators);
-}
-
 void FM_Channel_State_Initialise(FM_Channel_State* const state)
 {
 	cc_u16f i;
@@ -46,11 +41,6 @@ void FM_Channel_Parameters_Initialise(FM_Channel* const channel, const FM_Channe
 	}
 }
 
-void FM_Channel_SetFrequency(const FM_Channel* const channel, const cc_u8f operator_index, const cc_u8f modulation, const cc_u16f f_number_and_block)
-{
-	FM_Operator_SetFrequency(channel->operators[operator_index].state, modulation, channel->state->phase_modulation_sensitivity, f_number_and_block);
-}
-
 void FM_Channel_SetFrequencies(const FM_Channel* const channel, const cc_u8f modulation, const cc_u16f f_number_and_block)
 {
 	cc_u16f i;
@@ -63,11 +53,6 @@ void FM_Channel_SetFeedbackAndAlgorithm(const FM_Channel* const channel, const c
 {
 	channel->state->feedback_divisor = ComputeFeedbackDivisor(feedback);
 	channel->state->algorithm = algorithm;
-}
-
-void FM_Channel_SetSSGEG(const FM_Channel* const channel, const cc_u8f operator_index, const cc_u8f ssgeg)
-{
-	FM_Operator_SetSSGEG(channel->operators[operator_index].state, ssgeg);
 }
 
 static void FM_Channel_SetPhaseModulationAndSensitivity(const FM_Channel* const channel, const cc_u8f phase_modulation, const cc_u8f phase_modulation_sensitivity)
@@ -89,46 +74,6 @@ void FM_Channel_SetModulationSensitivity(const FM_Channel* const channel, const 
 void FM_Channel_SetPhaseModulation(const FM_Channel* const channel, const cc_u8f phase_modulation)
 {
 	FM_Channel_SetPhaseModulationAndSensitivity(channel, phase_modulation, channel->state->phase_modulation_sensitivity);
-}
-
-void FM_Channel_SetKeyOn(const FM_Channel* const channel, const cc_u16f operator_index, const cc_bool key_on)
-{
-	FM_Operator_SetKeyOn(channel->operators[operator_index].state, key_on);
-}
-
-void FM_Channel_SetDetuneAndMultiplier(const FM_Channel* const channel, const cc_u16f operator_index, const cc_u8f modulation, const cc_u16f detune, const cc_u16f multiplier)
-{
-	FM_Operator_SetDetuneAndMultiplier(channel->operators[operator_index].state, modulation, channel->state->phase_modulation_sensitivity, detune, multiplier);
-}
-
-void FM_Channel_SetTotalLevel(const FM_Channel* const channel, const cc_u16f operator_index, const cc_u16f total_level)
-{
-	FM_Operator_SetTotalLevel(channel->operators[operator_index].state, total_level);
-}
-
-void FM_Channel_SetKeyScaleAndAttackRate(const FM_Channel* const channel, const cc_u16f operator_index, const cc_u16f key_scale, const cc_u16f attack_rate)
-{
-	FM_Operator_SetKeyScaleAndAttackRate(channel->operators[operator_index].state, key_scale, attack_rate);
-}
-
-void FM_Channel_SetDecayRate(const FM_Channel* const channel, const cc_u16f operator_index, const cc_u16f decay_rate)
-{
-	FM_Operator_SetDecayRate(channel->operators[operator_index].state, decay_rate);
-}
-
-void FM_Channel_SetSustainRate(const FM_Channel* const channel, const cc_u16f operator_index, const cc_u16f sustain_rate)
-{
-	FM_Operator_SetSustainRate(channel->operators[operator_index].state, sustain_rate);
-}
-
-void FM_Channel_SetSustainLevelAndReleaseRate(const FM_Channel* const channel, const cc_u16f operator_index, const cc_u16f sustain_level, const cc_u16f release_rate)
-{
-	FM_Operator_SetSustainLevelAndReleaseRate(channel->operators[operator_index].state, sustain_level, release_rate);
-}
-
-void FM_Channel_SetAmplitudeModulationOn(const FM_Channel* const channel, const cc_u16f operator_index, const cc_bool amplitude_modulation_on)
-{
-	FM_Operator_SetAmplitudeModulationOn(channel->operators[operator_index].state, amplitude_modulation_on);
 }
 
 /* Portable equivalent to bit-shifting. */

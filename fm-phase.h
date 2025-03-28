@@ -16,13 +16,13 @@ typedef struct FM_Phase_State
 
 void FM_Phase_State_Initialise(FM_Phase_State *phase);
 
-cc_u16f FM_Phase_GetKeyCode(const FM_Phase_State *phase);
+#define FM_Phase_GetKeyCode(phase) ((phase)->key_code)
 
 void FM_Phase_SetFrequency(FM_Phase_State *phase, cc_u8f modulation, cc_u8f sensitivity, cc_u16f f_number_and_block);
 void FM_Phase_SetDetuneAndMultiplier(FM_Phase_State *phase, cc_u8f modulation, cc_u8f sensitivity, cc_u16f detune, cc_u16f multiplier);
 void FM_Phase_SetModulationAndSensitivity(FM_Phase_State *phase, cc_u8f modulation, cc_u8f sensitivity);
 
-void FM_Phase_Reset(FM_Phase_State *phase);
-cc_u32f FM_Phase_Increment(FM_Phase_State *phase);
+#define FM_Phase_Reset(phase) ((phase)->position = 0)
+#define FM_Phase_Increment(phase) ((phase)->position += (phase)->step)
 
 #endif /* FM_PHASE_H */
