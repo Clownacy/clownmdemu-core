@@ -61,6 +61,13 @@ static cc_bool IsInReadMode(const VDP_State* const state)
 	return (state->access.code_register & 1) == 0;
 }
 
+static void SetHScrollMode(VDP_State* const state, const VDP_HScrollMode mode)
+{
+	static const cc_u8l masks[4] = {0x00, 0x07, 0xF8, 0xFF};
+
+	state->hscroll_mask = masks[(cc_u8f)mode];
+}
+
 static void WriteVRAM(VDP_State* const state, const cc_u16f index, const cc_u8f value)
 {
 	/* Update sprite cache if we're writing to the sprite table */
@@ -323,7 +330,7 @@ void VDP_State_Initialise(VDP_State* const state)
 	state->currently_in_vblank = cc_false;
 	state->allow_sprite_masking = cc_false;
 
-	state->hscroll_mode = VDP_HSCROLL_MODE_FULL;
+	SetHScrollMode(state, VDP_HSCROLL_MODE_FULL);
 	state->vscroll_mode = VDP_VSCROLL_MODE_FULL;
 
 	memset(state->vram, 0, sizeof(state->vram));
@@ -343,9 +350,7 @@ void VDP_State_Initialise(VDP_State* const state)
 
 static cc_u16f GetHScrollTableOffset(const VDP_State* const state, const cc_u16f scanline)
 {
-	static const cc_u8l masks[4] = {0x00, 0x07, 0xF8, 0xFF};
-
-	return ((scanline >> state->double_resolution_enabled) & masks[state->hscroll_mode]) * 4;
+	return ((scanline >> state->double_resolution_enabled) & state->hscroll_mask) * 4;
 }
 
 static cc_u16f GetVScrollTableOffset(const VDP_State* const state, const cc_u8f tile_pair)
@@ -936,30 +941,9 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 
 				case 11:
 					/* MODE SET REGISTER NO.3 */
-
 					/* TODO: External interrupt. */
-
 					vdp->state->vscroll_mode = data & 4 ? VDP_VSCROLL_MODE_2CELL : VDP_VSCROLL_MODE_FULL;
-
-					switch (data & 3)
-					{
-						case 0:
-							vdp->state->hscroll_mode = VDP_HSCROLL_MODE_FULL;
-							break;
-
-						case 1:
-							vdp->state->hscroll_mode = VDP_HSCROLL_MODE_INVALID;
-							break;
-
-						case 2:
-							vdp->state->hscroll_mode = VDP_HSCROLL_MODE_1CELL;
-							break;
-
-						case 3:
-							vdp->state->hscroll_mode = VDP_HSCROLL_MODE_1LINE;
-							break;
-					}
-
+					SetHScrollMode(vdp->state, (VDP_HScrollMode)(data & 3));
 					break;
 
 				case 12:
