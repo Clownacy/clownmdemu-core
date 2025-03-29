@@ -29,6 +29,8 @@
 #define GET_TILE_SIZE_SHIFT(state) (GET_TILE_HEIGHT_SHIFT(state) + TILE_Y_INDEX_TO_TILE_BYTE_INDEX_SHIFT)
 #define MULTIPLY_BY_TILE_SIZE(state, value) ((value) << GET_TILE_SIZE_SHIFT(state))
 
+#define READ_VRAM_WORD(VRAM, ADDRESS) (((VRAM)[(ADDRESS) ^ 0] << 8) | (VRAM)[(ADDRESS) ^ 1])
+
 enum
 {
 	SHADOW_HIGHLIGHT_NORMAL = 0 << 6,
@@ -164,8 +166,11 @@ static cc_u16f ReadAndIncrement(VDP_State* const state)
 	switch (state->access.selected_buffer)
 	{
 		case VDP_ACCESS_VRAM:
-			value = VDP_ReadVRAMWord(state, (word_address * 2) % CC_COUNT_OF(state->vram));
+		{
+			const cc_u16f vram_address = (word_address * 2) % CC_COUNT_OF(state->vram);
+			value = READ_VRAM_WORD(state->vram, vram_address);
 			break;
+		}
 
 		case VDP_ACCESS_CRAM:
 			value &= ~0xEEE;
@@ -373,7 +378,8 @@ static void RenderTilePair(const VDP* const vdp, const cc_u16f pixel_y_in_plane,
 
 	for (i = 0; i < TILE_PAIR_COUNT; ++i)
 	{
-		const cc_u16f word = VDP_ReadVRAMWord(state, vram_address + i * 2);
+		const cc_u16f word_vram_address = vram_address + i * 2;
+		const cc_u16f word = READ_VRAM_WORD(vram, word_vram_address);
 		const cc_bool x_flip = VDP_GetTileXFlip(word);
 
 		/* Get the Y coordinate of the pixel in the tile */
@@ -538,7 +544,7 @@ static void RenderSprites(cc_u8l (* const sprite_metapixels)[2], VDP_State* cons
 		/* Decode sprite data */
 		const cc_u16f sprite_index = state->sprite_table_address + sprite_row_cache_entry->table_index * 8;
 		const cc_u16f width = sprite_row_cache_entry->width;
-		const cc_u16f x = VDP_ReadVRAMWord(state, sprite_index + 6) & 0x1FF;
+		const cc_u16f x = READ_VRAM_WORD(state->vram, sprite_index + 6) & 0x1FF;
 
 		/* This is a masking sprite: prevent all remaining sprites from being drawn */
 		if (x == 0)
@@ -558,7 +564,7 @@ static void RenderSprites(cc_u8l (* const sprite_metapixels)[2], VDP_State* cons
 		else
 		{
 			const cc_u16f height = sprite_row_cache_entry->height;
-			const cc_u16f word = VDP_ReadVRAMWord(state, sprite_index + 4);
+			const cc_u16f word = READ_VRAM_WORD(state->vram, sprite_index + 4);
 			const cc_u16f sprite_tile_index = VDP_GetTileIndex(word);
 			const cc_bool x_flip = VDP_GetTileXFlip(word);
 			const cc_bool y_flip = VDP_GetTileYFlip(word);
@@ -668,7 +674,8 @@ static void RenderScanline(const VDP* const vdp, const cc_u16f scanline, cc_u8l*
 				/* Scrolling plane. */
 				if (!vdp->configuration->planes_disabled[plane_index])
 				{
-					const cc_u16f hscroll = VDP_ReadVRAMWord(state, state->hscroll_address + plane_index * 2 + GetHScrollTableOffset(state, scanline));
+					const cc_u16f hscroll_vram_address = state->hscroll_address + plane_index * 2 + GetHScrollTableOffset(state, scanline);
+					const cc_u16f hscroll = READ_VRAM_WORD(state->vram, hscroll_vram_address);
 
 					/* Get the value used to offset the writes to the metapixel buffer */
 					const cc_u16f scroll_offset = TILE_PAIR_WIDTH - (hscroll % TILE_PAIR_WIDTH);
@@ -1163,10 +1170,11 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 	}
 }
 
+/* TODO: Delete this? */
 cc_u16f VDP_ReadVRAMWord(const VDP_State* const state, const cc_u16f address)
 {
 	assert(address < CC_COUNT_OF(state->vram));
-	return (state->vram[address ^ 0] << 8) | state->vram[address ^ 1];
+	return READ_VRAM_WORD(state->vram, address);
 }
 
 VDP_TileMetadata VDP_DecomposeTileMetadata(const cc_u16f packed_tile_metadata)
