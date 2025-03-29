@@ -409,7 +409,7 @@ static void RenderScrollingPlane(const VDP* const vdp, const cc_u8f start, const
 	const cc_u16f plane_height_bitmask = state->plane_height_bitmask;
 	const cc_u16f plane_address = plane_index == 0 ? state->plane_a_address : state->plane_b_address;
 
-	const cc_u16f GET_TILE_HEIGHT_SHIFT = GET_TILE_HEIGHT_SHIFT(state);
+	const cc_u16f tile_height_shift = GET_TILE_HEIGHT_SHIFT(state);
 
 	cc_u8l *metapixels_pointer = &metapixels[start * TILE_PAIR_WIDTH];
 
@@ -431,7 +431,7 @@ static void RenderScrollingPlane(const VDP* const vdp, const cc_u8f start, const
 
 		/* Get the coordinates of the tile in the plane */
 		const cc_u16f tile_x = ((plane_x_offset + clamped_i) * 2) & plane_width_bitmask;
-		const cc_u16f tile_y = (pixel_y_in_plane >> GET_TILE_HEIGHT_SHIFT) & plane_height_bitmask;
+		const cc_u16f tile_y = (pixel_y_in_plane >> tile_height_shift) & plane_height_bitmask;
 		const cc_u16f vram_address = plane_address + ((tile_y << plane_pitch_shift) + tile_x) * 2;
 
 		RenderTilePair(vdp, pixel_y_in_plane, vram_address, &metapixels_pointer);
@@ -443,10 +443,10 @@ static void RenderWindowPlane(const VDP* const vdp, const cc_u8f start, const cc
 	const VDP_State* const state = vdp->state;
 
 	const cc_u16f tile_y = DIVIDE_BY_TILE_HEIGHT(state, scanline);
-	const cc_u16f window_plane_pitch = 32 << state->h40_enabled;
+	const cc_u8f plane_pitch_shift = 5 + state->h40_enabled;
 
 	cc_u8l *metapixels_pointer = &metapixels[start * TILE_PAIR_WIDTH];
-	cc_u16f vram_address = state->window_address + (tile_y * window_plane_pitch + start * TILE_PAIR_COUNT) * 2;
+	cc_u16f vram_address = state->window_address + (tile_y << plane_pitch_shift + start * TILE_PAIR_COUNT) * 2;
 
 	cc_u8f i;
 
@@ -463,7 +463,7 @@ static void UpdateSpriteCache(VDP_State* const state)
 	/* Caching and preprocessing some of the sprite table allows the renderer to avoid
 	   scanning the entire sprite table every time it renders a scanline. The VDP actually
 	   partially caches its sprite data too, though I don't know if it's for the same purpose. */
-	const cc_u8f GET_TILE_HEIGHT_SHIFT = GET_TILE_HEIGHT_SHIFT(state);
+	const cc_u8f tile_height_shift = GET_TILE_HEIGHT_SHIFT(state);
 	const cc_u16f max_sprites = state->h40_enabled ? 80 : 64;
 
 	cc_u16f i;
@@ -487,7 +487,7 @@ static void UpdateSpriteCache(VDP_State* const state)
 		const cc_u16f blank_lines = 128 << state->double_resolution_enabled;
 
 		/* This loop only processes rows that are on-screen. */
-		for (i = CC_MAX(blank_lines, cached_sprite.y); i < CC_MIN(blank_lines + ((state->v30_enabled ? 30 : 28) << GET_TILE_HEIGHT_SHIFT), cached_sprite.y + (cached_sprite.height << GET_TILE_HEIGHT_SHIFT)); ++i)
+		for (i = CC_MAX(blank_lines, cached_sprite.y); i < CC_MIN(blank_lines + ((state->v30_enabled ? 30 : 28) << tile_height_shift), cached_sprite.y + (cached_sprite.height << tile_height_shift)); ++i)
 		{
 			struct VDP_SpriteRowCacheRow* const row = &state->sprite_row_cache.rows[i - blank_lines];
 
