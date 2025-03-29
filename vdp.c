@@ -448,7 +448,7 @@ static void RenderWindowPlane(const VDP* const vdp, const cc_u8f start, const cc
 	const cc_u8f plane_pitch_shift = 5 + state->h40_enabled;
 
 	cc_u8l *metapixels_pointer = &metapixels[start * TILE_PAIR_WIDTH];
-	cc_u16f vram_address = state->window_address + (tile_y << plane_pitch_shift + start * TILE_PAIR_COUNT) * 2;
+	cc_u16f vram_address = state->window_address + ((tile_y << plane_pitch_shift) + start * TILE_PAIR_COUNT) * 2;
 
 	cc_u8f i;
 
@@ -717,10 +717,7 @@ static void RenderScanline(const VDP* const vdp, const cc_u16f scanline, cc_u8l*
 
 void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_ScanlineRenderedCallback scanline_rendered_callback, const void* const scanline_rendered_callback_user_data)
 {
-	const VDP_Constant* const constant = vdp->constant;
 	VDP_State* const state = vdp->state;
-
-	cc_u16f i;
 
 	cc_u8l plane_metapixels_buffer[TILE_PAIR_WIDTH - 1 + SCANLINE_WIDTH_IN_TILE_PAIRS * TILE_PAIR_WIDTH];
 	cc_u8l* const plane_metapixels = &plane_metapixels_buffer[TILE_PAIR_WIDTH - 1];
