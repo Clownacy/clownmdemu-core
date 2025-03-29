@@ -466,6 +466,63 @@ static void RenderWindowPlane(const VDP* const vdp, const cc_u8f start, const cc
 	}
 }
 
+static void UpdateSpriteCache(VDP_State* const state, const TileInfo* const tile_info)
+{
+	/* Caching and preprocessing some of the sprite table allows the renderer to avoid
+	   scanning the entire sprite table every time it renders a scanline. The VDP actually
+	   partially caches its sprite data too, though I don't know if it's for the same purpose. */
+	const cc_u16f max_sprites = state->h40_enabled ? 80 : 64;
+
+	cc_u16f i;
+	cc_u16f sprite_index;
+	cc_u16f sprites_remaining = max_sprites;
+
+	if (!state->sprite_row_cache.needs_updating)
+		return;
+
+	state->sprite_row_cache.needs_updating = cc_false;
+
+	/* Make it so we write to the start of the rows */
+	for (i = 0; i < CC_COUNT_OF(state->sprite_row_cache.rows); ++i)
+		state->sprite_row_cache.rows[i].total = 0;
+
+	sprite_index = 0;
+
+	do
+	{
+		const VDP_CachedSprite cached_sprite = VDP_GetCachedSprite(state, sprite_index);
+		const cc_u16f blank_lines = 128 << state->double_resolution_enabled;
+
+		/* This loop only processes rows that are on-screen. */
+		for (i = CC_MAX(blank_lines, cached_sprite.y); i < CC_MIN(blank_lines + ((state->v30_enabled ? 30 : 28) << tile_info->height_power), cached_sprite.y + (cached_sprite.height << tile_info->height_power)); ++i)
+		{
+			struct VDP_SpriteRowCacheRow* const row = &state->sprite_row_cache.rows[i - blank_lines];
+
+			/* Don't write more sprites than are allowed to be drawn on this line */
+			if (row->total != (state->h40_enabled ? 20 : 16))
+			{
+				struct VDP_SpriteRowCacheEntry* const sprite_row_cache_entry = &row->sprites[row->total++];
+
+				sprite_row_cache_entry->table_index = (cc_u8l)sprite_index;
+				sprite_row_cache_entry->width = (cc_u8l)cached_sprite.width;
+				sprite_row_cache_entry->height = (cc_u8l)cached_sprite.height;
+				sprite_row_cache_entry->y_in_sprite = (cc_u8l)(i - cached_sprite.y);
+			}
+		}
+
+		if (cached_sprite.link >= max_sprites)
+		{
+			/* Invalid link - bail before it can cause a crash.
+			   According to Nemesis, this is actually what real hardware does too:
+			   http://gendev.spritesmind.net/forum/viewtopic.php?p=8364#p8364 */
+			break;
+		}
+
+		sprite_index = cached_sprite.link;
+	}
+	while (sprite_index != 0 && --sprites_remaining != 0);
+}
+
 static void RenderSprites(cc_u8l (* const sprite_metapixels)[2], VDP_State* const state, const cc_u16f scanline, const TileInfo* const tile_info)
 {
 	cc_u8f i;
@@ -677,63 +734,7 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 
 	assert(scanline < VDP_MAX_SCANLINES);
 
-	/* ************ *
-	 * Draw sprites *
-	 * ************ */
-
-	/* Update the sprite row cache if needed */
-	if (state->sprite_row_cache.needs_updating)
-	{
-		/* Caching and preprocessing some of the sprite table allows the renderer to avoid
-			scanning the entire sprite table every time it renders a scanline. The VDP actually
-			partially caches its sprite data too, though I don't know if it's for the same purpose. */
-		const cc_u16f max_sprites = state->h40_enabled ? 80 : 64;
-
-		cc_u16f sprite_index;
-		cc_u16f sprites_remaining = max_sprites;
-
-		state->sprite_row_cache.needs_updating = cc_false;
-
-		/* Make it so we write to the start of the rows */
-		for (i = 0; i < CC_COUNT_OF(state->sprite_row_cache.rows); ++i)
-			state->sprite_row_cache.rows[i].total = 0;
-
-		sprite_index = 0;
-
-		do
-		{
-			const VDP_CachedSprite cached_sprite = VDP_GetCachedSprite(state, sprite_index);
-			const cc_u16f blank_lines = 128 << state->double_resolution_enabled;
-
-			/* This loop only processes rows that are on-screen. */
-			for (i = CC_MAX(blank_lines, cached_sprite.y); i < CC_MIN(blank_lines + ((state->v30_enabled ? 30 : 28) << tile_info.height_power), cached_sprite.y + (cached_sprite.height << tile_info.height_power)); ++i)
-			{
-				struct VDP_SpriteRowCacheRow* const row = &state->sprite_row_cache.rows[i - blank_lines];
-
-				/* Don't write more sprites than are allowed to be drawn on this line */
-				if (row->total != (state->h40_enabled ? 20 : 16))
-				{
-					struct VDP_SpriteRowCacheEntry* const sprite_row_cache_entry = &row->sprites[row->total++];
-
-					sprite_row_cache_entry->table_index = (cc_u8l)sprite_index;
-					sprite_row_cache_entry->width = (cc_u8l)cached_sprite.width;
-					sprite_row_cache_entry->height = (cc_u8l)cached_sprite.height;
-					sprite_row_cache_entry->y_in_sprite = (cc_u8l)(i - cached_sprite.y);
-				}
-			}
-
-			if (cached_sprite.link >= max_sprites)
-			{
-				/* Invalid link - bail before it can cause a crash.
-					According to Nemesis, this is actually what real hardware does too:
-					http://gendev.spritesmind.net/forum/viewtopic.php?p=8364#p8364 */
-				break;
-			}
-
-			sprite_index = cached_sprite.link;
-		}
-		while (sprite_index != 0 && --sprites_remaining != 0);
-	}
+	UpdateSpriteCache(state, &tile_info);
 
 	/* Clear the scanline buffer, so that the sprite blitter
 		knows which pixels haven't been drawn yet. */
