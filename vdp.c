@@ -362,10 +362,12 @@ static cc_u16f GetVScrollTableOffset(const VDP_State* const state, const cc_u8f 
 static void RenderTilePair(const VDP* const vdp, const cc_u16f pixel_y_in_plane, const cc_u16f vram_address, cc_u8l** const metapixels_pointer)
 {
 	const VDP_State* const state = vdp->state;
+	const cc_u8l* const vram = state->vram;
+	const cc_u8l (* const blit_lookup_list)[1 << (1 + 1 + 2 + 4)][1 << 4] = vdp->constant->blit_lookup;
 
 	const cc_u8f tile_height_shift = GET_TILE_HEIGHT_SHIFT(state);
 	const cc_u8f tile_height_mask = (1 << tile_height_shift) - 1;
-	const cc_u16f pixel_y_in_tile_unflipped = pixel_y_in_plane & tile_height_mask;
+	const cc_u8f pixel_y_in_tile_unflipped = pixel_y_in_plane & tile_height_mask;
 
 	cc_u8f i;
 
@@ -375,16 +377,16 @@ static void RenderTilePair(const VDP* const vdp, const cc_u16f pixel_y_in_plane,
 		const cc_bool x_flip = VDP_GetTileXFlip(word);
 
 		/* Get the Y coordinate of the pixel in the tile */
-		const cc_u16f pixel_y_in_tile = pixel_y_in_tile_unflipped ^ (VDP_GetTileYFlip(word) ? tile_height_mask : 0);
+		const cc_u8f pixel_y_in_tile = pixel_y_in_tile_unflipped ^ (VDP_GetTileYFlip(word) ? tile_height_mask : 0);
 
 		/* Get raw tile data that contains the desired metapixel */
-		const cc_u8l* const tile_data = &state->vram[TILE_Y_INDEX_TO_TILE_BYTE_INDEX((VDP_GetTileIndex(word) << tile_height_shift) + pixel_y_in_tile) % CC_COUNT_OF(state->vram)];
+		const cc_u8l* const tile_data = &vram[TILE_Y_INDEX_TO_TILE_BYTE_INDEX((VDP_GetTileIndex(word) << tile_height_shift) + pixel_y_in_tile) % CC_COUNT_OF(state->vram)];
 
 		const cc_u8f byte_index_xor = x_flip ? 3 : 0;
 		const cc_u8f nybble_shift_1 = x_flip ? 0 : 4;
 		const cc_u8f nybble_shift_2 = x_flip ? 4 : 0;
 
-		const cc_u8l (* const blit_lookup)[1 << 4] = vdp->constant->blit_lookup[(word >> 13) & 7];
+		const cc_u8l (* const blit_lookup)[1 << 4] = blit_lookup_list[(word >> 13) & 7];
 
 		cc_u8f j;
 
@@ -536,30 +538,7 @@ static void RenderSprites(cc_u8l (* const sprite_metapixels)[2], VDP_State* cons
 		/* Decode sprite data */
 		const cc_u16f sprite_index = state->sprite_table_address + sprite_row_cache_entry->table_index * 8;
 		const cc_u16f width = sprite_row_cache_entry->width;
-		const cc_u16f height = sprite_row_cache_entry->height;
-		const cc_u16f word = VDP_ReadVRAMWord(state, sprite_index + 4);
-		const cc_u16f sprite_tile_index = VDP_GetTileIndex(word);
-		const cc_bool x_flip = VDP_GetTileXFlip(word);
-		const cc_bool y_flip = VDP_GetTileYFlip(word);
 		const cc_u16f x = VDP_ReadVRAMWord(state, sprite_index + 6) & 0x1FF;
-
-		const cc_u8f metapixel_high_bits = (word >> 13) & 7;
-
-		const cc_u8f byte_index_xor = x_flip ? 3 : 0;
-
-		cc_u16f y_in_sprite = sprite_row_cache_entry->y_in_sprite;
-		cc_u8f nybble_shift[2];
-
-		if (x_flip)
-		{
-			nybble_shift[0] = 0;
-			nybble_shift[1] = 4;
-		}
-		else
-		{
-			nybble_shift[0] = 4;
-			nybble_shift[1] = 0;
-		}
 
 		/* This is a masking sprite: prevent all remaining sprites from being drawn */
 		if (x == 0)
@@ -578,17 +557,40 @@ static void RenderSprites(cc_u8l (* const sprite_metapixels)[2], VDP_State* cons
 		}
 		else
 		{
+			const cc_u16f height = sprite_row_cache_entry->height;
+			const cc_u16f word = VDP_ReadVRAMWord(state, sprite_index + 4);
+			const cc_u16f sprite_tile_index = VDP_GetTileIndex(word);
+			const cc_bool x_flip = VDP_GetTileXFlip(word);
+			const cc_bool y_flip = VDP_GetTileYFlip(word);
+
+			const cc_u8f metapixel_high_bits = (word >> 13) & 7;
+
+			const cc_u8f byte_index_xor = x_flip ? 3 : 0;
+
+			const cc_u8f y_in_sprite_non_flipped = sprite_row_cache_entry->y_in_sprite;
+			const cc_u8f y_in_sprite = y_flip ? (height << tile_height_shift) - y_in_sprite_non_flipped - 1 : y_in_sprite_non_flipped;
+			const cc_u16f pixel_y_in_tile = y_in_sprite & tile_height_mask;
+
 			cc_u8l *metapixels_pointer = sprite_metapixels[(MAX_SPRITE_WIDTH - 1) + x - 0x80];
 
+			cc_u8f nybble_shift[2];
 			cc_u16f j;
 
-			y_in_sprite = y_flip ? (height << tile_height_shift) - y_in_sprite - 1 : y_in_sprite;
+			if (x_flip)
+			{
+				nybble_shift[0] = 0;
+				nybble_shift[1] = 4;
+			}
+			else
+			{
+				nybble_shift[0] = 4;
+				nybble_shift[1] = 0;
+			}
 
 			for (j = 0; j < width; ++j)
 			{
 				const cc_u16f x_in_sprite = x_flip ? width - j - 1 : j;
-				const cc_u16f tile_index = sprite_tile_index + (y_in_sprite >> tile_height_shift) + x_in_sprite * height;
-				const cc_u16f pixel_y_in_tile = y_in_sprite & tile_height_mask;
+				const cc_u16f tile_index = sprite_tile_index + (y_in_sprite >> tile_height_shift) + x_in_sprite * height; /* TODO: Somehow get rid of this multiplication for a speed boost on platforms with a slow multiplier. */
 
 				/* Get raw tile data that contains the desired metapixel */
 				const cc_u8l* const tile_data = &state->vram[TILE_Y_INDEX_TO_TILE_BYTE_INDEX(MULTIPLY_BY_TILE_HEIGHT(state, tile_index) + pixel_y_in_tile) % CC_COUNT_OF(state->vram)];
