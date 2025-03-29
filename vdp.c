@@ -303,7 +303,7 @@ void VDP_State_Initialise(VDP_State* const state)
 	state->window.horizontal_boundary = 0;
 	state->window.vertical_boundary = 0;
 
-	state->plane_width_bitmask = 0x1F;
+	state->plane_width_shift = 5;
 	state->plane_height_bitmask = 0x1F;
 
 	state->display_enabled = cc_false;
@@ -404,9 +404,9 @@ static void RenderScrollingPlane(const VDP* const vdp, const cc_u8f start, const
 {
 	VDP_State* const state = vdp->state;
 
-	const cc_u16f plane_width_bitmask = state->plane_width_bitmask;
+	const cc_u16f plane_pitch_shift = state->plane_width_shift;
+	const cc_u16f plane_width_bitmask = (1 << plane_pitch_shift) - 1;
 	const cc_u16f plane_height_bitmask = state->plane_height_bitmask;
-	const cc_u16f plane_pitch = plane_width_bitmask + 1;
 	const cc_u16f plane_address = plane_index == 0 ? state->plane_a_address : state->plane_b_address;
 
 	const cc_u16f GET_TILE_HEIGHT_SHIFT = GET_TILE_HEIGHT_SHIFT(state);
@@ -432,7 +432,7 @@ static void RenderScrollingPlane(const VDP* const vdp, const cc_u8f start, const
 		/* Get the coordinates of the tile in the plane */
 		const cc_u16f tile_x = ((plane_x_offset + clamped_i) * 2) & plane_width_bitmask;
 		const cc_u16f tile_y = (pixel_y_in_plane >> GET_TILE_HEIGHT_SHIFT) & plane_height_bitmask;
-		const cc_u16f vram_address = plane_address + (tile_y * plane_pitch + tile_x) * 2;
+		const cc_u16f vram_address = plane_address + ((tile_y << plane_pitch_shift) + tile_x) * 2;
 
 		RenderTilePair(vdp, pixel_y_in_plane, vram_address, &metapixels_pointer);
 	}
@@ -1036,22 +1036,22 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 					switch (data & 3)
 					{
 						case 0:
-							vdp->state->plane_width_bitmask = 0x1F;
+							vdp->state->plane_width_shift = 5;
 							vdp->state->plane_height_bitmask &= 0x7F;
 							break;
 
 						case 1:
-							vdp->state->plane_width_bitmask = 0x3F;
+							vdp->state->plane_width_shift = 6;
 							vdp->state->plane_height_bitmask &= 0x3F;
 							break;
 
 						case 2:
-							vdp->state->plane_width_bitmask = 0x1F;
+							vdp->state->plane_width_shift = 5;
 							vdp->state->plane_height_bitmask &= 0;
 							break;
 
 						case 3:
-							vdp->state->plane_width_bitmask = 0x7F;
+							vdp->state->plane_width_shift = 7;
 							vdp->state->plane_height_bitmask &= 0x1F;
 							break;
 					}
