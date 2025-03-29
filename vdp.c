@@ -29,7 +29,7 @@ enum
 
 typedef struct TileInfo
 {
-	cc_u16f height_power, height_mask, size;
+	cc_u16f height_power, height_mask, size_shift;
 } TileInfo;
 
 static unsigned int GetTileHeightPower(const VDP_State* const state)
@@ -42,7 +42,7 @@ static TileInfo MakeTileInfo(const VDP_State* const state)
 	TileInfo tile_info;
 	tile_info.height_power = GetTileHeightPower(state);
 	tile_info.height_mask = (1 << tile_info.height_power) - 1;
-	tile_info.size = (TILE_WIDTH << tile_info.height_power) / 2;
+	tile_info.size_shift = tile_info.height_power + 2;
 	return tile_info;
 }
 
@@ -378,7 +378,7 @@ static void RenderTile(const VDP* const vdp, const cc_u16f pixel_y_in_plane, con
 	const cc_u16f pixel_y_in_tile = (pixel_y_in_plane & tile_info->height_mask) ^ (VDP_GetTileYFlip(word) ? tile_info->height_mask : 0);
 
 	/* Get raw tile data that contains the desired metapixel */
-	const cc_u8l* const tile_data = &vdp->state->vram[(VDP_GetTileIndex(word) * tile_info->size + pixel_y_in_tile * 4) % CC_COUNT_OF(vdp->state->vram)];
+	const cc_u8l* const tile_data = &vdp->state->vram[((VDP_GetTileIndex(word) << tile_info->size_shift) + pixel_y_in_tile * 4) % CC_COUNT_OF(vdp->state->vram)];
 
 	const cc_u8f byte_index_xor = x_flip ? 3 : 0;
 	const cc_u8f nybble_shift_1 = x_flip ? 0 : 4;
@@ -595,7 +595,7 @@ static void RenderSprites(cc_u8l (* const sprite_metapixels)[2], VDP_State* cons
 				const cc_u16f pixel_y_in_tile = y_in_sprite & tile_info->height_mask;
 
 				/* Get raw tile data that contains the desired metapixel */
-				const cc_u8l* const tile_data = &state->vram[(tile_index * tile_info->size + pixel_y_in_tile * 4) % CC_COUNT_OF(state->vram)];
+				const cc_u8l* const tile_data = &state->vram[((tile_index << tile_info->size_shift) + pixel_y_in_tile * 4) % CC_COUNT_OF(state->vram)];
 
 				cc_u16f k;
 
