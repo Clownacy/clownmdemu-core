@@ -731,7 +731,7 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 	/* The padding bytes of the left and right are for allowing sprites to overdraw at the
 	   edges of the screen. */
 	cc_u8l sprite_metapixels_buffer[(MAX_SPRITE_WIDTH - 1) + VDP_MAX_SCANLINE_WIDTH + (MAX_SPRITE_WIDTH - 1)][2];
-	cc_u8l(* const sprite_metapixels)[2] = &sprite_metapixels_buffer[MAX_SPRITE_WIDTH - 1];
+	cc_u8l (* const sprite_metapixels)[2] = &sprite_metapixels_buffer[MAX_SPRITE_WIDTH - 1];
 
 	assert(scanline < VDP_MAX_SCANLINES);
 
