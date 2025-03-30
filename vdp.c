@@ -693,12 +693,11 @@ static void RenderScanline(const VDP* const vdp, const cc_u16f scanline, cc_u8l*
 		 * ************************************ */
 
 		{
-			const cc_u8l *sprite_metapixels_pointer = sprite_metapixels[MAX_SPRITE_WIDTH - 1 + left_boundary_pixels];
+			const cc_u8l *sprite_metapixels_pointer = sprite_metapixels[left_boundary_pixels];
 			cc_u8l *plane_metapixels_pointer = &plane_metapixels[left_boundary_pixels];
 
 			if (state->shadow_highlight_enabled)
 			{
-				/* TODO: start, end */
 				for (i = left_boundary_pixels; i < right_boundary_pixels; ++i)
 				{
 					*plane_metapixels_pointer = constant->blit_lookup_shadow_highlight[sprite_metapixels_pointer[1]][*plane_metapixels_pointer][sprite_metapixels_pointer[0]];
@@ -726,12 +725,13 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 {
 	VDP_State* const state = vdp->state;
 
-	cc_u8l plane_metapixels_buffer[TILE_PAIR_WIDTH - 1 + SCANLINE_WIDTH_IN_TILE_PAIRS * TILE_PAIR_WIDTH];
+	cc_u8l plane_metapixels_buffer[TILE_PAIR_WIDTH - 1 + SCANLINE_WIDTH_IN_TILE_PAIRS * TILE_PAIR_WIDTH + TILE_PAIR_WIDTH];
 	cc_u8l* const plane_metapixels = &plane_metapixels_buffer[TILE_PAIR_WIDTH - 1];
 
 	/* The padding bytes of the left and right are for allowing sprites to overdraw at the
 	   edges of the screen. */
-	cc_u8l sprite_metapixels[(MAX_SPRITE_WIDTH - 1) + VDP_MAX_SCANLINE_WIDTH + (MAX_SPRITE_WIDTH - 1)][2];
+	cc_u8l sprite_metapixels_buffer[(MAX_SPRITE_WIDTH - 1) + VDP_MAX_SCANLINE_WIDTH + (MAX_SPRITE_WIDTH - 1)][2];
+	cc_u8l(* const sprite_metapixels)[2] = &sprite_metapixels_buffer[MAX_SPRITE_WIDTH - 1];
 
 	assert(scanline < VDP_MAX_SCANLINES);
 
@@ -739,10 +739,10 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 
 	/* Clear the scanline buffer, so that the sprite blitter
 		knows which pixels haven't been drawn yet. */
-	memset(sprite_metapixels, 0, sizeof(sprite_metapixels));
+	memset(sprite_metapixels_buffer, 0, sizeof(sprite_metapixels_buffer));
 
 	if (!vdp->configuration->sprites_disabled)
-		RenderSprites(sprite_metapixels, state, scanline);
+		RenderSprites(sprite_metapixels_buffer, state, scanline);
 
 	RenderScanline(vdp, scanline, plane_metapixels, sprite_metapixels, cc_true,  scanline_rendered_callback, scanline_rendered_callback_user_data);
 	RenderScanline(vdp, scanline, plane_metapixels, sprite_metapixels, cc_false, scanline_rendered_callback, scanline_rendered_callback_user_data);
