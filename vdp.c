@@ -725,8 +725,10 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 {
 	VDP_State* const state = vdp->state;
 
-	cc_u8l plane_metapixels_buffer[TILE_PAIR_WIDTH - 1 + SCANLINE_WIDTH_IN_TILE_PAIRS * TILE_PAIR_WIDTH + TILE_PAIR_WIDTH];
-	cc_u8l* const plane_metapixels = &plane_metapixels_buffer[TILE_PAIR_WIDTH - 1];
+	/* The padding bytes of the left and right are for allowing tile pairs to overdraw at the
+	   edges of the screen. */
+	cc_u8l plane_metapixels_buffer[(1 + SCANLINE_WIDTH_IN_TILE_PAIRS + 1) * TILE_PAIR_WIDTH];
+	cc_u8l* const plane_metapixels = &plane_metapixels_buffer[TILE_PAIR_WIDTH];
 
 	/* The padding bytes of the left and right are for allowing sprites to overdraw at the
 	   edges of the screen. */
