@@ -380,17 +380,18 @@ static void RenderTilePair(const VDP* const vdp, const cc_u16f pixel_y_in_plane,
 	{
 		const cc_u16f word_vram_address = vram_address + i * 2;
 		const cc_u16f word = READ_VRAM_WORD(vram, word_vram_address);
-		const cc_bool x_flip = VDP_GetTileXFlip(word);
+		const cc_u8f x_flip = -(cc_u8f)VDP_GetTileXFlip(word);
+		const cc_u8f y_flip = -(cc_u8f)VDP_GetTileYFlip(word);
 
 		/* Get the Y coordinate of the pixel in the tile */
-		const cc_u8f pixel_y_in_tile = pixel_y_in_tile_unflipped ^ (VDP_GetTileYFlip(word) ? tile_height_mask : 0);
+		const cc_u8f pixel_y_in_tile = pixel_y_in_tile_unflipped ^ (tile_height_mask & y_flip);
 
 		/* Get raw tile data that contains the desired metapixel */
 		const cc_u8l* const tile_data = &vram[TILE_Y_INDEX_TO_TILE_BYTE_INDEX((VDP_GetTileIndex(word) << tile_height_shift) + pixel_y_in_tile) % CC_COUNT_OF(state->vram)];
 
-		const cc_u8f byte_index_xor = x_flip ? 3 : 0;
-		const cc_u8f nybble_shift_1 = x_flip ? 0 : 4;
-		const cc_u8f nybble_shift_2 = x_flip ? 4 : 0;
+		const cc_u8f byte_index_xor = 3 & x_flip;
+		const cc_u8f nybble_shift_2 = 4 & x_flip;
+		const cc_u8f nybble_shift_1 = 4 ^ nybble_shift_2;
 
 		const cc_u8l (* const blit_lookup)[1 << 4] = blit_lookup_list[(word >> 13) & 7];
 
