@@ -153,7 +153,7 @@ void FM_State_Initialise(FM_State* const state)
 	state->port = 0 * 3;
 	state->address = 0;
 
-	state->dac_sample = 0;
+	state->dac_sample = 0x100; /* Silence */
 	state->dac_enabled = cc_false;
 	state->dac_test = cc_false;
 
