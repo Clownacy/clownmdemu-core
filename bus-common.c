@@ -165,6 +165,16 @@ void SyncPSG(CPUCallbackUserData* const other_state, const CycleMegaDrive target
 static void GeneratePCMAudio(const ClownMDEmu* const clownmdemu, cc_s16l* const sample_buffer, const size_t total_frames)
 {
 	PCM_Update(&clownmdemu->pcm, sample_buffer, total_frames);
+
+	/* https://www.meme.net.au/butterworth.html
+	   Configured for a cut-off of 2842Hz at 32552Hz.
+	   32552Hz is the RF5C164's sample rate.
+	   2842Hz is the cut-off frequency of a VA4 Mega Drive's low-pass filter,
+	   which is implemented as an RC filter with a 10K resistor and a 5600pf capacitor.
+	   2842 = 1 / (2 * pi * (10 * (10 ^ 3)) * (5600 * (10 ^ -12))) */
+	/* TODO: Use the Mega CD's low pass filter instead of the Mega Drive's! */
+	if (!clownmdemu->configuration->general.low_pass_filter_disabled)
+		LowPassFilter_Apply(clownmdemu->state->low_pass_filters.pcm, CC_COUNT_OF(clownmdemu->state->low_pass_filters.pcm), sample_buffer, total_frames, LOW_PASS_FILTER_COMPUTE_MAGIC(2.554, 4.554));
 }
 
 void SyncPCM(CPUCallbackUserData* const other_state, const CycleMegaCD target_cycle)
