@@ -6,15 +6,16 @@
 #include "clowncommon/clowncommon.h"
 
 #define LOW_PASS_FILTER_FIXED_BASE 0x10000
-#define LOW_PASS_FILTER_COMPUTE_FIXED(x, COEFFICIENT_B) (cc_u16l)CC_DIVIDE_ROUND(x * LOW_PASS_FILTER_FIXED_BASE, COEFFICIENT_B)
-#define LOW_PASS_FILTER_COMPUTE_MAGIC(COEFFICIENT_A, COEFFICIENT_B) LOW_PASS_FILTER_COMPUTE_FIXED(1.0, COEFFICIENT_B), LOW_PASS_FILTER_COMPUTE_FIXED(COEFFICIENT_A, COEFFICIENT_B)
+#define LOW_PASS_FILTER_COMPUTE_FIXED(x, OUTPUT_COEFFICIENT) (cc_u16l)CC_DIVIDE_ROUND(x * LOW_PASS_FILTER_FIXED_BASE, OUTPUT_COEFFICIENT)
+#define LOW_PASS_FILTER_COMPUTE_MAGIC_FIRST_ORDER(INPUT_COEFFICIENT, OUTPUT_COEFFICIENT) LOW_PASS_FILTER_COMPUTE_FIXED(1.0, OUTPUT_COEFFICIENT), 0, LOW_PASS_FILTER_COMPUTE_FIXED(INPUT_COEFFICIENT, OUTPUT_COEFFICIENT), 0
+#define LOW_PASS_FILTER_COMPUTE_MAGIC_SECOND_ORDER(INPUT_COEFFICIENT_A, INPUT_COEFFICIENT_B, OUTPUT_COEFFICIENT) LOW_PASS_FILTER_COMPUTE_FIXED(1.0, OUTPUT_COEFFICIENT), LOW_PASS_FILTER_COMPUTE_FIXED(1.0, OUTPUT_COEFFICIENT), LOW_PASS_FILTER_COMPUTE_FIXED(INPUT_COEFFICIENT_A, OUTPUT_COEFFICIENT), LOW_PASS_FILTER_COMPUTE_FIXED(INPUT_COEFFICIENT_B, OUTPUT_COEFFICIENT)
 
 typedef struct LowPassFilterState
 {
-	cc_s16l previous_sample, previous_output;
+	cc_s16l previous_samples[2], previous_outputs[2];
 } LowPassFilterState;
 
 void LowPassFilter_Initialise(LowPassFilterState *states, cc_u8f total_channels);
-void LowPassFilter_Apply(LowPassFilterState *states, cc_u8f total_channels, cc_s16l *sample_buffer, size_t total_frames, cc_u32f magic1, cc_u32f magic2);
+void LowPassFilter_Apply(LowPassFilterState *states, cc_u8f total_channels, cc_s16l *sample_buffer, size_t total_frames, cc_u32f sample_magic_1, cc_u32f sample_magic_2, cc_u32f output_magic_1, cc_u32f output_magic_2);
 
 #endif /* LOW_PASS_FILTER_H */

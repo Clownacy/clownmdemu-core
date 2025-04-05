@@ -1,18 +1,13 @@
 #include "low-pass-filter.h"
 
+#include <string.h>
+
 void LowPassFilter_Initialise(LowPassFilterState* const states, const cc_u8f total_channels)
 {
-	size_t i;
-
-	for (i = 0; i < total_channels; ++i)
-	{
-		LowPassFilterState* const state = &states[i];
-
-		state->previous_sample = state->previous_output = 0;
-	}
+	memset(states, 0, sizeof(*states) * total_channels);
 }
 
-void LowPassFilter_Apply(LowPassFilterState* const states, const cc_u8f total_channels, cc_s16l* const sample_buffer, const size_t total_frames, const cc_u32f magic1, const cc_u32f magic2)
+void LowPassFilter_Apply(LowPassFilterState* const states, const cc_u8f total_channels, cc_s16l* const sample_buffer, const size_t total_frames, const cc_u32f sample_magic_1, const cc_u32f sample_magic_2, const cc_u32f output_magic_1, const cc_u32f output_magic_2)
 {
 	size_t current_frame;
 
@@ -25,10 +20,12 @@ void LowPassFilter_Apply(LowPassFilterState* const states, const cc_u8f total_ch
 		for (current_channel = 0; current_channel < total_channels; ++current_channel)
 		{
 			LowPassFilterState* const state = &states[current_channel];
-			const cc_s16l output = (((cc_s32f)*sample_pointer + state->previous_sample) * magic1 + state->previous_output * magic2) / LOW_PASS_FILTER_FIXED_BASE;
+			const cc_s16l output = (((cc_s32f)*sample_pointer + state->previous_samples[0]) * sample_magic_1 + (state->previous_samples[0] + state->previous_samples[1]) * sample_magic_2 + state->previous_outputs[0] * output_magic_1 - state->previous_outputs[1] * output_magic_2) / LOW_PASS_FILTER_FIXED_BASE;
 
-			state->previous_sample = *sample_pointer;
-			state->previous_output = output;
+			state->previous_samples[1] = state->previous_samples[0];
+			state->previous_samples[0] = *sample_pointer;
+			state->previous_outputs[1] = state->previous_outputs[0];
+			state->previous_outputs[0] = output;
 
 			*sample_pointer = output;
 			++sample_pointer;
