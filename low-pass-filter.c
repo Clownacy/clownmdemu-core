@@ -7,7 +7,7 @@ void LowPassFilter_Initialise(LowPassFilterState* const states, const cc_u8f tot
 	memset(states, 0, sizeof(*states) * total_channels);
 }
 
-void LowPassFilter_Apply(LowPassFilterState* const states, const cc_u8f total_channels, cc_s16l* const sample_buffer, const size_t total_frames, const cc_u32f sample_magic_1, const cc_u32f sample_magic_2, const cc_u32f output_magic_1, const cc_u32f output_magic_2)
+void LowPassFilter_Apply(LowPassFilterState* const states, const cc_u8f total_channels, cc_s16l* const sample_buffer, const size_t total_frames, const cc_s32f sample_magic_1, const cc_s32f sample_magic_2, const cc_s32f output_magic_1, const cc_s32f output_magic_2)
 {
 	size_t current_frame;
 
@@ -20,7 +20,15 @@ void LowPassFilter_Apply(LowPassFilterState* const states, const cc_u8f total_ch
 		for (current_channel = 0; current_channel < total_channels; ++current_channel)
 		{
 			LowPassFilterState* const state = &states[current_channel];
-			const cc_s16l output = (((cc_s32f)*sample_pointer + state->previous_samples[0]) * sample_magic_1 + (state->previous_samples[0] + state->previous_samples[1]) * sample_magic_2 + state->previous_outputs[0] * output_magic_1 - state->previous_outputs[1] * output_magic_2) / LOW_PASS_FILTER_FIXED_BASE;
+
+			const cc_s32f unclamped_output
+				= LOW_PASS_FILTER_FIXED_MULTIPLY((cc_s32f)*sample_pointer + state->previous_samples[0], sample_magic_1)
+				+ LOW_PASS_FILTER_FIXED_MULTIPLY((cc_s32f)state->previous_samples[0] + state->previous_samples[1], sample_magic_2)
+				+ LOW_PASS_FILTER_FIXED_MULTIPLY(state->previous_outputs[0], output_magic_1)
+				- LOW_PASS_FILTER_FIXED_MULTIPLY(state->previous_outputs[1], output_magic_2);
+
+			/* For some reason, out-of-range values can be produced by the low-pass filter. */
+			const cc_s16l output = CC_CLAMP(-0x7FFF, 0x7FFF, unclamped_output);
 
 			state->previous_samples[1] = state->previous_samples[0];
 			state->previous_samples[0] = *sample_pointer;
