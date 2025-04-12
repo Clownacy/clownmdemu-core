@@ -488,7 +488,7 @@ static cc_s16f GetFinalSample(const FM* const fm, cc_s16f sample, const cc_bool 
 		offset2 = 1;
 	}
 
-	sample = (enabled ? sample + offset1 : offset2) + offset2 * 2;
+	sample = (enabled ? sample + offset1 : offset2) + offset2 * 3;
 
 	/* The FM sample is 9-bit, so convert it to 16-bit and then divide it so that it
 	   can be mixed with the other five FM channels and the PSG without clipping. */
