@@ -464,35 +464,33 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 
 static cc_s16f GetFinalSample(const FM* const fm, cc_s16f sample, const cc_bool enabled)
 {
-	/* From 9-bit to 16-bit. */
-	static const cc_s16f fm_volume_multiplier = (1L << 16) / (1 << 9);
-
-	cc_s16f offset1, offset2;
+	cc_s16f offset;
 
 	/* Approximate the 'ladder effect' bug. */
 	/* Modelled after Nuked OPN2's implementation. */
 	/* https://github.com/nukeykt/Nuked-OPN2/blob/335747d78cb0abbc3b55b004e62dad9763140115/ym3438.c#L987 */
 	if (fm->configuration->ladder_effect_disabled)
 	{
-		offset1 = 0;
-		offset2 = 0;
-	}
-	else if (sample < 0)
-	{
-		offset1 = 0;
-		offset2 = -1;
+		offset = 0;
 	}
 	else
 	{
-		offset1 = 1;
-		offset2 = 1;
+		if (sample < 0)
+		{
+			++sample;
+			offset = -4;
+		}
+		else
+		{
+			offset = 4;
+		}
 	}
 
-	sample = (enabled ? sample + offset1 : offset2) + offset2 * 3;
+	sample = (enabled ? sample : 0) + offset;
 
 	/* The FM sample is 9-bit, so convert it to 16-bit and then divide it so that it
 	   can be mixed with the other five FM channels and the PSG without clipping. */
-	return sample * fm_volume_multiplier / FM_VOLUME_DIVIDER;
+	return sample * (1 << (16 - 9)) / FM_VOLUME_DIVIDER;
 }
 
 #define FM_Unsigned9BitToSigned9Bit(value) ((cc_s16f)(value) - 0x100)
