@@ -486,7 +486,20 @@ static cc_s16f GetFinalSample(const FM* const fm, cc_s16f sample, const cc_bool 
 		}
 	}
 
-	sample = (enabled ? sample : 0) + offset;
+	if (!enabled)
+		sample = 0;
+
+	if (fm->state->dac_test)
+	{
+		/* Sample is output for all four slots. */
+		sample *= 4;
+		/* Since we don't multiplex output like a real YM2612 does, clamp here to avoid clipping. */
+		sample = CC_CLAMP(-0xFF, 0xFF, sample);
+	}
+	else
+	{
+		sample += offset;
+	}
 
 	/* The FM sample is 9-bit, so convert it to 16-bit and then divide it so that it
 	   can be mixed with the other five FM channels and the PSG without clipping. */
