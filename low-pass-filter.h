@@ -11,12 +11,12 @@
 #define LOW_PASS_FILTER_COMPUTE_MAGIC_FIRST_ORDER(OUTPUT_COEFFICIENT, INPUT_COEFFICIENT) LOW_PASS_FILTER_COMPUTE_FIXED(1.0, OUTPUT_COEFFICIENT), 0, LOW_PASS_FILTER_COMPUTE_FIXED(INPUT_COEFFICIENT, OUTPUT_COEFFICIENT), 0
 #define LOW_PASS_FILTER_COMPUTE_MAGIC_SECOND_ORDER(OUTPUT_COEFFICIENT, INPUT_COEFFICIENT_A, INPUT_COEFFICIENT_B) LOW_PASS_FILTER_COMPUTE_FIXED(1.0, OUTPUT_COEFFICIENT), LOW_PASS_FILTER_COMPUTE_FIXED(1.0, OUTPUT_COEFFICIENT), LOW_PASS_FILTER_COMPUTE_FIXED(INPUT_COEFFICIENT_A, OUTPUT_COEFFICIENT), LOW_PASS_FILTER_COMPUTE_FIXED(INPUT_COEFFICIENT_B, OUTPUT_COEFFICIENT)
 
-typedef struct LowPassFilterState
+typedef struct LowPassFilter_SecondOrder_State
 {
 	cc_s16l previous_samples[2], previous_outputs[2];
-} LowPassFilterState;
+} LowPassFilter_SecondOrder_State;
 
-void LowPassFilter_Initialise(LowPassFilterState *states, cc_u8f total_channels);
-void LowPassFilter_Apply(LowPassFilterState *states, cc_u8f total_channels, cc_s16l *sample_buffer, size_t total_frames, cc_s32f sample_magic_1, cc_s32f sample_magic_2, cc_s32f output_magic_1, cc_s32f output_magic_2);
+void LowPassFilter_SecondOrder_Initialise(LowPassFilter_SecondOrder_State *states, cc_u8f total_channels);
+void LowPassFilter_SecondOrder_Apply(LowPassFilter_SecondOrder_State *states, cc_u8f total_channels, cc_s16l *sample_buffer, size_t total_frames, cc_s32f sample_magic_1, cc_s32f sample_magic_2, cc_s32f output_magic_1, cc_s32f output_magic_2);
 
 #endif /* LOW_PASS_FILTER_H */

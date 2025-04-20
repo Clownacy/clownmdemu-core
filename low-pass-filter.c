@@ -2,12 +2,12 @@
 
 #include <string.h>
 
-void LowPassFilter_Initialise(LowPassFilterState* const states, const cc_u8f total_channels)
+void LowPassFilter_SecondOrder_Initialise(LowPassFilter_SecondOrder_State* const states, const cc_u8f total_channels)
 {
 	memset(states, 0, sizeof(*states) * total_channels);
 }
 
-void LowPassFilter_Apply(LowPassFilterState* const states, const cc_u8f total_channels, cc_s16l* const sample_buffer, const size_t total_frames, const cc_s32f sample_magic_1, const cc_s32f sample_magic_2, const cc_s32f output_magic_1, const cc_s32f output_magic_2)
+void LowPassFilter_SecondOrder_Apply(LowPassFilter_SecondOrder_State* const states, const cc_u8f total_channels, cc_s16l* const sample_buffer, const size_t total_frames, const cc_s32f sample_magic_1, const cc_s32f sample_magic_2, const cc_s32f output_magic_1, const cc_s32f output_magic_2)
 {
 	size_t current_frame;
 
@@ -19,7 +19,7 @@ void LowPassFilter_Apply(LowPassFilterState* const states, const cc_u8f total_ch
 
 		for (current_channel = 0; current_channel < total_channels; ++current_channel)
 		{
-			LowPassFilterState* const state = &states[current_channel];
+			LowPassFilter_SecondOrder_State* const state = &states[current_channel];
 
 			const cc_s32f unclamped_output
 				= LOW_PASS_FILTER_FIXED_MULTIPLY((cc_s32f)*sample_pointer + state->previous_samples[0], sample_magic_1)

@@ -123,7 +123,7 @@ static void FMCallbackWrapper(const ClownMDEmu* const clownmdemu, cc_s16l* const
 	   2842 = 1 / (2 * pi * (10 * (10 ^ 3)) * (5600 * (10 ^ -12))) */
 	/* TODO: PAL frequency. */
 	if (!clownmdemu->configuration->general.low_pass_filter_disabled)
-		LowPassFilter_Apply(clownmdemu->state->low_pass_filters.fm, CC_COUNT_OF(clownmdemu->state->low_pass_filters.fm), sample_buffer, total_frames, LOW_PASS_FILTER_COMPUTE_MAGIC_FIRST_ORDER(6.910, 4.910));
+		LowPassFilter_SecondOrder_Apply(clownmdemu->state->low_pass_filters.fm, CC_COUNT_OF(clownmdemu->state->low_pass_filters.fm), sample_buffer, total_frames, LOW_PASS_FILTER_COMPUTE_MAGIC_FIRST_ORDER(6.910, 4.910));
 }
 
 static void GenerateFMAudio(const void* const user_data, const cc_u32f total_frames)
@@ -150,7 +150,7 @@ static void GeneratePSGAudio(const ClownMDEmu* const clownmdemu, cc_s16l* const 
 	   2842 = 1 / (2 * pi * (10 * (10 ^ 3)) * (5600 * (10 ^ -12))) */
 	/* TODO: PAL frequency. */
 	if (!clownmdemu->configuration->general.low_pass_filter_disabled)
-		LowPassFilter_Apply(clownmdemu->state->low_pass_filters.psg, CC_COUNT_OF(clownmdemu->state->low_pass_filters.psg), sample_buffer, total_frames, LOW_PASS_FILTER_COMPUTE_MAGIC_FIRST_ORDER(26.044, 24.044));
+		LowPassFilter_SecondOrder_Apply(clownmdemu->state->low_pass_filters.psg, CC_COUNT_OF(clownmdemu->state->low_pass_filters.psg), sample_buffer, total_frames, LOW_PASS_FILTER_COMPUTE_MAGIC_FIRST_ORDER(26.044, 24.044));
 }
 
 void SyncPSG(CPUCallbackUserData* const other_state, const CycleMegaDrive target_cycle)
@@ -172,7 +172,7 @@ static void GeneratePCMAudio(const ClownMDEmu* const clownmdemu, cc_s16l* const 
 	   7973Hz is the cut-off frequency of a Mega CD's PCM low-pass filter.,
 	/* TODO: Verify this against the Mega CD's schematic. */
 	if (!clownmdemu->configuration->general.low_pass_filter_disabled)
-		LowPassFilter_Apply(clownmdemu->state->low_pass_filters.pcm, CC_COUNT_OF(clownmdemu->state->low_pass_filters.pcm), sample_buffer, total_frames, LOW_PASS_FILTER_COMPUTE_MAGIC_SECOND_ORDER(3.526, 0.132, 0.606));
+		LowPassFilter_SecondOrder_Apply(clownmdemu->state->low_pass_filters.pcm, CC_COUNT_OF(clownmdemu->state->low_pass_filters.pcm), sample_buffer, total_frames, LOW_PASS_FILTER_COMPUTE_MAGIC_SECOND_ORDER(3.526, 0.132, 0.606));
 }
 
 void SyncPCM(CPUCallbackUserData* const other_state, const CycleMegaCD target_cycle)
