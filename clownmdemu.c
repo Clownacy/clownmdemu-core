@@ -227,8 +227,8 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State* const state)
 	state->mega_cd.delayed_dma_word = 0;
 
 	/* Low-pass filters. */
-	LowPassFilter_SecondOrder_Initialise(state->low_pass_filters.fm, CC_COUNT_OF(state->low_pass_filters.fm));
-	LowPassFilter_SecondOrder_Initialise(state->low_pass_filters.psg, CC_COUNT_OF(state->low_pass_filters.psg));
+	LowPassFilter_FirstOrder_Initialise(state->low_pass_filters.fm, CC_COUNT_OF(state->low_pass_filters.fm));
+	LowPassFilter_FirstOrder_Initialise(state->low_pass_filters.psg, CC_COUNT_OF(state->low_pass_filters.psg));
 	LowPassFilter_SecondOrder_Initialise(state->low_pass_filters.pcm, CC_COUNT_OF(state->low_pass_filters.pcm));
 }
 

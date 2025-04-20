@@ -263,8 +263,8 @@ typedef struct ClownMDEmu_State
 
 	struct
 	{
-		LowPassFilter_SecondOrder_State fm[2];
-		LowPassFilter_SecondOrder_State psg[1];
+		LowPassFilter_FirstOrder_State fm[2];
+		LowPassFilter_FirstOrder_State psg[1];
 		LowPassFilter_SecondOrder_State pcm[2];
 	} low_pass_filters;
 } ClownMDEmu_State;
