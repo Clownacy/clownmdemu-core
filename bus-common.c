@@ -169,7 +169,7 @@ static void GeneratePCMAudio(const ClownMDEmu* const clownmdemu, cc_s16l* const 
 	/* https://www.meme.net.au/butterworth.html
 	   Configured for a cut-off of 7973Hz at 32552Hz.
 	   32552Hz is the RF5C164's sample rate.
-	   7973Hz is the cut-off frequency of a Mega CD's PCM low-pass filter.,
+	   7973Hz is the cut-off frequency of a Mega CD's PCM low-pass filter. */
 	/* TODO: Verify this against the Mega CD's schematic. */
 	if (!clownmdemu->configuration->general.low_pass_filter_disabled)
 		LowPassFilter_SecondOrder_Apply(clownmdemu->state->low_pass_filters.pcm, CC_COUNT_OF(clownmdemu->state->low_pass_filters.pcm), sample_buffer, total_frames, LOW_PASS_FILTER_COMPUTE_MAGIC_SECOND_ORDER(3.526, 0.132, 0.606));

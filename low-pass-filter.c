@@ -7,7 +7,7 @@ void LowPassFilter_FirstOrder_Initialise(LowPassFilter_FirstOrder_State* const s
 	memset(states, 0, sizeof(*states) * total_channels);
 }
 
-void LowPassFilter_FirstOrder_Apply(LowPassFilter_FirstOrder_State* const states, const cc_u8f total_channels, cc_s16l* const sample_buffer, const size_t total_frames, const cc_u32f sample_magic, const cc_u32f output_magic)
+void LowPassFilter_FirstOrder_Apply(LowPassFilter_FirstOrder_State* const states, const cc_u8f total_channels, cc_s16l* const sample_buffer, const size_t total_frames, const cc_s32f sample_magic, const cc_s32f output_magic)
 {
 	size_t current_frame;
 
