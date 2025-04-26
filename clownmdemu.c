@@ -462,7 +462,7 @@ static cc_u32f NextPowerOfTwo(cc_u32f v)
 	return v;
 }
 
-static void SetUpExternalRAM(const ClownMDEmu* const clownmdemu)
+static void SetUpExternalRAM(const ClownMDEmu* const clownmdemu, const cc_u32f cartridge_size)
 {
 	ClownMDEmu_State* const state = clownmdemu->state;
 
@@ -485,6 +485,8 @@ static void SetUpExternalRAM(const ClownMDEmu* const clownmdemu)
 		state->external_ram.non_volatile = (metadata & 0x4000) != 0;
 		state->external_ram.data_size = (metadata >> 11) & 3;
 		state->external_ram.device_type = (metadata >> 5) & 7;
+		state->external_ram.mapped_in = cartridge_size <= 2 * 1024 * 1024; /* Cartridges larger than 2MiB need to map-in their external RAM explicitly. */
+		/* TODO: Prevent small cartridges from mapping external RAM out. */
 
 		if (metadata_junk_bits != 0xA000)
 			LogMessage("External RAM metadata data at cartridge address 0x1B2 has incorrect junk bits - should be 0xA000, but was 0x%" CC_PRIXFAST16, metadata_junk_bits);
@@ -521,14 +523,14 @@ static void SetUpExternalRAM(const ClownMDEmu* const clownmdemu)
 	}
 }
 
-void ClownMDEmu_Reset(const ClownMDEmu* const clownmdemu, const cc_bool cd_boot)
+void ClownMDEmu_Reset(const ClownMDEmu* const clownmdemu, const cc_bool cd_boot, const cc_u32f cartridge_size)
 {
 	ClownMDEmu_State* const state = clownmdemu->state;
 
 	Clown68000_ReadWriteCallbacks m68k_read_write_callbacks;
 	CPUCallbackUserData callback_user_data;
 
-	SetUpExternalRAM(clownmdemu);
+	SetUpExternalRAM(clownmdemu, cartridge_size);
 
 	state->mega_cd.boot_from_cd = cd_boot;
 

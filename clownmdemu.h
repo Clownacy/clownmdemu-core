@@ -323,7 +323,7 @@ void ClownMDEmu_Constant_Initialise(ClownMDEmu_Constant *constant);
 void ClownMDEmu_State_Initialise(ClownMDEmu_State *state);
 void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_Configuration *configuration, const ClownMDEmu_Constant *constant, ClownMDEmu_State *state, const ClownMDEmu_Callbacks *callbacks);
 void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu);
-void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const cc_bool cd_boot);
+void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, cc_bool cd_boot, cc_u32f cartridge_size);
 void ClownMDEmu_SetLogCallback(const ClownMDEmu_LogCallback log_callback, const void *user_data);
 
 #ifdef __cplusplus
