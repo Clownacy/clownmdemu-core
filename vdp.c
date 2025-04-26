@@ -634,6 +634,25 @@ static void RenderSprites(cc_u8l (* const sprite_metapixels)[2], VDP_State* cons
 	state->allow_sprite_masking = cc_false;
 }
 
+static void RenderScrollPlane(const VDP* const vdp, const cc_u8f left_boundary, const cc_u8f right_boundary, const cc_u16f scanline, cc_u8l* const plane_metapixels, const cc_u8f plane_index)
+{
+	VDP_State* const state = vdp->state;
+
+	if (!vdp->configuration->planes_disabled[plane_index])
+	{
+		const cc_u16f hscroll_vram_address = state->hscroll_address + plane_index * 2 + GetHScrollTableOffset(state, scanline);
+		const cc_u16f hscroll = READ_VRAM_WORD(state->vram, hscroll_vram_address);
+
+		/* Get the value used to offset the writes to the metapixel buffer */
+		const cc_u16f scroll_offset = TILE_PAIR_WIDTH - (hscroll % TILE_PAIR_WIDTH);
+
+		/* Get the value used to offset the reads from the plane map */
+		const cc_u16f plane_x_offset = -(hscroll / TILE_PAIR_WIDTH);
+
+		RenderScrollingPlane(vdp, left_boundary, right_boundary, scanline, plane_index, plane_x_offset, plane_metapixels - scroll_offset);
+	}
+}
+
 static void RenderScanline(const VDP* const vdp, const cc_u16f scanline, cc_u8l* const plane_metapixels, cc_u8l (* const sprite_metapixels)[2], const cc_bool window_plane, const VDP_ScanlineRenderedCallback scanline_rendered_callback, const void* const scanline_rendered_callback_user_data)
 {
 	const VDP_Constant* const constant = vdp->constant;
@@ -653,10 +672,6 @@ static void RenderScanline(const VDP* const vdp, const cc_u16f scanline, cc_u8l*
 	if (left_boundary == right_boundary)
 		return;
 
-	/* Fill the scanline buffer with the background colour */
-	for (i = left_boundary_pixels; i < right_boundary_pixels; ++i)
-		plane_metapixels[i] = state->background_colour;
-
 	if (state->display_enabled)
 	{
 		/* *********** */
@@ -673,19 +688,7 @@ static void RenderScanline(const VDP* const vdp, const cc_u16f scanline, cc_u8l*
 			else
 			{
 				/* Scrolling plane. */
-				if (!vdp->configuration->planes_disabled[plane_index])
-				{
-					const cc_u16f hscroll_vram_address = state->hscroll_address + plane_index * 2 + GetHScrollTableOffset(state, scanline);
-					const cc_u16f hscroll = READ_VRAM_WORD(state->vram, hscroll_vram_address);
-
-					/* Get the value used to offset the writes to the metapixel buffer */
-					const cc_u16f scroll_offset = TILE_PAIR_WIDTH - (hscroll % TILE_PAIR_WIDTH);
-
-					/* Get the value used to offset the reads from the plane map */
-					const cc_u16f plane_x_offset = -(hscroll / TILE_PAIR_WIDTH);
-
-					RenderScrollingPlane(vdp, left_boundary, right_boundary, scanline, plane_index, plane_x_offset, plane_metapixels - scroll_offset);
-				}
+				RenderScrollPlane(vdp, left_boundary, right_boundary, scanline, plane_metapixels, plane_index);
 			}
 		}
 
@@ -741,11 +744,14 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 	UpdateSpriteCache(state);
 
 	/* Clear the scanline buffer, so that the sprite blitter
-		knows which pixels haven't been drawn yet. */
+	   knows which pixels haven't been drawn yet. */
 	memset(sprite_metapixels_buffer, 0, sizeof(sprite_metapixels_buffer));
 
 	if (!vdp->configuration->sprites_disabled)
 		RenderSprites(sprite_metapixels_buffer, state, scanline);
+
+	/* Fill the scanline buffer with the background colour */
+	memset(plane_metapixels, state->background_colour, VDP_MAX_SCANLINE_WIDTH);
 
 	RenderScanline(vdp, scanline, plane_metapixels, sprite_metapixels, cc_true,  scanline_rendered_callback, scanline_rendered_callback_user_data);
 	RenderScanline(vdp, scanline, plane_metapixels, sprite_metapixels, cc_false, scanline_rendered_callback, scanline_rendered_callback_user_data);
