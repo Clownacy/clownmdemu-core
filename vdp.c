@@ -1070,7 +1070,7 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 				case 17:
 					/* WINDOW H POSITION */
 					vdp->state->window.aligned_right = (data & 0x80) != 0;
-					vdp->state->window.horizontal_boundary = (data & 0x1F); /* Measured in tile pairs. */
+					vdp->state->window.horizontal_boundary = CC_MIN(SCANLINE_WIDTH_IN_TILE_PAIRS, data & 0x1F); /* Measured in tile pairs. */
 					break;
 
 				case 18:
