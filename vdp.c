@@ -653,7 +653,7 @@ static void RenderScrollPlane(const VDP* const vdp, const cc_u8f left_boundary, 
 	}
 }
 
-static void RenderScanline(const VDP* const vdp, const cc_u16f scanline, cc_u8l* const plane_metapixels, cc_u8l (* const sprite_metapixels)[2], const cc_bool window_plane, const VDP_ScanlineRenderedCallback scanline_rendered_callback, const void* const scanline_rendered_callback_user_data)
+static void RenderForegroundAndSpritePlanes(const VDP* const vdp, const cc_u16f scanline, cc_u8l* const plane_metapixels, cc_u8l (* const sprite_metapixels)[2], const cc_bool window_plane, const VDP_ScanlineRenderedCallback scanline_rendered_callback, const void* const scanline_rendered_callback_user_data)
 {
 	const VDP_Constant* const constant = vdp->constant;
 	VDP_State* const state = vdp->state;
@@ -674,22 +674,20 @@ static void RenderScanline(const VDP* const vdp, const cc_u16f scanline, cc_u8l*
 
 	if (state->display_enabled)
 	{
-		/* *********** */
-		/* Draw planes */
-		/* *********** */
-		for (plane_index = 2; plane_index-- > 0; )
+		/* ************************************************ */
+		/* Draw foreground plane (Plane A or Window Plane). */
+		/* ************************************************ */
+
+		/* Notably, we allow Plane A to render in the Window Plane's place when the latter is disabled. */
+		if (window_plane && !vdp->configuration->window_disabled)
 		{
-			/* Notably, we allow Plane A to render in the Window Plane's place when the latter is disabled. */
-			if (window_plane && plane_index == 0 && !vdp->configuration->window_disabled)
-			{
-				/* Left-aligned window plane. */
-				RenderWindowPlane(vdp, left_boundary, right_boundary, scanline, plane_metapixels);
-			}
-			else
-			{
-				/* Scrolling plane. */
-				RenderScrollPlane(vdp, left_boundary, right_boundary, scanline, plane_metapixels, plane_index);
-			}
+			/* Left-aligned window plane. */
+			RenderWindowPlane(vdp, left_boundary, right_boundary, scanline, plane_metapixels);
+		}
+		else
+		{
+			/* Scrolling plane. */
+			RenderScrollPlane(vdp, left_boundary, right_boundary, scanline, plane_metapixels, 0);
 		}
 
 		/* ************************************ *
@@ -753,8 +751,17 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 	/* Fill the scanline buffer with the background colour */
 	memset(plane_metapixels, state->background_colour, VDP_MAX_SCANLINE_WIDTH);
 
-	RenderScanline(vdp, scanline, plane_metapixels, sprite_metapixels, cc_true,  scanline_rendered_callback, scanline_rendered_callback_user_data);
-	RenderScanline(vdp, scanline, plane_metapixels, sprite_metapixels, cc_false, scanline_rendered_callback, scanline_rendered_callback_user_data);
+	if (state->display_enabled)
+	{
+		/* Draw Plane B. */
+		RenderScrollPlane(vdp, 0, SCANLINE_WIDTH_IN_TILE_PAIRS, scanline, plane_metapixels, 1);
+	}
+
+	/* Draw Window Plane. */
+	RenderForegroundAndSpritePlanes(vdp, scanline, plane_metapixels, sprite_metapixels, cc_true,  scanline_rendered_callback, scanline_rendered_callback_user_data);
+
+	/* Draw Plane A. */
+	RenderForegroundAndSpritePlanes(vdp, scanline, plane_metapixels, sprite_metapixels, cc_false, scanline_rendered_callback, scanline_rendered_callback_user_data);
 }
 
 cc_u16f VDP_ReadData(const VDP* const vdp)
