@@ -24,8 +24,8 @@ typedef cc_bool (*Controller_Callback)(void *user_data, Controller_Button button
 
 typedef struct Controller
 {
-	cc_u16f countdown;
-	cc_u8f strobes;
+	cc_u16l countdown;
+	cc_u8l strobes;
 	cc_bool th_bit;
 } Controller;
 
