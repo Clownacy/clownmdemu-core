@@ -78,6 +78,85 @@ static cc_u32f GetBankedCartridgeAddress(const ClownMDEmu* const clownmdemu, con
 	return clownmdemu->state->cartridge_bankswitch[bank_index] * bank_size + bank_offset;
 }
 
+static cc_bool FrontendControllerCallback(void* const user_data, const Controller_Button button)
+{
+	ClownMDEmu_Button frontend_button;
+
+	const IOPortToController_Parameters* const parameters = (const IOPortToController_Parameters*)user_data;
+	const ClownMDEmu_Callbacks* const frontend_callbacks = parameters->frontend_callbacks;
+
+	switch (button)
+	{
+		case CONTROLLER_BUTTON_UP:
+			frontend_button = CLOWNMDEMU_BUTTON_UP;
+			break;
+
+		case CONTROLLER_BUTTON_DOWN:
+			frontend_button = CLOWNMDEMU_BUTTON_DOWN;
+			break;
+
+		case CONTROLLER_BUTTON_LEFT:
+			frontend_button = CLOWNMDEMU_BUTTON_LEFT;
+			break;
+
+		case CONTROLLER_BUTTON_RIGHT:
+			frontend_button = CLOWNMDEMU_BUTTON_RIGHT;
+			break;
+
+		case CONTROLLER_BUTTON_A:
+			frontend_button = CLOWNMDEMU_BUTTON_A;
+			break;
+
+		case CONTROLLER_BUTTON_B:
+			frontend_button = CLOWNMDEMU_BUTTON_B;
+			break;
+
+		case CONTROLLER_BUTTON_C:
+			frontend_button = CLOWNMDEMU_BUTTON_C;
+			break;
+
+		case CONTROLLER_BUTTON_X:
+			frontend_button = CLOWNMDEMU_BUTTON_X;
+			break;
+
+		case CONTROLLER_BUTTON_Y:
+			frontend_button = CLOWNMDEMU_BUTTON_Y;
+			break;
+
+		case CONTROLLER_BUTTON_Z:
+			frontend_button = CLOWNMDEMU_BUTTON_Z;
+			break;
+
+		case CONTROLLER_BUTTON_START:
+			frontend_button = CLOWNMDEMU_BUTTON_START;
+			break;
+
+		case CONTROLLER_BUTTON_MODE:
+			frontend_button = CLOWNMDEMU_BUTTON_MODE;
+			break;
+
+		default:
+			assert(cc_false);
+			return cc_false;
+	}
+
+	return frontend_callbacks->input_requested((void*)frontend_callbacks->user_data, parameters->joypad_index, frontend_button);
+}
+
+static cc_u8f IOPortToController_ReadCallback(void* const user_data, const cc_u16f cycles)
+{
+	const IOPortToController_Parameters *parameters = (const IOPortToController_Parameters*)user_data;
+
+	return Controller_Read(parameters->controller, cycles, FrontendControllerCallback, parameters);
+}
+
+static void IOPortToController_WriteCallback(void* const user_data, const cc_u8f value, const cc_u16f cycles)
+{
+	const IOPortToController_Parameters *parameters = (const IOPortToController_Parameters*)user_data;
+
+	Controller_Write(parameters->controller, value, cycles);
+}
+
 cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u32f address_word, const cc_bool do_high_byte, const cc_bool do_low_byte, const CycleMegaDrive target_cycle, const cc_bool is_vdp_dma)
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
@@ -242,17 +321,19 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 					case 0xA10002:
 					case 0xA10004:
 					case 0xA10006:
+						/* TODO: 'genhw.txt' mentions that even addresses should have valid data too? */
 						if (do_low_byte)
 						{
 							IOPortToController_Parameters parameters;
 
 							const cc_u16f joypad_index = (address - 0xA10002) / 2;
+							const IOPort_ReadCallback read_callback = joypad_index < 2 ? IOPortToController_ReadCallback : NULL;
 
 							parameters.controller = &clownmdemu->state->controllers[joypad_index];
 							parameters.frontend_callbacks = frontend_callbacks;
 							parameters.joypad_index = joypad_index;
 
-							value = IOPort_ReadData(&clownmdemu->state->io_ports[joypad_index], SyncCommon(&callback_user_data->sync.io_ports[joypad_index], target_cycle.cycle, CLOWNMDEMU_MASTER_CLOCK_NTSC / 1000000), &parameters);
+							value = IOPort_ReadData(&clownmdemu->state->io_ports[joypad_index], SyncCommon(&callback_user_data->sync.io_ports[joypad_index], target_cycle.cycle, CLOWNMDEMU_MASTER_CLOCK_NTSC / 1000000), read_callback, &parameters);
 						}
 
 						break;
@@ -632,12 +713,13 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 							IOPortToController_Parameters parameters;
 
 							const cc_u16f joypad_index = (address - 0xA10002) / 2;
+							const IOPort_WriteCallback write_callback = joypad_index < 2 ? IOPortToController_WriteCallback : NULL;
 
 							parameters.controller = &clownmdemu->state->controllers[joypad_index];
 							parameters.frontend_callbacks = frontend_callbacks;
 							parameters.joypad_index = joypad_index;
 
-							IOPort_WriteData(&clownmdemu->state->io_ports[joypad_index], low_byte, CLOWNMDEMU_MASTER_CLOCK_NTSC / 1000000, &parameters);
+							IOPort_WriteData(&clownmdemu->state->io_ports[joypad_index], low_byte, CLOWNMDEMU_MASTER_CLOCK_NTSC / 1000000, write_callback, &parameters);
 						}
 
 						break;

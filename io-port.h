@@ -8,16 +8,13 @@ typedef void (*IOPort_WriteCallback)(void *user_data, cc_u8f value, cc_u16f cycl
 
 typedef struct IOPort
 {
-	cc_u8f mask, cached_write;
-	IOPort_ReadCallback read_callback;
-	IOPort_WriteCallback write_callback;
+	cc_u8l mask, cached_write;
 } IOPort;
 
 void IOPort_Initialise(IOPort *io_port);
-void IOPort_SetCallbacks(IOPort *io_port, IOPort_ReadCallback read_callback, IOPort_WriteCallback write_callback);
 #define IOPort_ReadControl(IO_PORT) (IO_PORT)->mask
 #define IOPort_WriteControl(IO_PORT, MASK) (IO_PORT)->mask = (MASK)
-cc_u8f IOPort_ReadData(IOPort *io_port, cc_u16f cycles, const void *user_data);
-void IOPort_WriteData(IOPort *io_port, cc_u8f value, cc_u16f cycles, const void *user_data);
+cc_u8f IOPort_ReadData(IOPort *io_port, cc_u16f cycles, IOPort_ReadCallback read_callback, const void *user_data);
+void IOPort_WriteData(IOPort *io_port, cc_u8f value, cc_u16f cycles, IOPort_WriteCallback write_callback, const void *user_data);
 
 #endif /* IO_PORT_H */

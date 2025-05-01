@@ -48,85 +48,6 @@ void ClownMDEmu_Constant_Initialise(ClownMDEmu_Constant* const constant)
 	PSG_Constant_Initialise(&constant->psg);
 }
 
-static cc_bool FrontendControllerCallback(void* const user_data, const Controller_Button button)
-{
-	ClownMDEmu_Button frontend_button;
-
-	const IOPortToController_Parameters* const parameters = (const IOPortToController_Parameters*)user_data;
-	const ClownMDEmu_Callbacks* const frontend_callbacks = parameters->frontend_callbacks;
-
-	switch (button)
-	{
-		case CONTROLLER_BUTTON_UP:
-			frontend_button = CLOWNMDEMU_BUTTON_UP;
-			break;
-
-		case CONTROLLER_BUTTON_DOWN:
-			frontend_button = CLOWNMDEMU_BUTTON_DOWN;
-			break;
-
-		case CONTROLLER_BUTTON_LEFT:
-			frontend_button = CLOWNMDEMU_BUTTON_LEFT;
-			break;
-
-		case CONTROLLER_BUTTON_RIGHT:
-			frontend_button = CLOWNMDEMU_BUTTON_RIGHT;
-			break;
-
-		case CONTROLLER_BUTTON_A:
-			frontend_button = CLOWNMDEMU_BUTTON_A;
-			break;
-
-		case CONTROLLER_BUTTON_B:
-			frontend_button = CLOWNMDEMU_BUTTON_B;
-			break;
-
-		case CONTROLLER_BUTTON_C:
-			frontend_button = CLOWNMDEMU_BUTTON_C;
-			break;
-
-		case CONTROLLER_BUTTON_X:
-			frontend_button = CLOWNMDEMU_BUTTON_X;
-			break;
-
-		case CONTROLLER_BUTTON_Y:
-			frontend_button = CLOWNMDEMU_BUTTON_Y;
-			break;
-
-		case CONTROLLER_BUTTON_Z:
-			frontend_button = CLOWNMDEMU_BUTTON_Z;
-			break;
-
-		case CONTROLLER_BUTTON_START:
-			frontend_button = CLOWNMDEMU_BUTTON_START;
-			break;
-
-		case CONTROLLER_BUTTON_MODE:
-			frontend_button = CLOWNMDEMU_BUTTON_MODE;
-			break;
-
-		default:
-			assert(cc_false);
-			return cc_false;
-	}
-
-	return frontend_callbacks->input_requested((void*)frontend_callbacks->user_data, parameters->joypad_index, frontend_button);
-}
-
-static cc_u8f IOPortToController_ReadCallback(void* const user_data, const cc_u16f cycles)
-{
-	const IOPortToController_Parameters *parameters = (const IOPortToController_Parameters*)user_data;
-
-	return Controller_Read(parameters->controller, cycles, FrontendControllerCallback, parameters);
-}
-
-static void IOPortToController_WriteCallback(void* const user_data, const cc_u8f value, const cc_u16f cycles)
-{
-	const IOPortToController_Parameters *parameters = (const IOPortToController_Parameters*)user_data;
-
-	Controller_Write(parameters->controller, value, cycles);
-}
-
 void ClownMDEmu_State_Initialise(ClownMDEmu_State* const state)
 {
 	cc_u16f i;
@@ -151,14 +72,9 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State* const state)
 	FM_State_Initialise(&state->fm);
 	PSG_State_Initialise(&state->psg);
 
+	/* The standard Sega SDK bootcode uses this to detect soft-resets. */
 	for (i = 0; i < CC_COUNT_OF(state->io_ports); ++i)
-	{
-		/* The standard Sega SDK bootcode uses this to detect soft-resets. */
 		IOPort_Initialise(&state->io_ports[i]);
-	}
-
-	IOPort_SetCallbacks(&state->io_ports[0], IOPortToController_ReadCallback, IOPortToController_WriteCallback);
-	IOPort_SetCallbacks(&state->io_ports[1], IOPortToController_ReadCallback, IOPortToController_WriteCallback);
 
 	for (i = 0; i < CC_COUNT_OF(state->controllers); ++i)
 		Controller_Initialise(&state->controllers[i]);
