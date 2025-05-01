@@ -160,8 +160,8 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State* const state)
 	IOPort_SetCallbacks(&state->io_ports[0], IOPortToController_ReadCallback, IOPortToController_WriteCallback);
 	IOPort_SetCallbacks(&state->io_ports[1], IOPortToController_ReadCallback, IOPortToController_WriteCallback);
 
-	Controller_Initialise(&state->controllers[0]);
-	Controller_Initialise(&state->controllers[1]);
+	for (i = 0; i < CC_COUNT_OF(state->controllers); ++i)
+		Controller_Initialise(&state->controllers[i]);
 
 	state->external_ram.size = 0;
 	state->external_ram.non_volatile = cc_false;
