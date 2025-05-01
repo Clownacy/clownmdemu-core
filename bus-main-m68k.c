@@ -241,6 +241,7 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 
 					case 0xA10002:
 					case 0xA10004:
+					case 0xA10006:
 						if (do_low_byte)
 						{
 							IOPortToController_Parameters parameters;
@@ -253,10 +254,6 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 							value = IOPort_ReadData(&clownmdemu->state->io_ports[joypad_index], SyncCommon(&callback_user_data->sync.io_ports[joypad_index], target_cycle.cycle, CLOWNMDEMU_MASTER_CLOCK_NTSC / 1000000), &parameters);
 						}
 
-						break;
-
-					case 0xA10006:
-						value = 0xFF;
 						break;
 
 					case 0xA10008:
