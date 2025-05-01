@@ -24,15 +24,14 @@ typedef cc_bool (*Controller_Callback)(void *user_data, Controller_Button button
 
 typedef struct Controller
 {
-	Controller_Callback callback;
 	cc_u16f countdown;
 	cc_u8f strobes;
 	cc_bool th_bit;
 } Controller;
 
-void Controller_Initialise(Controller *controller, Controller_Callback callback);
+void Controller_Initialise(Controller *controller);
 #define Controller_SetButton(CONTROLLER, BUTTON, VALUE) (CONTROLLER)->buttons[(BUTTON)] = (VALUE)
-cc_u8f Controller_Read(Controller *controller, cc_u16f microseconds, const void *user_data);
+cc_u8f Controller_Read(Controller *controller, cc_u16f microseconds, Controller_Callback callback, const void *user_data);
 void Controller_Write(Controller *controller, cc_u8f value, cc_u16f microseconds);
 
 #endif /* CONTROLLER_H */

@@ -48,11 +48,12 @@ void ClownMDEmu_Constant_Initialise(ClownMDEmu_Constant* const constant)
 	PSG_Constant_Initialise(&constant->psg);
 }
 
-static cc_bool FrontendControllerCallbackCommon(void* const user_data, const Controller_Button button, const cc_u8f joypad_index)
+static cc_bool FrontendControllerCallback(void* const user_data, const Controller_Button button)
 {
 	ClownMDEmu_Button frontend_button;
 
-	const ClownMDEmu_Callbacks *frontend_callbacks = (const ClownMDEmu_Callbacks*)user_data;
+	const IOPortToController_Parameters* const parameters = (const IOPortToController_Parameters*)user_data;
+	const ClownMDEmu_Callbacks* const frontend_callbacks = parameters->frontend_callbacks;
 
 	switch (button)
 	{
@@ -109,24 +110,14 @@ static cc_bool FrontendControllerCallbackCommon(void* const user_data, const Con
 			return cc_false;
 	}
 
-	return frontend_callbacks->input_requested((void*)frontend_callbacks->user_data, joypad_index, frontend_button);
-}
-
-static cc_bool FrontendController1Callback(void* const user_data, const Controller_Button button)
-{
-	return FrontendControllerCallbackCommon(user_data, button, 0);
-}
-
-static cc_bool FrontendController2Callback(void* const user_data, const Controller_Button button)
-{
-	return FrontendControllerCallbackCommon(user_data, button, 1);
+	return frontend_callbacks->input_requested((void*)frontend_callbacks->user_data, parameters->joypad_index, frontend_button);
 }
 
 static cc_u8f IOPortToController_ReadCallback(void* const user_data, const cc_u16f cycles)
 {
 	const IOPortToController_Parameters *parameters = (const IOPortToController_Parameters*)user_data;
 
-	return Controller_Read(parameters->controller, cycles, parameters->frontend_callbacks);
+	return Controller_Read(parameters->controller, cycles, FrontendControllerCallback, parameters);
 }
 
 static void IOPortToController_WriteCallback(void* const user_data, const cc_u8f value, const cc_u16f cycles)
@@ -169,8 +160,8 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State* const state)
 	IOPort_SetCallbacks(&state->io_ports[0], IOPortToController_ReadCallback, IOPortToController_WriteCallback);
 	IOPort_SetCallbacks(&state->io_ports[1], IOPortToController_ReadCallback, IOPortToController_WriteCallback);
 
-	Controller_Initialise(&state->controllers[0], FrontendController1Callback);
-	Controller_Initialise(&state->controllers[1], FrontendController2Callback);
+	Controller_Initialise(&state->controllers[0]);
+	Controller_Initialise(&state->controllers[1]);
 
 	state->external_ram.size = 0;
 	state->external_ram.non_volatile = cc_false;

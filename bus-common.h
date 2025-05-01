@@ -48,6 +48,7 @@ typedef struct IOPortToController_Parameters
 {
 	Controller *controller;
 	const ClownMDEmu_Callbacks *frontend_callbacks;
+	cc_u8f joypad_index;
 } IOPortToController_Parameters;
 
 typedef cc_u16f (*SyncCPUCommonCallback)(const ClownMDEmu *clownmdemu, void *user_data);
