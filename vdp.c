@@ -757,10 +757,10 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 		RenderScrollPlane(vdp, 0, SCANLINE_WIDTH_IN_TILE_PAIRS, scanline, plane_metapixels, 1);
 	}
 
-	/* Draw Window Plane. */
+	/* Draw Window Plane (and sprites). */
 	RenderForegroundAndSpritePlanes(vdp, scanline, plane_metapixels, sprite_metapixels, cc_true,  scanline_rendered_callback, scanline_rendered_callback_user_data);
 
-	/* Draw Plane A. */
+	/* Draw Plane A (and sprites). */
 	RenderForegroundAndSpritePlanes(vdp, scanline, plane_metapixels, sprite_metapixels, cc_false, scanline_rendered_callback, scanline_rendered_callback_user_data);
 }
 
