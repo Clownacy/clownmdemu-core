@@ -59,6 +59,7 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State* const state)
 	   which skip initialisation when a certain magic number is found in RAM. */
 	memset(state->m68k.ram, 0, sizeof(state->m68k.ram));
 	state->m68k.cycle_countdown = 1;
+	state->m68k.h_int_pending = state->m68k.v_int_pending = cc_false;
 
 	/* Z80 */
 	Z80_State_Initialise(&state->z80.state);
@@ -272,8 +273,8 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 				h_int_counter = state->vdp.h_int_interval;
 
 				/* Do H-Int */
-				if (state->vdp.h_int_enabled)
-					Clown68000_Interrupt(clownmdemu->m68k, 4);
+				state->m68k.h_int_pending = cc_true;
+				RaiseHorizontalInterruptIfNeeded(clownmdemu);
 			}
 		}
 
@@ -295,8 +296,8 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 		else if (scanline == console_vertical_resolution) /* Check if we have reached the end of the console-output scanlines */
 		{
 			/* Do V-Int */
-			if (state->vdp.v_int_enabled)
-				Clown68000_Interrupt(clownmdemu->m68k, 6);
+			state->m68k.v_int_pending = cc_true;
+			RaiseVerticalInterruptIfNeeded(clownmdemu);
 
 			/* According to Charles MacDonald's gen-hw.txt, this occurs regardless of the 'v_int_enabled' setting. */
 			SyncZ80(clownmdemu, &cpu_callback_user_data, current_cycle);

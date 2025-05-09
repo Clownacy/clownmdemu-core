@@ -914,6 +914,10 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 			{
 				/* VDP control port */
 				VDP_WriteControl(&clownmdemu->vdp, value, frontend_callbacks->colour_updated, frontend_callbacks->user_data, VDPReadCallback, callback_user_data, VDPKDebugCallback, NULL);
+
+				/* TODO: This should be done more faithfully once the CPU intetpreters are bus-event-oriented. */
+				RaiseHorizontalInterruptIfNeeded(clownmdemu);
+				RaiseVerticalInterruptIfNeeded(clownmdemu);
 			}
 			else if (address == 0xC00008)
 			{

@@ -189,3 +189,23 @@ void SyncCDDA(CPUCallbackUserData* const other_state, const cc_u32f total_frames
 {
 	other_state->clownmdemu->callbacks->cdda_audio_to_be_generated((void*)other_state->clownmdemu->callbacks->user_data, other_state->clownmdemu, total_frames, GenerateCDDAAudio);
 }
+
+void RaiseHorizontalInterruptIfNeeded(const ClownMDEmu* const clownmdemu)
+{
+	if (clownmdemu->state->m68k.h_int_pending && clownmdemu->vdp.state->h_int_enabled)
+	{
+		clownmdemu->state->m68k.h_int_pending = cc_false;
+
+		Clown68000_Interrupt(clownmdemu->m68k, 4);
+	}
+}
+
+void RaiseVerticalInterruptIfNeeded(const ClownMDEmu* const clownmdemu)
+{
+	if (clownmdemu->state->m68k.v_int_pending && clownmdemu->vdp.state->v_int_enabled)
+	{
+		clownmdemu->state->m68k.v_int_pending = cc_false;
+
+		Clown68000_Interrupt(clownmdemu->m68k, 6);
+	}
+}
