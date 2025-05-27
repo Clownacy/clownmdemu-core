@@ -996,7 +996,7 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 
 				case 5:
 					/* SPRITE ATTRIBUTE TABLE BASE ADDRESS */
-					vdp->state->sprite_table_address = data << 9;
+					vdp->state->sprite_table_address = (cc_u32f)data << 9;
 
 					/* Real VDPs partially cache the sprite table, and forget to update it
 					   when the sprite table base address is changed. Replicating this
