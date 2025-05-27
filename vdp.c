@@ -29,7 +29,7 @@
 #define GET_TILE_SIZE_SHIFT(state) (GET_TILE_HEIGHT_SHIFT(state) + TILE_Y_INDEX_TO_TILE_BYTE_INDEX_SHIFT)
 #define MULTIPLY_BY_TILE_SIZE(state, value) ((value) << GET_TILE_SIZE_SHIFT(state))
 
-#define READ_VRAM_WORD(VRAM, ADDRESS) (((VRAM)[(ADDRESS) ^ 0] << 8) | (VRAM)[(ADDRESS) ^ 1])
+#define READ_VRAM_WORD(STATE, ADDRESS) ((ReadVRAM(STATE, (ADDRESS) ^ 1) << 8) | ReadVRAM(STATE, (ADDRESS) ^ 0))
 
 enum
 {
@@ -60,12 +60,23 @@ static void SetHScrollMode(VDP_State* const state, const VDP_HScrollMode mode)
 	state->hscroll_mask = masks[(cc_u8f)mode];
 }
 
-static void WriteVRAM(VDP_State* const state, const cc_u16f index, const cc_u8f value)
+static cc_u32f DecodeVRAMAddress(const cc_u32f address)
+{
+	/* 64KiB mode. */
+	/* TODO: 128KiB and Master System modes. */
+	return (address & 0xFFFF) ^ 1;
+}
+
+static cc_u8f ReadVRAM(const VDP_State* const state, const cc_u32f address)
+{
+	return state->vram[DecodeVRAMAddress(address)];
+}
+
+static void WriteVRAM(VDP_State* const state, const cc_u32f address, const cc_u8f value)
 {
 	/* Update sprite cache if we're writing to the sprite table */
 	/* TODO: Do DMA fills and copies do this? */
-	const cc_u16f index_wrapped = index % CC_COUNT_OF(state->vram);
-	const cc_u16f sprite_table_index = index_wrapped - state->sprite_table_address;
+	const cc_u32f sprite_table_index = address - state->sprite_table_address;
 
 	if (sprite_table_index < (state->h40_enabled ? 80u : 64u) * 8u && (sprite_table_index & 4) == 0)
 	{
@@ -76,7 +87,13 @@ static void WriteVRAM(VDP_State* const state, const cc_u16f index, const cc_u8f 
 		state->sprite_row_cache.needs_updating = cc_true;
 	}
 
-	state->vram[index_wrapped] = value;
+	state->vram[DecodeVRAMAddress(address)] = value;
+}
+
+static void IncrementAddressRegister(VDP_State* const state)
+{
+	state->access.address_register += state->access.increment;
+	state->access.address_register &= 0x1FFFF; /* Needs to be able to address 128KiB. */
 }
 
 static void WriteAndIncrement(VDP_State* const state, const cc_u16f value, const VDP_ColourUpdatedCallback colour_updated_callback, const void* const colour_updated_callback_user_data)
@@ -84,8 +101,8 @@ static void WriteAndIncrement(VDP_State* const state, const cc_u16f value, const
 	switch (state->access.selected_buffer)
 	{
 		case VDP_ACCESS_VRAM:
-			WriteVRAM(state, state->access.address_register ^ 0, (cc_u8f)(value >> 8));
-			WriteVRAM(state, state->access.address_register ^ 1, (cc_u8f)(value & 0xFF));
+			WriteVRAM(state, state->access.address_register ^ 0, (cc_u8f)(value & 0xFF));
+			WriteVRAM(state, state->access.address_register ^ 1, (cc_u8f)(value >> 8));
 			break;
 
 		case VDP_ACCESS_CRAM:
@@ -152,7 +169,7 @@ static void WriteAndIncrement(VDP_State* const state, const cc_u16f value, const
 			break;
 	}
 
-	state->access.address_register += state->access.increment;
+	IncrementAddressRegister(state);
 }
 
 static cc_u16f ReadAndIncrement(VDP_State* const state)
@@ -166,11 +183,8 @@ static cc_u16f ReadAndIncrement(VDP_State* const state)
 	switch (state->access.selected_buffer)
 	{
 		case VDP_ACCESS_VRAM:
-		{
-			const cc_u16f vram_address = (word_address * 2) % CC_COUNT_OF(state->vram);
-			value = READ_VRAM_WORD(state->vram, vram_address);
+			value = READ_VRAM_WORD(state, word_address * 2);
 			break;
-		}
 
 		case VDP_ACCESS_CRAM:
 			value &= ~0xEEE;
@@ -184,7 +198,7 @@ static cc_u16f ReadAndIncrement(VDP_State* const state)
 
 		case VDP_ACCESS_VRAM_8BIT:
 			value &= ~0xFF;
-			value |= state->vram[(state->access.address_register ^ 1) % CC_COUNT_OF(state->vram)];
+			value |= ReadVRAM(state, state->access.address_register);
 			break;
 
 		default:
@@ -196,7 +210,7 @@ static cc_u16f ReadAndIncrement(VDP_State* const state)
 			break;
 	}
 
-	state->access.address_register += state->access.increment;
+	IncrementAddressRegister(state);
 
 	return value;
 }
@@ -379,7 +393,7 @@ static void RenderTilePair(const VDP* const vdp, const cc_u16f pixel_y_in_plane,
 	for (i = 0; i < TILE_PAIR_COUNT; ++i)
 	{
 		const cc_u16f word_vram_address = vram_address + i * 2;
-		const cc_u16f word = READ_VRAM_WORD(vram, word_vram_address);
+		const cc_u16f word = READ_VRAM_WORD(state, word_vram_address);
 		const cc_u8f x_flip = -(cc_u8f)VDP_GetTileXFlip(word);
 		const cc_u8f y_flip = -(cc_u8f)VDP_GetTileYFlip(word);
 
@@ -387,7 +401,7 @@ static void RenderTilePair(const VDP* const vdp, const cc_u16f pixel_y_in_plane,
 		const cc_u8f pixel_y_in_tile = pixel_y_in_tile_unflipped ^ (tile_height_mask & y_flip);
 
 		/* Get raw tile data that contains the desired metapixel */
-		const cc_u8l* const tile_data = &vram[TILE_Y_INDEX_TO_TILE_BYTE_INDEX((VDP_GetTileIndex(word) << tile_height_shift) + pixel_y_in_tile) % CC_COUNT_OF(state->vram)];
+		const cc_u32f tile_row_vram_address = TILE_Y_INDEX_TO_TILE_BYTE_INDEX((VDP_GetTileIndex(word) << tile_height_shift) + pixel_y_in_tile);
 
 		const cc_u8f byte_index_xor = 3 & x_flip;
 		const cc_u8f nybble_shift_2 = 4 & x_flip;
@@ -399,7 +413,7 @@ static void RenderTilePair(const VDP* const vdp, const cc_u16f pixel_y_in_plane,
 
 		for (j = 0; j < TILE_WIDTH / 2; ++j)
 		{
-			const cc_u8f byte = tile_data[j ^ byte_index_xor];
+			const cc_u8f byte = ReadVRAM(state, tile_row_vram_address + j ^ byte_index_xor ^ 1);
 
 			**metapixels_pointer = blit_lookup[**metapixels_pointer][(byte >> nybble_shift_1) & 0xF];
 			++*metapixels_pointer;
@@ -545,7 +559,7 @@ static void RenderSprites(cc_u8l (* const sprite_metapixels)[2], VDP_State* cons
 		/* Decode sprite data */
 		const cc_u16f sprite_index = state->sprite_table_address + sprite_row_cache_entry->table_index * 8;
 		const cc_u16f width = sprite_row_cache_entry->width;
-		const cc_u16f x = READ_VRAM_WORD(state->vram, sprite_index + 6) & 0x1FF;
+		const cc_u16f x = READ_VRAM_WORD(state, sprite_index + 6) & 0x1FF;
 
 		/* This is a masking sprite: prevent all remaining sprites from being drawn */
 		if (x == 0)
@@ -565,7 +579,7 @@ static void RenderSprites(cc_u8l (* const sprite_metapixels)[2], VDP_State* cons
 		else
 		{
 			const cc_u16f height = sprite_row_cache_entry->height;
-			const cc_u16f word = READ_VRAM_WORD(state->vram, sprite_index + 4);
+			const cc_u16f word = READ_VRAM_WORD(state, sprite_index + 4);
 			const cc_u16f sprite_tile_index = VDP_GetTileIndex(word);
 			const cc_bool x_flip = VDP_GetTileXFlip(word);
 			const cc_bool y_flip = VDP_GetTileYFlip(word);
@@ -600,13 +614,13 @@ static void RenderSprites(cc_u8l (* const sprite_metapixels)[2], VDP_State* cons
 				const cc_u16f tile_index = sprite_tile_index + (y_in_sprite >> tile_height_shift) + x_in_sprite * height; /* TODO: Somehow get rid of this multiplication for a speed boost on platforms with a slow multiplier. */
 
 				/* Get raw tile data that contains the desired metapixel */
-				const cc_u8l* const tile_data = &state->vram[TILE_Y_INDEX_TO_TILE_BYTE_INDEX(MULTIPLY_BY_TILE_HEIGHT(state, tile_index) + pixel_y_in_tile) % CC_COUNT_OF(state->vram)];
+				const cc_u32f tile_row_vram_address = TILE_Y_INDEX_TO_TILE_BYTE_INDEX(MULTIPLY_BY_TILE_HEIGHT(state, tile_index) + pixel_y_in_tile);
 
 				cc_u16f k;
 
 				for (k = 0; k < TILE_WIDTH / 2; ++k)
 				{
-					const cc_u8f byte = tile_data[k ^ byte_index_xor];
+					const cc_u8f byte = ReadVRAM(state, tile_row_vram_address + k ^ byte_index_xor ^ 1);
 
 					cc_u8f l;
 
@@ -641,7 +655,7 @@ static void RenderScrollPlane(const VDP* const vdp, const cc_u8f left_boundary, 
 	if (!vdp->configuration->planes_disabled[plane_index])
 	{
 		const cc_u16f hscroll_vram_address = state->hscroll_address + plane_index * 2 + GetHScrollTableOffset(state, scanline);
-		const cc_u16f hscroll = READ_VRAM_WORD(state->vram, hscroll_vram_address);
+		const cc_u16f hscroll = READ_VRAM_WORD(state, hscroll_vram_address);
 
 		/* Get the value used to offset the writes to the metapixel buffer */
 		const cc_u16f scroll_offset = TILE_PAIR_WIDTH - (hscroll % TILE_PAIR_WIDTH);
@@ -822,7 +836,7 @@ void VDP_WriteData(const VDP* const vdp, const cc_u16f value, const VDP_ColourUp
 
 		/* According to GENESIS SOFTWARE DEVELOPMENT MANUAL (COMPLEMENT) section 4.1,
 		   data should not be written, but the address should be incremented */
-		vdp->state->access.address_register += vdp->state->access.increment;
+		IncrementAddressRegister(vdp->state);
 	}
 	else
 	{
@@ -839,8 +853,8 @@ void VDP_WriteData(const VDP* const vdp, const cc_u16f value, const VDP_ColourUp
 			{
 				if (vdp->state->access.selected_buffer == VDP_ACCESS_VRAM)
 				{
-					WriteVRAM(vdp->state, vdp->state->access.address_register ^ 1, (cc_u8f)(value >> 8));
-					vdp->state->access.address_register += vdp->state->access.increment;
+					WriteVRAM(vdp->state, vdp->state->access.address_register, (cc_u8f)(value >> 8));
+					IncrementAddressRegister(vdp->state);
 				}
 				else
 				{
@@ -869,7 +883,7 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 			const cc_u16f code_bitmask = vdp->state->dma.enabled ? 0x3C : 0x1C;
 
 			vdp->state->access.write_pending = cc_false;
-			vdp->state->access.address_register = (vdp->state->access.address_register & 0x3FFF) | ((value & 3) << 14);
+			vdp->state->access.address_register = (vdp->state->access.address_register & 0x3FFF) | ((value & 7) << 14);
 			vdp->state->access.code_register = (vdp->state->access.code_register & ~code_bitmask) | ((value >> 2) & code_bitmask);
 		}
 		else
@@ -907,8 +921,8 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 	else
 	{
 		/* This is a "register set" command. */
-		const cc_u16f reg = (value >> 8) & 0x1F;
-		const cc_u16f data = value & 0xFF;
+		const cc_u8f reg = (value >> 8) & 0x1F;
+		const cc_u8f data = value & 0xFF;
 
 		/* This is relied upon by Sonic 3D Blast (the opening FMV will have broken colours otherwise). */
 		/* This is further verified by Nemesis' 'VDPFIFOTesting' homebrew. */
@@ -1065,7 +1079,7 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 
 				case 15:
 					/* AUTO INCREMENT DATA */
-					vdp->state->access.increment = (cc_u16l)data;
+					vdp->state->access.increment = (cc_u8l)data;
 					break;
 
 				case 16:
@@ -1193,8 +1207,8 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 			}
 			else /*if (state->dma.mode == VDP_DMA_MODE_COPY)*/
 			{
-				WriteVRAM(vdp->state, vdp->state->access.address_register ^ 1, vdp->state->vram[vdp->state->dma.source_address_low ^ 1]);
-				vdp->state->access.address_register += vdp->state->access.increment;
+				WriteVRAM(vdp->state, vdp->state->access.address_register, ReadVRAM(vdp->state, vdp->state->dma.source_address_low));
+				IncrementAddressRegister(vdp->state);
 			}
 
 			/* Emulate the 128KiB DMA wrap-around bug. */
@@ -1207,8 +1221,7 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 /* TODO: Delete this? */
 cc_u16f VDP_ReadVRAMWord(const VDP_State* const state, const cc_u16f address)
 {
-	assert(address < CC_COUNT_OF(state->vram));
-	return READ_VRAM_WORD(state->vram, address);
+	return READ_VRAM_WORD(state, address);
 }
 
 VDP_TileMetadata VDP_DecomposeTileMetadata(const cc_u16f packed_tile_metadata)
@@ -1230,10 +1243,10 @@ VDP_CachedSprite VDP_GetCachedSprite(const VDP_State* const state, const cc_u16f
 
 	const cc_u8l* const bytes = state->sprite_table_cache[sprite_index];
 
-	cached_sprite.y = (((bytes[0] & 3) << 8) | bytes[1]) & (0x3FF >> !state->double_resolution_enabled);
-	cached_sprite.width = ((bytes[2] >> 2) & 3) + 1;
-	cached_sprite.height = (bytes[2] & 3) + 1;
-	cached_sprite.link = bytes[3] & 0x7F;
+	cached_sprite.y = (bytes[0] | ((bytes[1] & 3) << 8)) & (0x3FF >> !state->double_resolution_enabled);
+	cached_sprite.link = bytes[2] & 0x7F;
+	cached_sprite.width = ((bytes[3] >> 2) & 3) + 1;
+	cached_sprite.height = (bytes[3] & 3) + 1;
 
 	return cached_sprite;
 }

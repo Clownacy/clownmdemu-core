@@ -67,9 +67,9 @@ typedef struct VDP_TileMetadata
 typedef struct VDP_CachedSprite
 {
 	cc_u16f y;
+	cc_u8f link;
 	cc_u8f width;
 	cc_u8f height;
-	cc_u8f link;
 } VDP_CachedSprite;
 
 typedef struct VDP_SpriteRowCacheEntry
@@ -91,9 +91,9 @@ typedef struct VDP_State
 	struct
 	{
 		cc_bool write_pending;
-		cc_u16l address_register;
+		cc_u32l address_register;
 		cc_u16l code_register;
-		cc_u16l increment;
+		cc_u8l increment;
 
 		VDP_Access selected_buffer;
 	} access;
