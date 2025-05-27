@@ -190,6 +190,8 @@ void SyncCDDA(CPUCallbackUserData* const other_state, const cc_u32f total_frames
 	other_state->clownmdemu->callbacks->cdda_audio_to_be_generated((void*)other_state->clownmdemu->callbacks->user_data, other_state->clownmdemu, total_frames, GenerateCDDAAudio);
 }
 
+/* https://gendev.spritesmind.net/forum/viewtopic.php?t=3290 */
+
 void RaiseHorizontalInterruptIfNeeded(const ClownMDEmu* const clownmdemu)
 {
 	if (clownmdemu->state->m68k.h_int_pending && clownmdemu->vdp.state->h_int_enabled)
