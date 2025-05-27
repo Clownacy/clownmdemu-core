@@ -391,7 +391,7 @@ static cc_u16f GetVScrollTableOffset(const VDP_State* const state, const cc_u8f 
 	}
 }
 
-static void RenderTilePair(const VDP* const vdp, const cc_u16f pixel_y_in_plane, const cc_u16f vram_address, cc_u8l** const metapixels_pointer)
+static void RenderTilePair(const VDP* const vdp, const cc_u16f pixel_y_in_plane, const cc_u32f vram_address, cc_u8l** const metapixels_pointer)
 {
 	const VDP_State* const state = vdp->state;
 	const cc_u8l* const vram = state->vram;
@@ -443,7 +443,7 @@ static void RenderScrollingPlane(const VDP* const vdp, const cc_u8f start, const
 	const cc_u16f plane_pitch_shift = state->plane_width_shift;
 	const cc_u16f plane_width_bitmask = (1 << plane_pitch_shift) - 1;
 	const cc_u16f plane_height_bitmask = state->plane_height_bitmask;
-	const cc_u16f plane_address = plane_index == 0 ? state->plane_a_address : state->plane_b_address;
+	const cc_u32f plane_address = plane_index == 0 ? state->plane_a_address : state->plane_b_address;
 
 	const cc_u16f tile_height_shift = GET_TILE_HEIGHT_SHIFT(state);
 
@@ -468,7 +468,7 @@ static void RenderScrollingPlane(const VDP* const vdp, const cc_u8f start, const
 		/* Get the coordinates of the tile in the plane */
 		const cc_u16f tile_x = ((plane_x_offset + clamped_i) * 2) & plane_width_bitmask;
 		const cc_u16f tile_y = (pixel_y_in_plane >> tile_height_shift) & plane_height_bitmask;
-		const cc_u16f vram_address = plane_address + ((tile_y << plane_pitch_shift) + tile_x) * 2;
+		const cc_u32f vram_address = plane_address + ((tile_y << plane_pitch_shift) + tile_x) * 2;
 
 		RenderTilePair(vdp, pixel_y_in_plane, vram_address, &metapixels_pointer);
 	}
@@ -482,7 +482,7 @@ static void RenderWindowPlane(const VDP* const vdp, const cc_u8f start, const cc
 	const cc_u8f plane_pitch_shift = 5 + state->h40_enabled;
 
 	cc_u8l *metapixels_pointer = &metapixels[start * TILE_PAIR_WIDTH];
-	cc_u16f vram_address = state->window_address + ((tile_y << plane_pitch_shift) + start * TILE_PAIR_COUNT) * 2;
+	cc_u32f vram_address = state->window_address + ((tile_y << plane_pitch_shift) + start * TILE_PAIR_COUNT) * 2;
 
 	cc_u8f i;
 
@@ -570,7 +570,7 @@ static void RenderSprites(cc_u8l (* const sprite_metapixels)[2], VDP_State* cons
 		struct VDP_SpriteRowCacheEntry* const sprite_row_cache_entry = &state->sprite_row_cache.rows[scanline].sprites[i];
 
 		/* Decode sprite data */
-		const cc_u16f sprite_index = state->sprite_table_address + sprite_row_cache_entry->table_index * 8;
+		const cc_u32f sprite_index = state->sprite_table_address + sprite_row_cache_entry->table_index * 8;
 		const cc_u16f width = sprite_row_cache_entry->width;
 		const cc_u16f x = READ_VRAM_WORD(state, sprite_index + 6) & 0x1FF;
 
@@ -667,7 +667,7 @@ static void RenderScrollPlane(const VDP* const vdp, const cc_u8f left_boundary, 
 
 	if (!vdp->configuration->planes_disabled[plane_index])
 	{
-		const cc_u16f hscroll_vram_address = state->hscroll_address + plane_index * 2 + GetHScrollTableOffset(state, scanline);
+		const cc_u32f hscroll_vram_address = state->hscroll_address + plane_index * 2 + GetHScrollTableOffset(state, scanline);
 		const cc_u16f hscroll = READ_VRAM_WORD(state, hscroll_vram_address);
 
 		/* Get the value used to offset the writes to the metapixel buffer */
