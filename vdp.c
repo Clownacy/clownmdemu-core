@@ -60,20 +60,31 @@ static void SetHScrollMode(VDP_State* const state, const VDP_HScrollMode mode)
 	state->hscroll_mask = masks[(cc_u8f)mode];
 }
 
-static cc_u32f DecodeVRAMAddress(const cc_u32f address)
+static cc_u32f DecodeVRAMAddress(const VDP_State* const state, const cc_u32f address)
 {
-	/* 64KiB mode. */
-	/* TODO: 128KiB and Master System modes. */
-	return (address & 0xFFFF) ^ 1;
+	/* TODO: Master System mode. */
+
+	if (state->extended_vram_enabled)
+	{
+		/* 128KiB mode. Slower, but this mode is rarely used anyway. */
+		return ((address & 0x1F802) >> 1) | ((address & 0x400) >> 9) | (address & 0x3FC) | ((address & 1) << 16);
+	}
+	else
+	{
+		/* 64KiB mode. Left mostly as-is to maximise performance of most Mega Drive software. */
+		return address & 0xFFFF;
+	}
 }
 
 static cc_u8f ReadVRAM(const VDP_State* const state, const cc_u32f address)
 {
-	return state->vram[DecodeVRAMAddress(address)];
+	return state->vram[DecodeVRAMAddress(state, address)];
 }
 
 static void WriteVRAM(VDP_State* const state, const cc_u32f address, const cc_u8f value)
 {
+	const cc_u32f decoded_address = DecodeVRAMAddress(state, address);
+
 	/* Update sprite cache if we're writing to the sprite table */
 	/* TODO: Do DMA fills and copies do this? */
 	const cc_u32f sprite_table_index = address - state->sprite_table_address;
@@ -87,7 +98,8 @@ static void WriteVRAM(VDP_State* const state, const cc_u32f address, const cc_u8
 		state->sprite_row_cache.needs_updating = cc_true;
 	}
 
-	state->vram[DecodeVRAMAddress(address)] = value;
+	if (decoded_address < CC_COUNT_OF(state->vram))
+		state->vram[decoded_address] = value;
 }
 
 static void IncrementAddressRegister(VDP_State* const state)
@@ -325,6 +337,7 @@ void VDP_State_Initialise(VDP_State* const state)
 	state->plane_width_shift = 5;
 	state->plane_height_bitmask = 0x1F;
 
+	state->extended_vram_enabled = cc_false;
 	state->display_enabled = cc_false;
 	state->v_int_enabled = cc_false;
 	state->h_int_enabled = cc_false;
@@ -950,11 +963,7 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 
 				case 1:
 					/* MODE SET REGISTER NO.2 */
-
-					/* TODO */
-					if ((data & (1 << 7)) != 0)
-							LogMessage("'128KiB VRAM' flag set but is currently unemulated.");
-
+					vdp->state->extended_vram_enabled = (data & (1 << 7)) != 0;
 					vdp->state->display_enabled = (data & (1 << 6)) != 0;
 					vdp->state->v_int_enabled = (data & (1 << 5)) != 0;
 					vdp->state->dma.enabled = (data & (1 << 4)) != 0;

@@ -124,6 +124,7 @@ typedef struct VDP_State
 	cc_u8l plane_width_shift;
 	cc_u8l plane_height_bitmask;
 
+	cc_bool extended_vram_enabled;
 	cc_bool display_enabled;
 	cc_bool v_int_enabled;
 	cc_bool h_int_enabled;
