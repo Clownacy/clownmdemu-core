@@ -60,6 +60,12 @@ static void SetHScrollMode(VDP_State* const state, const VDP_HScrollMode mode)
 	state->hscroll_mask = masks[(cc_u8f)mode];
 }
 
+static cc_u32f GetSpriteTableAddress(const VDP_State* const state)
+{
+	/* This masking is required for Titan Overdrive II's scene of the ship crash-landing to display the correct sprites. */
+	return state->sprite_table_address & (state->h40_enabled ? ~(cc_u32f)0x3FF : ~(cc_u32f)0x1FF);
+}
+
 static cc_u32f DecodeVRAMAddress(const VDP_State* const state, const cc_u32f address)
 {
 	/* TODO: Master System mode. */
@@ -87,7 +93,7 @@ static void WriteVRAM(VDP_State* const state, const cc_u32f address, const cc_u8
 
 	/* Update sprite cache if we're writing to the sprite table */
 	/* TODO: Do DMA fills and copies do this? */
-	const cc_u32f sprite_table_index = address - state->sprite_table_address;
+	const cc_u32f sprite_table_index = address - GetSpriteTableAddress(state);
 
 	if (sprite_table_index < (state->h40_enabled ? 80u : 64u) * 8u && (sprite_table_index & 4) == 0)
 	{
@@ -570,7 +576,7 @@ static void RenderSprites(cc_u8l (* const sprite_metapixels)[2], VDP_State* cons
 		struct VDP_SpriteRowCacheEntry* const sprite_row_cache_entry = &state->sprite_row_cache.rows[scanline].sprites[i];
 
 		/* Decode sprite data */
-		const cc_u32f sprite_index = state->sprite_table_address + sprite_row_cache_entry->table_index * 8;
+		const cc_u32f sprite_index = GetSpriteTableAddress(state) + sprite_row_cache_entry->table_index * 8;
 		const cc_u16f width = sprite_row_cache_entry->width;
 		const cc_u16f x = READ_VRAM_WORD(state, sprite_index + 6) & 0x1FF;
 
