@@ -29,7 +29,9 @@
 #define GET_TILE_SIZE_SHIFT(state) (GET_TILE_HEIGHT_SHIFT(state) + TILE_Y_INDEX_TO_TILE_BYTE_INDEX_SHIFT)
 #define MULTIPLY_BY_TILE_SIZE(state, value) ((value) << GET_TILE_SIZE_SHIFT(state))
 
-#define READ_VRAM_WORD(STATE, ADDRESS) ((ReadVRAM(STATE, (ADDRESS) ^ 1) << 8) | ReadVRAM(STATE, (ADDRESS) ^ 0))
+#define READ_VRAM_WORD(STATE, ADDRESS) (ReadVRAM(STATE, (ADDRESS) ^ 0) | (ReadVRAM(STATE, (ADDRESS) ^ 1) << 8))
+
+#define VRAM_ADDRESS_BASE_OFFSET(OPTION) ((OPTION) ? 0x10000 : 0)
 
 enum
 {
@@ -84,7 +86,8 @@ static cc_u32f DecodeVRAMAddress(const VDP_State* const state, const cc_u32f add
 
 static cc_u8f ReadVRAM(const VDP_State* const state, const cc_u32f address)
 {
-	return state->vram[DecodeVRAMAddress(state, address)];
+	/* This masking ensures that the same byte is read for both halves of a word in 128KiB mode, just like a real Mega Drive does. */
+	return state->vram[DecodeVRAMAddress(state, address) % CC_COUNT_OF(state->vram)];
 }
 
 static void WriteVRAM(VDP_State* const state, const cc_u32f address, const cc_u8f value)
@@ -104,6 +107,7 @@ static void WriteVRAM(VDP_State* const state, const cc_u32f address, const cc_u8
 		state->sprite_row_cache.needs_updating = cc_true;
 	}
 
+	/* Only write data that is within the first 64KiB bank, since a real Mega Drive is missing a second 64KiB VRAM chip. */
 	if (decoded_address < CC_COUNT_OF(state->vram))
 		state->vram[decoded_address] = value;
 }
@@ -352,6 +356,9 @@ void VDP_State_Initialise(VDP_State* const state)
 	state->mega_drive_mode_enabled = cc_false;
 	state->shadow_highlight_enabled = cc_false;
 	state->double_resolution_enabled = cc_false;
+	state->sprite_tile_index_rebase = cc_false;
+	state->plane_a_tile_index_rebase = cc_false;
+	state->plane_b_tile_index_rebase = cc_false;
 
 	state->background_colour = 0;
 	state->h_int_interval = 0;
@@ -397,7 +404,7 @@ static cc_u16f GetVScrollTableOffset(const VDP_State* const state, const cc_u8f 
 	}
 }
 
-static void RenderTilePair(const VDP* const vdp, const cc_u16f pixel_y_in_plane, const cc_u32f vram_address, cc_u8l** const metapixels_pointer)
+static void RenderTilePair(const VDP* const vdp, const cc_u16f pixel_y_in_plane, const cc_u32f vram_address, const cc_u32f base_tile_vram_address, cc_u8l** const metapixels_pointer)
 {
 	const VDP_State* const state = vdp->state;
 	const cc_u8l* const vram = state->vram;
@@ -420,7 +427,7 @@ static void RenderTilePair(const VDP* const vdp, const cc_u16f pixel_y_in_plane,
 		const cc_u8f pixel_y_in_tile = pixel_y_in_tile_unflipped ^ (tile_height_mask & y_flip);
 
 		/* Get raw tile data that contains the desired metapixel */
-		const cc_u32f tile_row_vram_address = TILE_Y_INDEX_TO_TILE_BYTE_INDEX((VDP_GetTileIndex(word) << tile_height_shift) + pixel_y_in_tile);
+		const cc_u32f tile_row_vram_address = base_tile_vram_address + TILE_Y_INDEX_TO_TILE_BYTE_INDEX((VDP_GetTileIndex(word) << tile_height_shift) + pixel_y_in_tile);
 
 		const cc_u8f byte_index_xor = 3 & x_flip;
 		const cc_u8f nybble_shift_2 = 4 & x_flip;
@@ -446,6 +453,7 @@ static void RenderScrollingPlane(const VDP* const vdp, const cc_u8f start, const
 {
 	VDP_State* const state = vdp->state;
 
+	const cc_u32f base_tile_vram_address = VRAM_ADDRESS_BASE_OFFSET(plane_index == 0 ? state->plane_a_tile_index_rebase : state->plane_b_tile_index_rebase);
 	const cc_u16f plane_pitch_shift = state->plane_width_shift;
 	const cc_u16f plane_width_bitmask = (1 << plane_pitch_shift) - 1;
 	const cc_u16f plane_height_bitmask = state->plane_height_bitmask;
@@ -476,7 +484,7 @@ static void RenderScrollingPlane(const VDP* const vdp, const cc_u8f start, const
 		const cc_u16f tile_y = (pixel_y_in_plane >> tile_height_shift) & plane_height_bitmask;
 		const cc_u32f vram_address = plane_address + ((tile_y << plane_pitch_shift) + tile_x) * 2;
 
-		RenderTilePair(vdp, pixel_y_in_plane, vram_address, &metapixels_pointer);
+		RenderTilePair(vdp, pixel_y_in_plane, vram_address, base_tile_vram_address, &metapixels_pointer);
 	}
 }
 
@@ -484,6 +492,7 @@ static void RenderWindowPlane(const VDP* const vdp, const cc_u8f start, const cc
 {
 	const VDP_State* const state = vdp->state;
 
+	const cc_u32f base_tile_vram_address = VRAM_ADDRESS_BASE_OFFSET(state->plane_a_tile_index_rebase);
 	const cc_u16f tile_y = DIVIDE_BY_TILE_HEIGHT(state, scanline);
 	const cc_u8f plane_pitch_shift = 5 + state->h40_enabled;
 
@@ -495,7 +504,7 @@ static void RenderWindowPlane(const VDP* const vdp, const cc_u8f start, const cc
 	/* Render tiles */
 	for (i = start; i < end && i < SCANLINE_WIDTH_IN_TILE_PAIRS; ++i)
 	{
-		RenderTilePair(vdp, scanline, vram_address, &metapixels_pointer);
+		RenderTilePair(vdp, scanline, vram_address, base_tile_vram_address, &metapixels_pointer);
 		vram_address += 4;
 	}
 }
@@ -506,11 +515,11 @@ static void UpdateSpriteCache(VDP_State* const state)
 	   scanning the entire sprite table every time it renders a scanline. The VDP actually
 	   partially caches its sprite data too, though I don't know if it's for the same purpose. */
 	const cc_u8f tile_height_shift = GET_TILE_HEIGHT_SHIFT(state);
-	const cc_u16f max_sprites = state->h40_enabled ? 80 : 64;
+	const cc_u8f max_sprites = state->h40_enabled ? 80 : 64;
 
 	cc_u16f i;
-	cc_u16f sprite_index;
-	cc_u16f sprites_remaining = max_sprites;
+	cc_u8f sprite_index;
+	cc_u8f sprites_remaining = max_sprites;
 
 	if (!state->sprite_row_cache.needs_updating)
 		return;
@@ -560,6 +569,7 @@ static void UpdateSpriteCache(VDP_State* const state)
 
 static void RenderSprites(cc_u8l (* const sprite_metapixels)[2], VDP_State* const state, const cc_u16f scanline)
 {
+	const cc_u32f base_tile_vram_address = VRAM_ADDRESS_BASE_OFFSET(state->sprite_tile_index_rebase);
 	const cc_u8f tile_height_shift = GET_TILE_HEIGHT_SHIFT(state);
 	const cc_u8f tile_height_mask = GET_TILE_HEIGHT_MASK(state);
 
@@ -633,7 +643,7 @@ static void RenderSprites(cc_u8l (* const sprite_metapixels)[2], VDP_State* cons
 				const cc_u16f tile_index = sprite_tile_index + (y_in_sprite >> tile_height_shift) + x_in_sprite * height; /* TODO: Somehow get rid of this multiplication for a speed boost on platforms with a slow multiplier. */
 
 				/* Get raw tile data that contains the desired metapixel */
-				const cc_u32f tile_row_vram_address = TILE_Y_INDEX_TO_TILE_BYTE_INDEX(MULTIPLY_BY_TILE_HEIGHT(state, tile_index) + pixel_y_in_tile);
+				const cc_u32f tile_row_vram_address = base_tile_vram_address + TILE_Y_INDEX_TO_TILE_BYTE_INDEX(MULTIPLY_BY_TILE_HEIGHT(state, tile_index) + pixel_y_in_tile);
 
 				cc_u16f k;
 
@@ -1008,10 +1018,7 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 
 				case 6:
 					/* Unused legacy register for Master System mode. */
-
-					/* TODO */
-					if ((data & (1 << 5)) != 0)
-							LogMessage("'Sprite table rebase' flag set but is currently unemulated.");
+					vdp->state->sprite_tile_index_rebase = (data & (1 << 5)) != 0;
 
 					break;
 
@@ -1093,14 +1100,8 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 
 				case 14:
 					/* PATTERN NAME TABLE BASE ADDRESS 128KiB */
-
-					/* TODO */
-					if ((data & (1 << 0)) != 0)
-							LogMessage("'Plane A rebase' flag set but is currently unemulated.");
-
-					if ((data & (1 << 4)) != 0)
-							LogMessage("'Plane B rebase' flag set but is currently unemulated.");
-
+					vdp->state->plane_a_tile_index_rebase = (data & (1 << 0)) != 0;
+					vdp->state->plane_b_tile_index_rebase = (data & (1 << 4)) != 0 && vdp->state->plane_a_tile_index_rebase;
 					break;
 
 				case 15:

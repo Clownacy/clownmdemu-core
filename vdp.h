@@ -133,6 +133,9 @@ typedef struct VDP_State
 	cc_bool mega_drive_mode_enabled;
 	cc_bool shadow_highlight_enabled;
 	cc_bool double_resolution_enabled;
+	cc_bool sprite_tile_index_rebase;
+	cc_bool plane_a_tile_index_rebase;
+	cc_bool plane_b_tile_index_rebase;
 
 	cc_u8l background_colour;
 	cc_u8l h_int_interval;
