@@ -107,11 +107,11 @@ typedef struct VDP_State
 		cc_u16l length;
 	} dma;
 
-	cc_u16l plane_a_address;
-	cc_u16l plane_b_address;
-	cc_u16l window_address;
-	cc_u16l sprite_table_address;
-	cc_u16l hscroll_address;
+	cc_u32l plane_a_address;
+	cc_u32l plane_b_address;
+	cc_u32l window_address;
+	cc_u32l sprite_table_address;
+	cc_u32l hscroll_address;
 
 	struct
 	{

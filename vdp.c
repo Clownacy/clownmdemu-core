@@ -973,24 +973,24 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 
 				case 2:
 					/* PATTERN NAME TABLE BASE ADDRESS FOR SCROLL A */
-					vdp->state->plane_a_address = (data & 0x38) << 10;
+					vdp->state->plane_a_address = (data & 0x78) << 10;
 					break;
 
 				case 3:
 					/* PATTERN NAME TABLE BASE ADDRESS FOR WINDOW */
 					/* TODO: The lowest bit is invalid is H40 mode according to the 'Genesis Software Manual'. */
 					/* http://techdocs.exodusemulator.com/Console/SegaMegaDrive/Documentation.html#mega-drive-documentation */
-					vdp->state->window_address = (data & 0x3E) << 10;
+					vdp->state->window_address = (data & 0x7E) << 10;
 					break;
 
 				case 4:
 					/* PATTERN NAME TABLE BASE ADDRESS FOR SCROLL B */
-					vdp->state->plane_b_address = (data & 7) << 13;
+					vdp->state->plane_b_address = (data & 0xF) << 13;
 					break;
 
 				case 5:
 					/* SPRITE ATTRIBUTE TABLE BASE ADDRESS */
-					vdp->state->sprite_table_address = (data & 0x7F) << 9;
+					vdp->state->sprite_table_address = data << 9;
 
 					/* Real VDPs partially cache the sprite table, and forget to update it
 					   when the sprite table base address is changed. Replicating this
@@ -1002,7 +1002,11 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 
 				case 6:
 					/* Unused legacy register for Master System mode. */
+
 					/* TODO */
+					if ((data & (1 << 5)) != 0)
+							LogMessage("'Sprite table rebase' flag set but is currently unemulated.");
+
 					break;
 
 				case 7:
@@ -1078,12 +1082,19 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 
 				case 13:
 					/* H SCROLL DATA TABLE BASE ADDRESS */
-					vdp->state->hscroll_address = (data & 0x3F) << 10;
+					vdp->state->hscroll_address = (data & 0x7F) << 10;
 					break;
 
 				case 14:
 					/* PATTERN NAME TABLE BASE ADDRESS 128KiB */
+
 					/* TODO */
+					if ((data & (1 << 0)) != 0)
+							LogMessage("'Plane A rebase' flag set but is currently unemulated.");
+
+					if ((data & (1 << 4)) != 0)
+							LogMessage("'Plane B rebase' flag set but is currently unemulated.");
+
 					break;
 
 				case 15:
