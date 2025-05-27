@@ -921,12 +921,26 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 			{
 				case 0:
 					/* MODE SET REGISTER NO.1 */
-					vdp->state->h_int_enabled = (data & (1 << 4)) != 0;
+
 					/* TODO */
+					if ((data & (1 << 5)) != 0)
+							LogMessage("'Blank 8 leftmost pixel columns' flag set but is currently unemulated.");
+
+					vdp->state->h_int_enabled = (data & (1 << 4)) != 0;
+
+					/* TODO */
+					if ((data & (1 << 1)) != 0)
+							LogMessage("'Latch H/V counter' flag set but is currently unemulated.");
+
 					break;
 
 				case 1:
 					/* MODE SET REGISTER NO.2 */
+
+					/* TODO */
+					if ((data & (1 << 7)) != 0)
+							LogMessage("'128KiB VRAM' flag set but is currently unemulated.");
+
 					vdp->state->display_enabled = (data & (1 << 6)) != 0;
 					vdp->state->v_int_enabled = (data & (1 << 5)) != 0;
 					vdp->state->dma.enabled = (data & (1 << 4)) != 0;
@@ -986,7 +1000,11 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 
 				case 11:
 					/* MODE SET REGISTER NO.3 */
-					/* TODO: External interrupt. */
+
+					/* TODO */
+					if ((data & (1 << 3)) != 0)
+							LogMessage("'External interrupt' flag set but is currently unemulated.");
+
 					vdp->state->vscroll_mode = data & 4 ? VDP_VSCROLL_MODE_2CELL : VDP_VSCROLL_MODE_FULL;
 					SetHScrollMode(vdp->state, (VDP_HScrollMode)(data & 3));
 					break;
