@@ -19,10 +19,14 @@ typedef struct VDP_Configuration
 	cc_bool planes_disabled[2];
 } VDP_Configuration;
 
+typedef cc_u8l VDP_BlitLookupNybble[1 << 4];
+typedef VDP_BlitLookupNybble VDP_BlitLookupLower[1 << (1 + 1 + 2 + 4)];
+typedef VDP_BlitLookupLower VDP_BlitLookup[1 << (1 + 2)];
+
 typedef struct VDP_Constant
 {
-	cc_u8l blit_lookup[1 << (1 + 2)][1 << (1 + 1 + 2 + 4)][1 << 4];
-	cc_u8l blit_lookup_shadow_highlight[1 << (1 + 2)][1 << (1 + 1 + 2 + 4)][1 << 4];
+	VDP_BlitLookup blit_lookup;
+	VDP_BlitLookup blit_lookup_shadow_highlight;
 } VDP_Constant;
 
 typedef enum VDP_Access

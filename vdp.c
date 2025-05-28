@@ -408,7 +408,7 @@ static void RenderTilePair(const VDP* const vdp, const cc_u16f pixel_y_in_plane,
 {
 	const VDP_State* const state = vdp->state;
 	const cc_u8l* const vram = state->vram;
-	const cc_u8l (* const blit_lookup_list)[1 << (1 + 1 + 2 + 4)][1 << 4] = vdp->constant->blit_lookup;
+	const VDP_BlitLookupLower* const blit_lookup_list = vdp->constant->blit_lookup;
 
 	const cc_u8f tile_height_shift = GET_TILE_HEIGHT_SHIFT(state);
 	const cc_u8f tile_height_mask = (1 << tile_height_shift) - 1;
@@ -433,7 +433,7 @@ static void RenderTilePair(const VDP* const vdp, const cc_u16f pixel_y_in_plane,
 		const cc_u8f nybble_shift_2 = 4 & x_flip;
 		const cc_u8f nybble_shift_1 = 4 ^ nybble_shift_2;
 
-		const cc_u8l (* const blit_lookup)[1 << 4] = blit_lookup_list[(word >> 13) & 7];
+		const VDP_BlitLookupNybble* const blit_lookup = blit_lookup_list[(word >> 13) & 7];
 
 		cc_u8f j;
 
