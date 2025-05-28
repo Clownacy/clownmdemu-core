@@ -150,8 +150,6 @@ typedef struct VDP_State
 	cc_u8l hscroll_mask;
 	VDP_VScrollMode vscroll_mode;
 
-	cc_bool dma_cycle_delay;
-
 	cc_u8l forced_layer;
 
 	cc_u8l vram[0x10000];
