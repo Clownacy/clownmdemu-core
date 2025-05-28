@@ -429,7 +429,7 @@ static void RenderTilePair(const VDP* const vdp, const cc_u16f pixel_y_in_plane,
 		/* Get raw tile data that contains the desired metapixel */
 		const cc_u32f tile_row_vram_address = base_tile_vram_address + TILE_Y_INDEX_TO_TILE_BYTE_INDEX((VDP_GetTileIndex(word) << tile_height_shift) + pixel_y_in_tile);
 
-		const cc_u8f byte_index_xor = 3 & x_flip;
+		const cc_u8f byte_index_xor = 1 ^ 3 & x_flip;
 		const cc_u8f nybble_shift_2 = 4 & x_flip;
 		const cc_u8f nybble_shift_1 = 4 ^ nybble_shift_2;
 
@@ -439,7 +439,7 @@ static void RenderTilePair(const VDP* const vdp, const cc_u16f pixel_y_in_plane,
 
 		for (j = 0; j < TILE_WIDTH / 2; ++j)
 		{
-			const cc_u8f byte = ReadVRAM(state, tile_row_vram_address + j ^ byte_index_xor ^ 1);
+			const cc_u8f byte = ReadVRAM(state, tile_row_vram_address + j ^ byte_index_xor);
 
 			**metapixels_pointer = blit_lookup[**metapixels_pointer][(byte >> nybble_shift_1) & 0xF];
 			++*metapixels_pointer;
@@ -615,7 +615,7 @@ static void RenderSprites(cc_u8l (* const sprite_metapixels)[2], VDP_State* cons
 
 			const cc_u8f metapixel_high_bits = (word >> 13) & 7;
 
-			const cc_u8f byte_index_xor = x_flip ? 3 : 0;
+			const cc_u8f byte_index_xor = 1 ^ (x_flip ? 3 : 0);
 
 			const cc_u8f y_in_sprite_non_flipped = sprite_row_cache_entry->y_in_sprite;
 			const cc_u8f y_in_sprite = y_flip ? (height << tile_height_shift) - y_in_sprite_non_flipped - 1 : y_in_sprite_non_flipped;
@@ -649,7 +649,7 @@ static void RenderSprites(cc_u8l (* const sprite_metapixels)[2], VDP_State* cons
 
 				for (k = 0; k < TILE_WIDTH / 2; ++k)
 				{
-					const cc_u8f byte = ReadVRAM(state, tile_row_vram_address + k ^ byte_index_xor ^ 1);
+					const cc_u8f byte = ReadVRAM(state, tile_row_vram_address + k ^ byte_index_xor);
 
 					cc_u8f l;
 
