@@ -314,6 +314,9 @@ void VDP_Constant_Initialise(VDP_Constant* const constant)
 				}
 
 				constant->blit_lookup_shadow_highlight[new_pixel_high][old_pixel][new_pixel_low] = (cc_u8l)output;
+
+				/* Finally, generate AND lookup table, for the debug register. */
+				constant->blit_lookup_and[new_pixel_high][old_pixel][new_pixel_low] = (cc_u8l)(old_pixel & (new_colour_index | ~colour_index_mask));
 			}
 		}
 	}
@@ -368,6 +371,8 @@ void VDP_State_Initialise(VDP_State* const state)
 	SetHScrollMode(state, VDP_HSCROLL_MODE_FULL);
 	state->vscroll_mode = VDP_VSCROLL_MODE_FULL;
 
+	state->forced_layer = 0;
+
 	memset(state->vram, 0, sizeof(state->vram));
 	memset(state->cram, 0, sizeof(state->cram));
 	memset(state->vsram, 0, sizeof(state->vsram));
@@ -404,11 +409,10 @@ static cc_u16f GetVScrollTableOffset(const VDP_State* const state, const cc_u8f 
 	}
 }
 
-static void RenderTilePair(const VDP* const vdp, const cc_u16f pixel_y_in_plane, const cc_u32f vram_address, const cc_u32f base_tile_vram_address, cc_u8l** const metapixels_pointer)
+static void RenderTilePair(const VDP* const vdp, const cc_u16f pixel_y_in_plane, const cc_u32f vram_address, const cc_u32f base_tile_vram_address, cc_u8l** const metapixels_pointer, const VDP_BlitLookupLower* const blit_lookup_list)
 {
 	const VDP_State* const state = vdp->state;
 	const cc_u8l* const vram = state->vram;
-	const VDP_BlitLookupLower* const blit_lookup_list = vdp->constant->blit_lookup;
 
 	const cc_u8f tile_height_shift = GET_TILE_HEIGHT_SHIFT(state);
 	const cc_u8f tile_height_mask = (1 << tile_height_shift) - 1;
@@ -449,7 +453,7 @@ static void RenderTilePair(const VDP* const vdp, const cc_u16f pixel_y_in_plane,
 	}
 }
 
-static void RenderScrollingPlane(const VDP* const vdp, const cc_u8f start, const cc_u8f end, const cc_u16f scanline, const cc_u8f plane_index, const cc_u16f plane_x_offset, cc_u8l* const metapixels)
+static void RenderScrollingPlane(const VDP* const vdp, const cc_u8f start, const cc_u8f end, const cc_u16f scanline, const cc_u8f plane_index, const cc_u16f plane_x_offset, cc_u8l* const metapixels, const VDP_BlitLookupLower* const blit_lookup_list)
 {
 	VDP_State* const state = vdp->state;
 
@@ -484,11 +488,11 @@ static void RenderScrollingPlane(const VDP* const vdp, const cc_u8f start, const
 		const cc_u16f tile_y = (pixel_y_in_plane >> tile_height_shift) & plane_height_bitmask;
 		const cc_u32f vram_address = plane_address + ((tile_y << plane_pitch_shift) + tile_x) * 2;
 
-		RenderTilePair(vdp, pixel_y_in_plane, vram_address, base_tile_vram_address, &metapixels_pointer);
+		RenderTilePair(vdp, pixel_y_in_plane, vram_address, base_tile_vram_address, &metapixels_pointer, blit_lookup_list);
 	}
 }
 
-static void RenderWindowPlane(const VDP* const vdp, const cc_u8f start, const cc_u8f end, const cc_u16f scanline, cc_u8l* const metapixels)
+static void RenderWindowPlane(const VDP* const vdp, const cc_u8f start, const cc_u8f end, const cc_u16f scanline, cc_u8l* const metapixels, const VDP_BlitLookupLower* const blit_lookup_list)
 {
 	const VDP_State* const state = vdp->state;
 
@@ -504,7 +508,7 @@ static void RenderWindowPlane(const VDP* const vdp, const cc_u8f start, const cc
 	/* Render tiles */
 	for (i = start; i < end && i < SCANLINE_WIDTH_IN_TILE_PAIRS; ++i)
 	{
-		RenderTilePair(vdp, scanline, vram_address, base_tile_vram_address, &metapixels_pointer);
+		RenderTilePair(vdp, scanline, vram_address, base_tile_vram_address, &metapixels_pointer, blit_lookup_list);
 		vram_address += 4;
 	}
 }
@@ -677,7 +681,7 @@ static void RenderSprites(cc_u8l (* const sprite_metapixels)[2], VDP_State* cons
 	state->allow_sprite_masking = cc_false;
 }
 
-static void RenderScrollPlane(const VDP* const vdp, const cc_u8f left_boundary, const cc_u8f right_boundary, const cc_u16f scanline, cc_u8l* const plane_metapixels, const cc_u8f plane_index)
+static void RenderScrollPlane(const VDP* const vdp, const cc_u8f left_boundary, const cc_u8f right_boundary, const cc_u16f scanline, cc_u8l* const plane_metapixels, const VDP_BlitLookupLower* const blit_lookup_list, const cc_u8f plane_index)
 {
 	VDP_State* const state = vdp->state;
 
@@ -692,7 +696,37 @@ static void RenderScrollPlane(const VDP* const vdp, const cc_u8f left_boundary, 
 		/* Get the value used to offset the reads from the plane map */
 		const cc_u16f plane_x_offset = -(hscroll / TILE_PAIR_WIDTH);
 
-		RenderScrollingPlane(vdp, left_boundary, right_boundary, scanline, plane_index, plane_x_offset, plane_metapixels - scroll_offset);
+		RenderScrollingPlane(vdp, left_boundary, right_boundary, scanline, plane_index, plane_x_offset, plane_metapixels - scroll_offset, blit_lookup_list);
+	}
+}
+
+static void RenderForegroundPlane(const VDP* const vdp, const cc_u8f left_boundary, const cc_u8f right_boundary, const cc_u16f scanline, cc_u8l* const plane_metapixels, const VDP_BlitLookupLower* const blit_lookup_list, const cc_bool window_plane)
+{
+	/* Notably, we allow Plane A to render in the Window Plane's place when the latter is disabled. */
+	if (window_plane && !vdp->configuration->window_disabled)
+	{
+		/* Left-aligned window plane. */
+		RenderWindowPlane(vdp, left_boundary, right_boundary, scanline, plane_metapixels, blit_lookup_list);
+	}
+	else
+	{
+		/* Scrolling plane. */
+		RenderScrollPlane(vdp, left_boundary, right_boundary, scanline, plane_metapixels, blit_lookup_list, 0);
+	}
+}
+
+static void RenderSpritePlane(const VDP* const vdp, cc_u8l* const plane_metapixels, cc_u8l (* const sprite_metapixels)[2], const VDP_BlitLookupLower* const blit_lookup_list, const unsigned int mask, const cc_u16f left_boundary_pixels, const cc_u16f right_boundary_pixels)
+{
+	const cc_u8l *sprite_metapixels_pointer = sprite_metapixels[left_boundary_pixels];
+	cc_u8l *plane_metapixels_pointer = &plane_metapixels[left_boundary_pixels];
+
+	cc_u16f i;
+
+	for (i = left_boundary_pixels; i < right_boundary_pixels; ++i)
+	{
+		*plane_metapixels_pointer = blit_lookup_list[sprite_metapixels_pointer[1]][*plane_metapixels_pointer][sprite_metapixels_pointer[0]] & mask;
+		++plane_metapixels_pointer;
+		sprite_metapixels_pointer += 2;
 	}
 }
 
@@ -709,7 +743,6 @@ static void RenderForegroundAndSpritePlanes(const VDP* const vdp, const cc_u16f 
 	const cc_u16f left_boundary_pixels = left_boundary * TILE_PAIR_WIDTH;
 	const cc_u16f right_boundary_pixels = right_boundary * TILE_PAIR_WIDTH;
 
-	cc_u16f i;
 	cc_u8f plane_index;
 
 	if (left_boundary == right_boundary)
@@ -717,48 +750,26 @@ static void RenderForegroundAndSpritePlanes(const VDP* const vdp, const cc_u16f 
 
 	if (state->display_enabled)
 	{
-		/* ************************************************ */
-		/* Draw foreground plane (Plane A or Window Plane). */
-		/* ************************************************ */
+		RenderForegroundPlane(vdp, left_boundary, right_boundary, scanline, plane_metapixels, constant->blit_lookup, window_plane);
 
-		/* Notably, we allow Plane A to render in the Window Plane's place when the latter is disabled. */
-		if (window_plane && !vdp->configuration->window_disabled)
-		{
-			/* Left-aligned window plane. */
-			RenderWindowPlane(vdp, left_boundary, right_boundary, scanline, plane_metapixels);
-		}
+		if (state->shadow_highlight_enabled)
+			RenderSpritePlane(vdp, plane_metapixels, sprite_metapixels, constant->blit_lookup_shadow_highlight, 0xFF, left_boundary_pixels, right_boundary_pixels);
 		else
+			RenderSpritePlane(vdp, plane_metapixels, sprite_metapixels, constant->blit_lookup, 0x3F, left_boundary_pixels, right_boundary_pixels);
+
+		switch (state->forced_layer)
 		{
-			/* Scrolling plane. */
-			RenderScrollPlane(vdp, left_boundary, right_boundary, scanline, plane_metapixels, 0);
-		}
+			case 1:
+				RenderSpritePlane(vdp, plane_metapixels, sprite_metapixels, constant->blit_lookup_and, 0xFF, left_boundary_pixels, right_boundary_pixels);
+				break;
 
-		/* ************************************ *
-		 * Blit sprite pixels onto plane pixels *
-		 * ************************************ */
+			case 2:
+				RenderScrollPlane(vdp, left_boundary, right_boundary, scanline, plane_metapixels, constant->blit_lookup_and, 0);
+				break;
 
-		{
-			const cc_u8l *sprite_metapixels_pointer = sprite_metapixels[left_boundary_pixels];
-			cc_u8l *plane_metapixels_pointer = &plane_metapixels[left_boundary_pixels];
-
-			if (state->shadow_highlight_enabled)
-			{
-				for (i = left_boundary_pixels; i < right_boundary_pixels; ++i)
-				{
-					*plane_metapixels_pointer = constant->blit_lookup_shadow_highlight[sprite_metapixels_pointer[1]][*plane_metapixels_pointer][sprite_metapixels_pointer[0]];
-					++plane_metapixels_pointer;
-					sprite_metapixels_pointer += 2;
-				}
-			}
-			else
-			{
-				for (i = left_boundary_pixels; i < right_boundary_pixels; ++i)
-				{
-					*plane_metapixels_pointer = constant->blit_lookup[sprite_metapixels_pointer[1]][*plane_metapixels_pointer][sprite_metapixels_pointer[0]] & 0x3F;
-					++plane_metapixels_pointer;
-					sprite_metapixels_pointer += 2;
-				}
-			}
+			case 3:
+				RenderScrollPlane(vdp, left_boundary, right_boundary, scanline, plane_metapixels, constant->blit_lookup_and, 1);
+				break;
 		}
 	}
 
@@ -768,6 +779,7 @@ static void RenderForegroundAndSpritePlanes(const VDP* const vdp, const cc_u16f 
 
 void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_ScanlineRenderedCallback scanline_rendered_callback, const void* const scanline_rendered_callback_user_data)
 {
+	const VDP_Constant* const constant = vdp->constant;
 	VDP_State* const state = vdp->state;
 
 	/* The padding bytes of the left and right are for allowing tile pairs to overdraw at the
@@ -791,13 +803,14 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 	if (!vdp->configuration->sprites_disabled)
 		RenderSprites(sprite_metapixels_buffer, state, scanline);
 
-	/* Fill the scanline buffer with the background colour */
-	memset(plane_metapixels, state->background_colour, VDP_MAX_SCANLINE_WIDTH);
+	/* Fill the scanline buffer with the background colour. */
+	/* When forcing a layer, we set all the colour bits to simulate it replacing the background colour layer (since it is ANDed). */
+	memset(plane_metapixels, state->forced_layer == 0 ? state->background_colour : 0x3F, VDP_MAX_SCANLINE_WIDTH);
 
 	if (state->display_enabled)
 	{
 		/* Draw Plane B. */
-		RenderScrollPlane(vdp, 0, SCANLINE_WIDTH_IN_TILE_PAIRS, scanline, plane_metapixels, 1);
+		RenderScrollPlane(vdp, 0, SCANLINE_WIDTH_IN_TILE_PAIRS, scanline, plane_metapixels, constant->blit_lookup, 1);
 	}
 
 	/* Draw Window Plane (and sprites). */
@@ -1243,6 +1256,11 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 			vdp->state->dma.source_address_low &= 0xFFFF;
 		} while (--vdp->state->dma.length, vdp->state->dma.length &= 0xFFFF, vdp->state->dma.length != 0);
 	}
+}
+
+void VDP_WriteDebug(const VDP* const vdp, const cc_u16f value)
+{
+	vdp->state->forced_layer = (value >> 7) & 3;
 }
 
 /* TODO: Delete this? */

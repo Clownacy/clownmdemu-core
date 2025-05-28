@@ -936,6 +936,10 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 					PSG_DoCommand(&clownmdemu->psg, low_byte);
 				}
 			}
+			else if (address == 0xC0001C)
+			{
+				VDP_WriteDebug(&clownmdemu->vdp, value);
+			}
 			else
 			{
 				LOG_MAIN_CPU_BUS_ERROR_1("Attempted to write invalid 68k address 0x%" CC_PRIXFAST32, address);

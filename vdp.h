@@ -27,6 +27,7 @@ typedef struct VDP_Constant
 {
 	VDP_BlitLookup blit_lookup;
 	VDP_BlitLookup blit_lookup_shadow_highlight;
+	VDP_BlitLookup blit_lookup_and;
 } VDP_Constant;
 
 typedef enum VDP_Access
@@ -151,6 +152,8 @@ typedef struct VDP_State
 
 	cc_bool dma_cycle_delay;
 
+	cc_u8l forced_layer;
+
 	cc_u8l vram[0x10000];
 	cc_u16l cram[4 * 16];
 	/* http://gendev.spritesmind.net/forum/viewtopic.php?p=36727#p36727 */
@@ -196,6 +199,7 @@ cc_u16f VDP_ReadData(const VDP *vdp);
 cc_u16f VDP_ReadControl(const VDP *vdp);
 void VDP_WriteData(const VDP *vdp, cc_u16f value, VDP_ColourUpdatedCallback colour_updated_callback, const void *colour_updated_callback_user_data);
 void VDP_WriteControl(const VDP *vdp, cc_u16f value, VDP_ColourUpdatedCallback colour_updated_callback, const void *colour_updated_callback_user_data, VDP_ReadCallback read_callback, const void *read_callback_user_data, VDP_KDebugCallback kdebug_callback, const void *kdebug_callback_user_data);
+void VDP_WriteDebug(const VDP *vdp, cc_u16f value);
 
 cc_u16f VDP_ReadVRAMWord(const VDP_State *state, cc_u16f address);
 VDP_TileMetadata VDP_DecomposeTileMetadata(cc_u16f packed_tile_metadata);
