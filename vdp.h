@@ -25,9 +25,12 @@ typedef VDP_BlitLookupLower VDP_BlitLookup[1 << (1 + 2)];
 
 typedef struct VDP_Constant
 {
-	VDP_BlitLookup blit_lookup;
-	VDP_BlitLookup blit_lookup_shadow_highlight;
-	VDP_BlitLookup blit_lookup_and;
+	struct
+	{
+		VDP_BlitLookup normal;
+		VDP_BlitLookup shadow_highlight;
+		VDP_BlitLookup forced_layer;
+	} blit_lookup;
 } VDP_Constant;
 
 typedef enum VDP_Access
@@ -150,7 +153,10 @@ typedef struct VDP_State
 	cc_u8l hscroll_mask;
 	VDP_VScrollMode vscroll_mode;
 
-	cc_u8l forced_layer;
+	struct
+	{
+		cc_u8l forced_layer;
+	} debug;
 
 	cc_u8l vram[0x10000];
 	cc_u16l cram[4 * 16];

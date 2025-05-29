@@ -244,15 +244,15 @@ void VDP_Constant_Initialise(VDP_Constant* const constant)
 	   every time a pixel is blitted. This provides a *massive* speed boost. */
 	cc_u16f new_pixel_high;
 
-	for (new_pixel_high = 0; new_pixel_high < CC_COUNT_OF(constant->blit_lookup); ++new_pixel_high)
+	for (new_pixel_high = 0; new_pixel_high < CC_COUNT_OF(constant->blit_lookup.normal); ++new_pixel_high)
 	{
 		cc_u16f old_pixel;
 
-		for (old_pixel = 0; old_pixel < CC_COUNT_OF(constant->blit_lookup[0]); ++old_pixel)
+		for (old_pixel = 0; old_pixel < CC_COUNT_OF(constant->blit_lookup.normal[0]); ++old_pixel)
 		{
 			cc_u16f new_pixel_low;
 
-			for (new_pixel_low = 0; new_pixel_low < CC_COUNT_OF(constant->blit_lookup[0][0]); ++new_pixel_low)
+			for (new_pixel_low = 0; new_pixel_low < CC_COUNT_OF(constant->blit_lookup.normal[0][0]); ++new_pixel_low)
 			{
 				const cc_u16f palette_line_index_mask = 0xF;
 				const cc_u16f colour_index_mask = 0x3F;
@@ -280,7 +280,7 @@ void VDP_Constant_Initialise(VDP_Constant* const constant)
 
 				output |= old_not_shadowed || new_not_shadowed ? not_shadowed_mask : 0;
 
-				constant->blit_lookup[new_pixel_high][old_pixel][new_pixel_low] = (cc_u8l)output;
+				constant->blit_lookup.normal[new_pixel_high][old_pixel][new_pixel_low] = (cc_u8l)output;
 
 				/* Now, generate the table for shadow/highlight blitting */
 				if (draw_new_pixel)
@@ -313,10 +313,10 @@ void VDP_Constant_Initialise(VDP_Constant* const constant)
 					output = old_colour_index | (old_not_shadowed ? SHADOW_HIGHLIGHT_NORMAL : SHADOW_HIGHLIGHT_SHADOW);
 				}
 
-				constant->blit_lookup_shadow_highlight[new_pixel_high][old_pixel][new_pixel_low] = (cc_u8l)output;
+				constant->blit_lookup.shadow_highlight[new_pixel_high][old_pixel][new_pixel_low] = (cc_u8l)output;
 
 				/* Finally, generate AND lookup table, for the debug register. */
-				constant->blit_lookup_and[new_pixel_high][old_pixel][new_pixel_low] = (cc_u8l)(old_pixel & (new_colour_index | ~colour_index_mask));
+				constant->blit_lookup.forced_layer[new_pixel_high][old_pixel][new_pixel_low] = (cc_u8l)(old_pixel & (new_colour_index | ~colour_index_mask));
 			}
 		}
 	}
@@ -371,7 +371,7 @@ void VDP_State_Initialise(VDP_State* const state)
 	SetHScrollMode(state, VDP_HSCROLL_MODE_FULL);
 	state->vscroll_mode = VDP_VSCROLL_MODE_FULL;
 
-	state->forced_layer = 0;
+	state->debug.forced_layer = 0;
 
 	memset(state->vram, 0, sizeof(state->vram));
 	memset(state->cram, 0, sizeof(state->cram));
@@ -750,25 +750,25 @@ static void RenderForegroundAndSpritePlanes(const VDP* const vdp, const cc_u16f 
 
 	if (state->display_enabled)
 	{
-		RenderForegroundPlane(vdp, left_boundary, right_boundary, scanline, plane_metapixels, constant->blit_lookup, window_plane);
+		RenderForegroundPlane(vdp, left_boundary, right_boundary, scanline, plane_metapixels, constant->blit_lookup.normal, window_plane);
 
 		if (state->shadow_highlight_enabled)
-			RenderSpritePlane(vdp, plane_metapixels, sprite_metapixels, constant->blit_lookup_shadow_highlight, 0xFF, left_boundary_pixels, right_boundary_pixels);
+			RenderSpritePlane(vdp, plane_metapixels, sprite_metapixels, constant->blit_lookup.shadow_highlight, 0xFF, left_boundary_pixels, right_boundary_pixels);
 		else
-			RenderSpritePlane(vdp, plane_metapixels, sprite_metapixels, constant->blit_lookup, 0x3F, left_boundary_pixels, right_boundary_pixels);
+			RenderSpritePlane(vdp, plane_metapixels, sprite_metapixels, constant->blit_lookup.normal, 0x3F, left_boundary_pixels, right_boundary_pixels);
 
-		switch (state->forced_layer)
+		switch (state->debug.forced_layer)
 		{
 			case 1:
-				RenderSpritePlane(vdp, plane_metapixels, sprite_metapixels, constant->blit_lookup_and, 0xFF, left_boundary_pixels, right_boundary_pixels);
+				RenderSpritePlane(vdp, plane_metapixels, sprite_metapixels, constant->blit_lookup.forced_layer, 0xFF, left_boundary_pixels, right_boundary_pixels);
 				break;
 
 			case 2:
-				RenderScrollPlane(vdp, left_boundary, right_boundary, scanline, plane_metapixels, constant->blit_lookup_and, 0);
+				RenderScrollPlane(vdp, left_boundary, right_boundary, scanline, plane_metapixels, constant->blit_lookup.forced_layer, 0);
 				break;
 
 			case 3:
-				RenderScrollPlane(vdp, left_boundary, right_boundary, scanline, plane_metapixels, constant->blit_lookup_and, 1);
+				RenderScrollPlane(vdp, left_boundary, right_boundary, scanline, plane_metapixels, constant->blit_lookup.forced_layer, 1);
 				break;
 		}
 	}
@@ -805,12 +805,12 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 
 	/* Fill the scanline buffer with the background colour. */
 	/* When forcing a layer, we set all the colour bits to simulate it replacing the background colour layer (since it is ANDed). */
-	memset(plane_metapixels, state->forced_layer == 0 ? state->background_colour : 0x3F, VDP_MAX_SCANLINE_WIDTH);
+	memset(plane_metapixels, state->debug.forced_layer == 0 ? state->background_colour : 0x3F, VDP_MAX_SCANLINE_WIDTH);
 
 	if (state->display_enabled)
 	{
 		/* Draw Plane B. */
-		RenderScrollPlane(vdp, 0, SCANLINE_WIDTH_IN_TILE_PAIRS, scanline, plane_metapixels, constant->blit_lookup, 1);
+		RenderScrollPlane(vdp, 0, SCANLINE_WIDTH_IN_TILE_PAIRS, scanline, plane_metapixels, constant->blit_lookup.normal, 1);
 	}
 
 	/* Draw Window Plane (and sprites). */
@@ -1260,7 +1260,7 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 
 void VDP_WriteDebug(const VDP* const vdp, const cc_u16f value)
 {
-	vdp->state->forced_layer = (value >> 7) & 3;
+	vdp->state->debug.forced_layer = (value >> 7) & 3;
 }
 
 /* TODO: Delete this? */
