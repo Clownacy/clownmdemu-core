@@ -468,47 +468,57 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 			'0' - This bit must be 0.
 			'n' - This bit can have any value.
 			'm' - VDP addresses (00-1Fh) */
-			if (address == 0xC00000 || address == 0xC00002)
+			switch (address_word - 0xC00000 / 2)
 			{
-				/* VDP data port */
-				/* TODO: Reading from the data port causes real Mega Drives to crash (if the VDP isn't in read mode). */
-				value = VDP_ReadData(&clownmdemu->vdp);
-			}
-			else if (address == 0xC00004 || address == 0xC00006)
-			{
-				/* VDP control port */
-				value = VDP_ReadControl(&clownmdemu->vdp);
+				case 0 / 2:
+				case 2 / 2:
+					/* VDP data port */
+					/* TODO: Reading from the data port causes real Mega Drives to crash (if the VDP isn't in read mode). */
+					value = VDP_ReadData(&clownmdemu->vdp);
+					break;
 
-				/* Temporary stupid hack: shove the PAL bit in here. */
-				/* TODO: This should be moved to the VDP core once it becomes sensitive to PAL mode differences. */
-				value |= (clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL);
+				case 4 / 2:
+				case 6 / 2:
+					/* VDP control port */
+					value = VDP_ReadControl(&clownmdemu->vdp);
 
-				/* Temporary stupid hack: approximate the H-blank bit timing. */
-				/* TODO: This should be moved to the VDP core once it becomes slot-based. */
-				value |= GetHBlankBit(clownmdemu, target_cycle) << 2;
-			}
-			else if (address == 0xC00008)
-			{
-				/* H/V COUNTER */
-				/* TODO: The V counter emulation is incredibly inaccurate: the timing is likely wrong, and it should be incremented while in the blanking areas too. */
-				/* TODO: Apparently in interlace mode 1, the lowest bit of the V-counter is set to the hidden ninth bit. */
-				const cc_u8f h_counter = GetHCounterValue(clownmdemu, target_cycle);
-				const cc_u8f v_counter = clownmdemu->state->vdp.double_resolution_enabled
-					? ((clownmdemu->state->current_scanline & 0x7F) << 1) | ((clownmdemu->state->current_scanline & 0x80) >> 7)
-					: (clownmdemu->state->current_scanline & 0xFF);
-				value = v_counter << 8 | h_counter;
-			}
-			else if (address >= 0xC00010 && address <= 0xC00016)
-			{
-				/* PSG */
-				/* TODO: What's supposed to happen here, if you read from the PSG? */
-				/* TODO: It freezes the 68k, that's what:
-					https://forums.sonicretro.org/index.php?posts/1066059/ */
-				LOG_MAIN_CPU_BUS_ERROR_0("Attempted to read from PSG; this will freeze a real Mega Drive");
-			}
-			else
-			{
-				LOG_MAIN_CPU_BUS_ERROR_1("Attempted to read invalid 68k address 0x%" CC_PRIXFAST32, address);
+					/* Temporary stupid hack: shove the PAL bit in here. */
+					/* TODO: This should be moved to the VDP core once it becomes sensitive to PAL mode differences. */
+					value |= (clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL);
+
+					/* Temporary stupid hack: approximate the H-blank bit timing. */
+					/* TODO: This should be moved to the VDP core once it becomes slot-based. */
+					value |= GetHBlankBit(clownmdemu, target_cycle) << 2;
+
+					break;
+
+				case 8 / 2:
+				{
+					/* H/V COUNTER */
+					/* TODO: The V counter emulation is incredibly inaccurate: the timing is likely wrong, and it should be incremented while in the blanking areas too. */
+					/* TODO: Apparently in interlace mode 1, the lowest bit of the V-counter is set to the hidden ninth bit. */
+					const cc_u8f h_counter = GetHCounterValue(clownmdemu, target_cycle);
+					const cc_u8f v_counter = clownmdemu->state->vdp.double_resolution_enabled
+						? ((clownmdemu->state->current_scanline & 0x7F) << 1) | ((clownmdemu->state->current_scanline & 0x80) >> 7)
+						: (clownmdemu->state->current_scanline & 0xFF);
+					value = v_counter << 8 | h_counter;
+					break;
+				}
+
+				case 0x10 / 2:
+				case 0x12 / 2:
+				case 0x14 / 2:
+				case 0x16 / 2:
+					/* PSG */
+					/* TODO: What's supposed to happen here, if you read from the PSG? */
+					/* TODO: It freezes the 68k, that's what:
+						https://forums.sonicretro.org/index.php?posts/1066059/ */
+					LOG_MAIN_CPU_BUS_ERROR_0("Attempted to read from PSG; this will freeze a real Mega Drive");
+					break;
+
+				default:
+					LOG_MAIN_CPU_BUS_ERROR_1("Attempted to read invalid 68k address 0x%" CC_PRIXFAST32, address);
+					break;
 			}
 
 			break;
@@ -905,48 +915,55 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 
 		case 0xC00000 / 0x200000:
 			/* VDP. */
-			if (address == 0xC00000 || address == 0xC00002)
+			switch (address_word - 0xC00000 / 2)
 			{
-				/* VDP data port */
-				VDP_WriteData(&clownmdemu->vdp, value, frontend_callbacks->colour_updated, frontend_callbacks->user_data);
-			}
-			else if (address == 0xC00004 || address == 0xC00006)
-			{
-				/* VDP control port */
-				VDP_WriteControl(&clownmdemu->vdp, value, frontend_callbacks->colour_updated, frontend_callbacks->user_data, VDPReadCallback, callback_user_data, VDPKDebugCallback, NULL);
+				case 0 / 2:
+				case 2 / 2:
+					/* VDP data port */
+					VDP_WriteData(&clownmdemu->vdp, value, frontend_callbacks->colour_updated, frontend_callbacks->user_data);
+					break;
 
-				/* TODO: This should be done more faithfully once the CPU intetpreters are bus-event-oriented. */
-				RaiseHorizontalInterruptIfNeeded(clownmdemu);
-				RaiseVerticalInterruptIfNeeded(clownmdemu);
-			}
-			else if (address == 0xC00008)
-			{
-				/* H/V COUNTER */
-				/* TODO */
-			}
-			else if (address >= 0xC00010 && address <= 0xC00016)
-			{
-				/* PSG */
-				if (do_low_byte)
-				{
-					SyncZ80(clownmdemu, callback_user_data, target_cycle);
-					SyncPSG(callback_user_data, target_cycle);
+				case 4 / 2:
+				case 6 / 2:
+					/* VDP control port */
+					VDP_WriteControl(&clownmdemu->vdp, value, frontend_callbacks->colour_updated, frontend_callbacks->user_data, VDPReadCallback, callback_user_data, VDPKDebugCallback, NULL);
 
-					/* Alter the PSG's state */
-					PSG_DoCommand(&clownmdemu->psg, low_byte);
-				}
-			}
-			else if (address == 0xC00018)
-			{
-				VDP_WriteDebugControl(&clownmdemu->vdp, value);
-			}
-			else if (address == 0xC0001C)
-			{
-				VDP_WriteDebugData(&clownmdemu->vdp, value);
-			}
-			else
-			{
-				LOG_MAIN_CPU_BUS_ERROR_1("Attempted to write invalid 68k address 0x%" CC_PRIXFAST32, address);
+					/* TODO: This should be done more faithfully once the CPU interpreters are bus-event-oriented. */
+					RaiseHorizontalInterruptIfNeeded(clownmdemu);
+					RaiseVerticalInterruptIfNeeded(clownmdemu);
+					break;
+
+				case 8 / 2:
+					/* H/V COUNTER */
+					/* TODO */
+					break;
+
+				case 0x10 / 2:
+				case 0x12 / 2:
+				case 0x14 / 2:
+				case 0x16 / 2:
+					/* PSG */
+					if (do_low_byte)
+					{
+						SyncZ80(clownmdemu, callback_user_data, target_cycle);
+						SyncPSG(callback_user_data, target_cycle);
+
+						/* Alter the PSG's state */
+						PSG_DoCommand(&clownmdemu->psg, low_byte);
+					}
+					break;
+
+				case 0x18 / 2:
+					VDP_WriteDebugControl(&clownmdemu->vdp, value);
+					break;
+
+				case 0x1C / 2:
+					VDP_WriteDebugData(&clownmdemu->vdp, value);
+					break;
+
+				default:
+					LOG_MAIN_CPU_BUS_ERROR_1("Attempted to write invalid 68k address 0x%" CC_PRIXFAST32, address);
+					break;
 			}
 
 			break;
