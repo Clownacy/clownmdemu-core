@@ -4,6 +4,9 @@
 /* Some of the logic here is based on research done by Nemesis:
    https://gendev.spritesmind.net/forum/viewtopic.php?p=21016#p21016 */
 
+/* Forum thread about Overdrive 2's tricks:
+   https://gendev.spritesmind.net/forum/viewtopic.php?t=2604 */
+
 #include "vdp.h"
 
 #include <assert.h>
@@ -663,10 +666,15 @@ static void RenderSprites(cc_u8l (* const sprite_metapixels)[2], VDP_State* cons
 					{
 						const cc_u8f palette_line_index = (byte >> nybble_shift[l]) & 0xF;
 
-						const cc_u8f mask = 0 - (cc_u8f)((*metapixels_pointer == 0) & (palette_line_index != 0));
-
-						*metapixels_pointer++ |= palette_line_index & mask;
-						*metapixels_pointer++ |= metapixel_high_bits & mask;
+						if (*metapixels_pointer == 0)
+						{
+							*metapixels_pointer++ = palette_line_index;
+							*metapixels_pointer++ = metapixel_high_bits;
+						}
+						else
+						{
+							metapixels_pointer += 2;
+						}
 
 						if (--pixel_limit == 0)
 							return;
