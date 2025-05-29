@@ -371,6 +371,7 @@ void VDP_State_Initialise(VDP_State* const state)
 	SetHScrollMode(state, VDP_HSCROLL_MODE_FULL);
 	state->vscroll_mode = VDP_VSCROLL_MODE_FULL;
 
+	state->debug.hide_layers = cc_false;
 	state->debug.forced_layer = 0;
 
 	memset(state->vram, 0, sizeof(state->vram));
@@ -750,12 +751,15 @@ static void RenderForegroundAndSpritePlanes(const VDP* const vdp, const cc_u16f 
 
 	if (state->display_enabled)
 	{
-		RenderForegroundPlane(vdp, left_boundary, right_boundary, scanline, plane_metapixels, constant->blit_lookup.normal, window_plane);
+		if (!state->debug.hide_layers)
+		{
+			RenderForegroundPlane(vdp, left_boundary, right_boundary, scanline, plane_metapixels, constant->blit_lookup.normal, window_plane);
 
-		if (state->shadow_highlight_enabled)
-			RenderSpritePlane(vdp, plane_metapixels, sprite_metapixels, constant->blit_lookup.shadow_highlight, 0xFF, left_boundary_pixels, right_boundary_pixels);
-		else
-			RenderSpritePlane(vdp, plane_metapixels, sprite_metapixels, constant->blit_lookup.normal, 0x3F, left_boundary_pixels, right_boundary_pixels);
+			if (state->shadow_highlight_enabled)
+				RenderSpritePlane(vdp, plane_metapixels, sprite_metapixels, constant->blit_lookup.shadow_highlight, 0xFF, left_boundary_pixels, right_boundary_pixels);
+			else
+				RenderSpritePlane(vdp, plane_metapixels, sprite_metapixels, constant->blit_lookup.normal, 0x3F, left_boundary_pixels, right_boundary_pixels);
+		}
 
 		switch (state->debug.forced_layer)
 		{
@@ -807,7 +811,7 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 	/* When forcing a layer, we set all the colour bits to simulate it replacing the background colour layer (since it is ANDed). */
 	memset(plane_metapixels, state->debug.forced_layer == 0 ? state->background_colour : 0x3F, VDP_MAX_SCANLINE_WIDTH);
 
-	if (state->display_enabled)
+	if (state->display_enabled && !state->debug.hide_layers)
 	{
 		/* Draw Plane B. */
 		RenderScrollPlane(vdp, 0, SCANLINE_WIDTH_IN_TILE_PAIRS, scanline, plane_metapixels, constant->blit_lookup.normal, 1);
@@ -1260,6 +1264,7 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 
 void VDP_WriteDebug(const VDP* const vdp, const cc_u16f value)
 {
+	vdp->state->debug.hide_layers = (value & (1 << 6)) != 0;
 	vdp->state->debug.forced_layer = (value >> 7) & 3;
 }
 

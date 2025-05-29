@@ -155,6 +155,7 @@ typedef struct VDP_State
 
 	struct
 	{
+		cc_bool hide_layers;
 		cc_u8l forced_layer;
 	} debug;
 
