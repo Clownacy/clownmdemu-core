@@ -460,7 +460,7 @@ static void RenderTilePair(const VDP* const vdp, const cc_u16f pixel_y_in_plane,
 
 static void RenderScrollingPlane(const VDP* const vdp, const cc_u8f start, const cc_u8f end, const cc_u16f scanline, const cc_u8f plane_index, const cc_u16f plane_x_offset, cc_u8l* const metapixels, const VDP_BlitLookupLower* const blit_lookup_list)
 {
-	VDP_State* const state = vdp->state;
+	const VDP_State* const state = vdp->state;
 
 	const cc_u32f base_tile_vram_address = VRAM_ADDRESS_BASE_OFFSET(plane_index == 0 ? state->plane_a_tile_index_rebase : state->plane_b_tile_index_rebase);
 	const cc_u16f plane_pitch_shift = state->plane_width_shift;
@@ -693,7 +693,7 @@ static void RenderSprites(cc_u8l (* const sprite_metapixels)[2], VDP_State* cons
 
 static void RenderScrollPlane(const VDP* const vdp, const cc_u8f left_boundary, const cc_u8f right_boundary, const cc_u16f scanline, cc_u8l* const plane_metapixels, const VDP_BlitLookupLower* const blit_lookup_list, const cc_u8f plane_index)
 {
-	VDP_State* const state = vdp->state;
+	const VDP_State* const state = vdp->state;
 
 	if (!vdp->configuration->planes_disabled[plane_index])
 	{
@@ -743,7 +743,7 @@ static void RenderSpritePlane(const VDP* const vdp, cc_u8l* const plane_metapixe
 static void RenderForegroundAndSpritePlanes(const VDP* const vdp, const cc_u16f scanline, cc_u8l* const plane_metapixels, cc_u8l (* const sprite_metapixels)[2], const cc_bool window_plane, const VDP_ScanlineRenderedCallback scanline_rendered_callback, const void* const scanline_rendered_callback_user_data)
 {
 	const VDP_Constant* const constant = vdp->constant;
-	VDP_State* const state = vdp->state;
+	const VDP_State* const state = vdp->state;
 
 	const cc_bool full_window_plane_line = (scanline < state->window.vertical_boundary) != state->window.aligned_bottom;
 
@@ -835,11 +835,13 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 
 cc_u16f VDP_ReadData(const VDP* const vdp)
 {
+	VDP_State* const state = vdp->state;
+
 	cc_u16f value = 0;
 
-	vdp->state->access.write_pending = cc_false;
+	state->access.write_pending = cc_false;
 
-	if (!IsInReadMode(vdp->state))
+	if (!IsInReadMode(state))
 	{
 		/* According to GENESIS SOFTWARE DEVELOPMENT MANUAL (COMPLEMENT) section 4.1,
 		   this should cause the 68k to hang */
@@ -848,7 +850,7 @@ cc_u16f VDP_ReadData(const VDP* const vdp)
 	}
 	else
 	{
-		value = ReadAndIncrement(vdp->state);
+		value = ReadAndIncrement(state);
 	}
 
 	return value;
@@ -856,15 +858,17 @@ cc_u16f VDP_ReadData(const VDP* const vdp)
 
 cc_u16f VDP_ReadControl(const VDP* const vdp)
 {
+	VDP_State* const state = vdp->state;
+
 	const cc_bool fifo_empty = cc_true;
 
 	/* Reading from the control port aborts the VDP waiting for a second command word to be written.
 	   This doesn't appear to be documented in the official SDK manuals we have, but the official
 	   boot code makes use of this feature. */
-	vdp->state->access.write_pending = cc_false;
+	state->access.write_pending = cc_false;
 
 	/* TODO: The other flags. */
-	return 0x3400 | (fifo_empty << 9) | (vdp->state->currently_in_vblank << 3);
+	return 0x3400 | (fifo_empty << 9) | (state->currently_in_vblank << 3);
 }
 
 static void UpdateFakeFIFO(VDP_State* const state, const cc_u16f value)
@@ -880,49 +884,51 @@ static void UpdateFakeFIFO(VDP_State* const state, const cc_u16f value)
 
 void VDP_WriteData(const VDP* const vdp, const cc_u16f value, const VDP_ColourUpdatedCallback colour_updated_callback, const void* const colour_updated_callback_user_data)
 {
-	vdp->state->access.write_pending = cc_false;
+	VDP_State* const state = vdp->state;
 
-	UpdateFakeFIFO(vdp->state, value);
+	state->access.write_pending = cc_false;
 
-	if (IsInReadMode(vdp->state))
+	UpdateFakeFIFO(state, value);
+
+	if (IsInReadMode(state))
 	{
 		/* Invalid input, but defined behaviour */
 		LogMessage("Data was written to the VDP data port while the VDP was in read mode");
 
 		/* According to GENESIS SOFTWARE DEVELOPMENT MANUAL (COMPLEMENT) section 4.1,
 		   data should not be written, but the address should be incremented */
-		IncrementAddressRegister(vdp->state);
+		IncrementAddressRegister(state);
 	}
 	else
 	{
 		/* Write the value to memory */
-		WriteAndIncrement(vdp->state, value, colour_updated_callback, colour_updated_callback_user_data);
+		WriteAndIncrement(state, value, colour_updated_callback, colour_updated_callback_user_data);
 
-		if (IsDMAPending(vdp->state))
+		if (IsDMAPending(state))
 		{
 			/* Perform DMA fill */
 			/* TODO: https://gendev.spritesmind.net/forum/viewtopic.php?p=31857&sid=34ef0ab3215fa6ceb29e12db824c3427#p31857 */
-			ClearDMAPending(vdp->state);
+			ClearDMAPending(state);
 
 			do
 			{
-				if (vdp->state->access.selected_buffer == VDP_ACCESS_VRAM)
+				if (state->access.selected_buffer == VDP_ACCESS_VRAM)
 				{
-					WriteVRAM(vdp->state, vdp->state->access.address_register, (cc_u8f)(value >> 8));
-					IncrementAddressRegister(vdp->state);
+					WriteVRAM(state, state->access.address_register, (cc_u8f)(value >> 8));
+					IncrementAddressRegister(state);
 				}
 				else
 				{
 					/* On real Mega Drives, the fill value for CRAM and VSRAM is fetched from earlier in the FIFO, which appears to be a bug. */
 					/* Verified with Nemesis' 'VDPFIFOTesting' homebrew. */
-					WriteAndIncrement(vdp->state, vdp->state->previous_data_writes[0], colour_updated_callback, colour_updated_callback_user_data);
+					WriteAndIncrement(state, state->previous_data_writes[0], colour_updated_callback, colour_updated_callback_user_data);
 				}
 
 				/* Yes, even DMA fills do this, according to
 				   'https://gendev.spritesmind.net/forum/viewtopic.php?p=21016#p21016'. */
-				++vdp->state->dma.source_address_low;
-				vdp->state->dma.source_address_low &= 0xFFFF;
-			} while (--vdp->state->dma.length, vdp->state->dma.length &= 0xFFFF, vdp->state->dma.length != 0);
+				++state->dma.source_address_low;
+				state->dma.source_address_low &= 0xFFFF;
+			} while (--state->dma.length, state->dma.length &= 0xFFFF, state->dma.length != 0);
 		}
 	}
 }
@@ -930,46 +936,48 @@ void VDP_WriteData(const VDP* const vdp, const cc_u16f value, const VDP_ColourUp
 /* TODO: Retention of partial commands. */
 void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_ColourUpdatedCallback colour_updated_callback, const void* const colour_updated_callback_user_data, const VDP_ReadCallback read_callback, const void* const read_callback_user_data, const VDP_KDebugCallback kdebug_callback, const void* const kdebug_callback_user_data)
 {
-	if (vdp->state->access.write_pending || (value & 0xC000) != 0x8000)
+	VDP_State* const state = vdp->state;
+
+	if (state->access.write_pending || (value & 0xC000) != 0x8000)
 	{
-		if (vdp->state->access.write_pending)
+		if (state->access.write_pending)
 		{
 			/* This is an "address set" command (part 2). */
-			const cc_u16f code_bitmask = vdp->state->dma.enabled ? 0x3C : 0x1C;
+			const cc_u16f code_bitmask = state->dma.enabled ? 0x3C : 0x1C;
 
-			vdp->state->access.write_pending = cc_false;
-			vdp->state->access.address_register = (vdp->state->access.address_register & 0x3FFF) | ((value & 7) << 14);
-			vdp->state->access.code_register = (vdp->state->access.code_register & ~code_bitmask) | ((value >> 2) & code_bitmask);
+			state->access.write_pending = cc_false;
+			state->access.address_register = (state->access.address_register & 0x3FFF) | ((value & 7) << 14);
+			state->access.code_register = (state->access.code_register & ~code_bitmask) | ((value >> 2) & code_bitmask);
 		}
 		else
 		{
 			/* This is an "address set" command (part 1). */
-			vdp->state->access.write_pending = cc_true;
-			vdp->state->access.address_register = (value & 0x3FFF) | (vdp->state->access.address_register & (3 << 14));
-			vdp->state->access.code_register = ((value >> 14) & 3) | (vdp->state->access.code_register & 0x3C);
+			state->access.write_pending = cc_true;
+			state->access.address_register = (value & 0x3FFF) | (state->access.address_register & (3 << 14));
+			state->access.code_register = ((value >> 14) & 3) | (state->access.code_register & 0x3C);
 		}
 
-		switch ((vdp->state->access.code_register >> 1) & 7)
+		switch ((state->access.code_register >> 1) & 7)
 		{
 		case 0: /* VRAM */
-			vdp->state->access.selected_buffer = VDP_ACCESS_VRAM;
+			state->access.selected_buffer = VDP_ACCESS_VRAM;
 			break;
 
 		case 4: /* CRAM (read) */
 		case 1: /* CRAM (write) */
-			vdp->state->access.selected_buffer = VDP_ACCESS_CRAM;
+			state->access.selected_buffer = VDP_ACCESS_CRAM;
 			break;
 
 		case 2: /* VSRAM */
-			vdp->state->access.selected_buffer = VDP_ACCESS_VSRAM;
+			state->access.selected_buffer = VDP_ACCESS_VSRAM;
 			break;
 
 		case 6: /* VRAM (8-bit, undocumented) */
-			vdp->state->access.selected_buffer = VDP_ACCESS_VRAM_8BIT;
+			state->access.selected_buffer = VDP_ACCESS_VRAM_8BIT;
 			break;
 
 		default: /* Invalid */
-			vdp->state->access.selected_buffer = VDP_ACCESS_INVALID;
+			state->access.selected_buffer = VDP_ACCESS_INVALID;
 			break;
 		}
 	}
@@ -981,10 +989,10 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 
 		/* This is relied upon by Sonic 3D Blast (the opening FMV will have broken colours otherwise). */
 		/* This is further verified by Nemesis' 'VDPFIFOTesting' homebrew. */
-		vdp->state->access.selected_buffer = VDP_ACCESS_INVALID;
+		state->access.selected_buffer = VDP_ACCESS_INVALID;
 
 		/* This command is setting a register */
-		if (reg <= 10 || vdp->state->mega_drive_mode_enabled)
+		if (reg <= 10 || state->mega_drive_mode_enabled)
 		{
 			switch (reg)
 			{
@@ -995,7 +1003,7 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 					if ((data & (1 << 5)) != 0)
 							LogMessage("'Blank 8 leftmost pixel columns' flag set but is currently unemulated.");
 
-					vdp->state->h_int_enabled = (data & (1 << 4)) != 0;
+					state->h_int_enabled = (data & (1 << 4)) != 0;
 
 					/* TODO */
 					if ((data & (1 << 1)) != 0)
@@ -1005,52 +1013,52 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 
 				case 1:
 					/* MODE SET REGISTER NO.2 */
-					vdp->state->extended_vram_enabled = (data & (1 << 7)) != 0;
-					vdp->state->display_enabled = (data & (1 << 6)) != 0;
-					vdp->state->v_int_enabled = (data & (1 << 5)) != 0;
-					vdp->state->dma.enabled = (data & (1 << 4)) != 0;
-					vdp->state->v30_enabled = (data & (1 << 3)) != 0;
-					vdp->state->mega_drive_mode_enabled = (data & (1 << 2)) != 0;
+					state->extended_vram_enabled = (data & (1 << 7)) != 0;
+					state->display_enabled = (data & (1 << 6)) != 0;
+					state->v_int_enabled = (data & (1 << 5)) != 0;
+					state->dma.enabled = (data & (1 << 4)) != 0;
+					state->v30_enabled = (data & (1 << 3)) != 0;
+					state->mega_drive_mode_enabled = (data & (1 << 2)) != 0;
 					break;
 
 				case 2:
 					/* PATTERN NAME TABLE BASE ADDRESS FOR SCROLL A */
-					vdp->state->plane_a_address = (data & 0x78) << 10;
+					state->plane_a_address = (data & 0x78) << 10;
 					break;
 
 				case 3:
 					/* PATTERN NAME TABLE BASE ADDRESS FOR WINDOW */
 					/* TODO: The lowest bit is invalid is H40 mode according to the 'Genesis Software Manual'. */
 					/* http://techdocs.exodusemulator.com/Console/SegaMegaDrive/Documentation.html#mega-drive-documentation */
-					vdp->state->window_address = (data & 0x7E) << 10;
+					state->window_address = (data & 0x7E) << 10;
 					break;
 
 				case 4:
 					/* PATTERN NAME TABLE BASE ADDRESS FOR SCROLL B */
-					vdp->state->plane_b_address = (data & 0xF) << 13;
+					state->plane_b_address = (data & 0xF) << 13;
 					break;
 
 				case 5:
 					/* SPRITE ATTRIBUTE TABLE BASE ADDRESS */
-					vdp->state->sprite_table_address = (cc_u32f)data << 9;
+					state->sprite_table_address = (cc_u32f)data << 9;
 
 					/* Real VDPs partially cache the sprite table, and forget to update it
 					   when the sprite table base address is changed. Replicating this
 					   behaviour may be needed in order to properly emulate certain effects
 					   that involve manipulating the sprite table during rendering. */
-					/*vdp->state->sprite_row_cache.needs_updating = cc_true;*/ /* The VDP does not do this! */
+					/*state->sprite_row_cache.needs_updating = cc_true;*/ /* The VDP does not do this! */
 
 					break;
 
 				case 6:
 					/* Unused legacy register for Master System mode. */
-					vdp->state->sprite_tile_index_rebase = (data & (1 << 5)) != 0;
+					state->sprite_tile_index_rebase = (data & (1 << 5)) != 0;
 
 					break;
 
 				case 7:
 					/* BACKGROUND COLOR */
-					vdp->state->background_colour = data & 0x3F;
+					state->background_colour = data & 0x3F;
 					break;
 
 				case 8:
@@ -1061,7 +1069,7 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 
 				case 10:
 					/* H INTERRUPT REGISTER */
-					vdp->state->h_int_interval = (cc_u8l)data;
+					state->h_int_interval = (cc_u8l)data;
 					break;
 
 				case 11:
@@ -1071,16 +1079,16 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 					if ((data & (1 << 3)) != 0)
 							LogMessage("'External interrupt' flag set but is currently unemulated.");
 
-					vdp->state->vscroll_mode = data & 4 ? VDP_VSCROLL_MODE_2CELL : VDP_VSCROLL_MODE_FULL;
-					SetHScrollMode(vdp->state, (VDP_HScrollMode)(data & 3));
+					state->vscroll_mode = data & 4 ? VDP_VSCROLL_MODE_2CELL : VDP_VSCROLL_MODE_FULL;
+					SetHScrollMode(state, (VDP_HScrollMode)(data & 3));
 					break;
 
 				case 12:
 					/* MODE SET REGISTER NO.4 */
 					/* TODO: Mode 1. */
 					/* TODO: This register is latched on V-Int: https://gendev.spritesmind.net/forum/viewtopic.php?t=768 */
-					vdp->state->h40_enabled = (data & ((1 << 7) | (1 << 0))) != 0;
-					vdp->state->shadow_highlight_enabled = (data & (1 << 3)) != 0;
+					state->h40_enabled = (data & ((1 << 7) | (1 << 0))) != 0;
+					state->shadow_highlight_enabled = (data & (1 << 3)) != 0;
 
 					/* Process the interlacing bits.
 					   To fully understand this, one has to understand how PAL and NTSC televisions display:
@@ -1092,28 +1100,28 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 						case 0:
 							/* Regular '240p' mode: the 'Genesis Software Manual' seems to suggest that this
 							   mode only outputs the even-numbered lines, leaving the odd-numbered ones black. */
-							vdp->state->double_resolution_enabled = cc_false;
+							state->double_resolution_enabled = cc_false;
 							break;
 
 						case 1:
 							/* This mode renders the odd-numbered lines as well, but they are merely
 							   duplicates of the even lines. The 'Genesis Software Manual' warns that this
 							   can create severe vertical blurring. */
-							vdp->state->double_resolution_enabled = cc_false;
+							state->double_resolution_enabled = cc_false;
 							break;
 
 						case 2:
 							/* The 'Genesis Software Manual' warns that this is prohibited. Some unlicensed
 							   EA games use this. Apparently it creates an image that is slightly broken in
 							   some way. */
-							vdp->state->double_resolution_enabled = cc_false;
+							state->double_resolution_enabled = cc_false;
 							LogMessage("Invalid interlace setting '2' used.");
 							break;
 
 						case 3:
 							/* Double resolution mode: in this mode, the odd and even lines display different
 							   graphics, effectively turning the tiles from 8x8 to 8x16. */
-							vdp->state->double_resolution_enabled = cc_true;
+							state->double_resolution_enabled = cc_true;
 							break;
 					}
 
@@ -1121,45 +1129,45 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 
 				case 13:
 					/* H SCROLL DATA TABLE BASE ADDRESS */
-					vdp->state->hscroll_address = (data & 0x7F) << 10;
+					state->hscroll_address = (data & 0x7F) << 10;
 					break;
 
 				case 14:
 					/* PATTERN NAME TABLE BASE ADDRESS 128KiB */
-					vdp->state->plane_a_tile_index_rebase = (data & (1 << 0)) != 0;
-					vdp->state->plane_b_tile_index_rebase = (data & (1 << 4)) != 0 && vdp->state->plane_a_tile_index_rebase;
+					state->plane_a_tile_index_rebase = (data & (1 << 0)) != 0;
+					state->plane_b_tile_index_rebase = (data & (1 << 4)) != 0 && state->plane_a_tile_index_rebase;
 					break;
 
 				case 15:
 					/* AUTO INCREMENT DATA */
-					vdp->state->access.increment = (cc_u8l)data;
+					state->access.increment = (cc_u8l)data;
 					break;
 
 				case 16:
 					/* SCROLL SIZE */
 					/* https://gendev.spritesmind.net/forum/viewtopic.php?p=31307#p31307 */
-					vdp->state->plane_height_bitmask = (data << 1) | 0x1F;
+					state->plane_height_bitmask = (data << 1) | 0x1F;
 
 					switch (data & 3)
 					{
 						case 0:
-							vdp->state->plane_width_shift = 5;
-							vdp->state->plane_height_bitmask &= 0x7F;
+							state->plane_width_shift = 5;
+							state->plane_height_bitmask &= 0x7F;
 							break;
 
 						case 1:
-							vdp->state->plane_width_shift = 6;
-							vdp->state->plane_height_bitmask &= 0x3F;
+							state->plane_width_shift = 6;
+							state->plane_height_bitmask &= 0x3F;
 							break;
 
 						case 2:
-							vdp->state->plane_width_shift = 5;
-							vdp->state->plane_height_bitmask &= 0;
+							state->plane_width_shift = 5;
+							state->plane_height_bitmask &= 0;
 							break;
 
 						case 3:
-							vdp->state->plane_width_shift = 7;
-							vdp->state->plane_height_bitmask &= 0x1F;
+							state->plane_width_shift = 7;
+							state->plane_height_bitmask &= 0x1F;
 							break;
 					}
 
@@ -1167,51 +1175,51 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 
 				case 17:
 					/* WINDOW H POSITION */
-					vdp->state->window.aligned_right = (data & 0x80) != 0;
-					vdp->state->window.horizontal_boundary = CC_MIN(SCANLINE_WIDTH_IN_TILE_PAIRS, data & 0x1F); /* Measured in tile pairs. */
+					state->window.aligned_right = (data & 0x80) != 0;
+					state->window.horizontal_boundary = CC_MIN(SCANLINE_WIDTH_IN_TILE_PAIRS, data & 0x1F); /* Measured in tile pairs. */
 					break;
 
 				case 18:
 					/* WINDOW V POSITION */
-					vdp->state->window.aligned_bottom = (data & 0x80) != 0;
-					vdp->state->window.vertical_boundary = MULTIPLY_BY_TILE_HEIGHT(vdp->state, data & 0x1F); /* Measured in tiles. */
+					state->window.aligned_bottom = (data & 0x80) != 0;
+					state->window.vertical_boundary = MULTIPLY_BY_TILE_HEIGHT(state, data & 0x1F); /* Measured in tiles. */
 					break;
 
 				case 19:
 					/* DMA LENGTH COUNTER LOW */
-					vdp->state->dma.length &= ~(0xFFu << 0);
-					vdp->state->dma.length |= data << 0;
+					state->dma.length &= ~(0xFFu << 0);
+					state->dma.length |= data << 0;
 					break;
 
 				case 20:
 					/* DMA LENGTH COUNTER HIGH */
-					vdp->state->dma.length &= ~(0xFFu << 8);
-					vdp->state->dma.length |= data << 8;
+					state->dma.length &= ~(0xFFu << 8);
+					state->dma.length |= data << 8;
 					break;
 
 				case 21:
 					/* DMA SOURCE ADDRESS LOW */
-					vdp->state->dma.source_address_low &= ~(0xFFu << 0);
-					vdp->state->dma.source_address_low |= data << 0;
+					state->dma.source_address_low &= ~(0xFFu << 0);
+					state->dma.source_address_low |= data << 0;
 					break;
 
 				case 22:
 					/* DMA SOURCE ADDRESS MID. */
-					vdp->state->dma.source_address_low &= ~(0xFFu << 8);
-					vdp->state->dma.source_address_low |= data << 8;
+					state->dma.source_address_low &= ~(0xFFu << 8);
+					state->dma.source_address_low |= data << 8;
 					break;
 
 				case 23:
 					/* DMA SOURCE ADDRESS HIGH */
 					if ((data & 0x80) != 0)
 					{
-						vdp->state->dma.source_address_high = data & 0x3F;
-						vdp->state->dma.mode = (data & 0x40) != 0 ? VDP_DMA_MODE_COPY : VDP_DMA_MODE_FILL;
+						state->dma.source_address_high = data & 0x3F;
+						state->dma.mode = (data & 0x40) != 0 ? VDP_DMA_MODE_COPY : VDP_DMA_MODE_FILL;
 					}
 					else
 					{
-						vdp->state->dma.source_address_high = data & 0x7F;
-						vdp->state->dma.mode = VDP_DMA_MODE_MEMORY_TO_VRAM;
+						state->dma.source_address_high = data & 0x7F;
+						state->dma.mode = VDP_DMA_MODE_MEMORY_TO_VRAM;
 					}
 
 					break;
@@ -1225,13 +1233,13 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 					if (character < 0x20 && character != '\0')
 						break;
 
-					vdp->state->kdebug_buffer[vdp->state->kdebug_buffer_index++] = character;
+					state->kdebug_buffer[state->kdebug_buffer_index++] = character;
 
 					/* The last byte of the buffer is always set to 0, so we don't need to do it here. */
-					if (character == '\0' || vdp->state->kdebug_buffer_index == CC_COUNT_OF(vdp->state->kdebug_buffer) - 1)
+					if (character == '\0' || state->kdebug_buffer_index == CC_COUNT_OF(state->kdebug_buffer) - 1)
 					{
-						vdp->state->kdebug_buffer_index = 0;
-						kdebug_callback((void*)kdebug_callback_user_data, vdp->state->kdebug_buffer);
+						state->kdebug_buffer_index = 0;
+						kdebug_callback((void*)kdebug_callback_user_data, state->kdebug_buffer);
 					}
 
 					break;
@@ -1245,29 +1253,29 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 		}
 	}
 
-	if (IsDMAPending(vdp->state) && vdp->state->dma.mode != VDP_DMA_MODE_FILL)
+	if (IsDMAPending(state) && state->dma.mode != VDP_DMA_MODE_FILL)
 	{
 		/* Firing DMA */
-		ClearDMAPending(vdp->state);
+		ClearDMAPending(state);
 
 		do
 		{
-			if (vdp->state->dma.mode == VDP_DMA_MODE_MEMORY_TO_VRAM)
+			if (state->dma.mode == VDP_DMA_MODE_MEMORY_TO_VRAM)
 			{
-				const cc_u16f value = read_callback((void*)read_callback_user_data, ((cc_u32f)vdp->state->dma.source_address_high << 17) | ((cc_u32f)vdp->state->dma.source_address_low << 1));
-				UpdateFakeFIFO(vdp->state, value);
-				WriteAndIncrement(vdp->state, value, colour_updated_callback, colour_updated_callback_user_data);
+				const cc_u16f value = read_callback((void*)read_callback_user_data, ((cc_u32f)state->dma.source_address_high << 17) | ((cc_u32f)state->dma.source_address_low << 1));
+				UpdateFakeFIFO(state, value);
+				WriteAndIncrement(state, value, colour_updated_callback, colour_updated_callback_user_data);
 			}
 			else /*if (state->dma.mode == VDP_DMA_MODE_COPY)*/
 			{
-				WriteVRAM(vdp->state, vdp->state->access.address_register, ReadVRAM(vdp->state, vdp->state->dma.source_address_low));
-				IncrementAddressRegister(vdp->state);
+				WriteVRAM(state, state->access.address_register, ReadVRAM(state, state->dma.source_address_low));
+				IncrementAddressRegister(state);
 			}
 
 			/* Emulate the 128KiB DMA wrap-around bug. */
-			++vdp->state->dma.source_address_low;
-			vdp->state->dma.source_address_low &= 0xFFFF;
-		} while (--vdp->state->dma.length, vdp->state->dma.length &= 0xFFFF, vdp->state->dma.length != 0);
+			++state->dma.source_address_low;
+			state->dma.source_address_low &= 0xFFFF;
+		} while (--state->dma.length, state->dma.length &= 0xFFFF, state->dma.length != 0);
 	}
 }
 
