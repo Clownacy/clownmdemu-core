@@ -155,6 +155,7 @@ typedef struct VDP_State
 
 	struct
 	{
+		cc_u8l selected_register;
 		cc_bool hide_layers;
 		cc_u8l forced_layer;
 	} debug;
@@ -204,7 +205,8 @@ cc_u16f VDP_ReadData(const VDP *vdp);
 cc_u16f VDP_ReadControl(const VDP *vdp);
 void VDP_WriteData(const VDP *vdp, cc_u16f value, VDP_ColourUpdatedCallback colour_updated_callback, const void *colour_updated_callback_user_data);
 void VDP_WriteControl(const VDP *vdp, cc_u16f value, VDP_ColourUpdatedCallback colour_updated_callback, const void *colour_updated_callback_user_data, VDP_ReadCallback read_callback, const void *read_callback_user_data, VDP_KDebugCallback kdebug_callback, const void *kdebug_callback_user_data);
-void VDP_WriteDebug(const VDP *vdp, cc_u16f value);
+void VDP_WriteDebugData(const VDP *vdp, cc_u16f value);
+void VDP_WriteDebugControl(const VDP *vdp, cc_u16f value);
 
 cc_u16f VDP_ReadVRAMWord(const VDP_State *state, cc_u16f address);
 VDP_TileMetadata VDP_DecomposeTileMetadata(cc_u16f packed_tile_metadata);

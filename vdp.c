@@ -371,6 +371,7 @@ void VDP_State_Initialise(VDP_State* const state)
 	SetHScrollMode(state, VDP_HSCROLL_MODE_FULL);
 	state->vscroll_mode = VDP_VSCROLL_MODE_FULL;
 
+	state->debug.selected_register = 0;
 	state->debug.hide_layers = cc_false;
 	state->debug.forced_layer = 0;
 
@@ -1262,10 +1263,20 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 	}
 }
 
-void VDP_WriteDebug(const VDP* const vdp, const cc_u16f value)
+void VDP_WriteDebugData(const VDP* const vdp, const cc_u16f value)
 {
-	vdp->state->debug.hide_layers = (value & (1 << 6)) != 0;
-	vdp->state->debug.forced_layer = (value >> 7) & 3;
+	switch (vdp->state->debug.selected_register)
+	{
+		case 0:
+			vdp->state->debug.hide_layers = (value & (1 << 6)) != 0;
+			vdp->state->debug.forced_layer = (value >> 7) & 3;
+			break;
+	}
+}
+
+void VDP_WriteDebugControl(const VDP* const vdp, const cc_u16f value)
+{
+	vdp->state->debug.selected_register = (value >> 8) & 0xF;
 }
 
 /* TODO: Delete this? */

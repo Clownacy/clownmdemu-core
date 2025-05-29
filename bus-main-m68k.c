@@ -936,9 +936,13 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 					PSG_DoCommand(&clownmdemu->psg, low_byte);
 				}
 			}
+			else if (address == 0xC00018)
+			{
+				VDP_WriteDebugControl(&clownmdemu->vdp, value);
+			}
 			else if (address == 0xC0001C)
 			{
-				VDP_WriteDebug(&clownmdemu->vdp, value);
+				VDP_WriteDebugData(&clownmdemu->vdp, value);
 			}
 			else
 			{
