@@ -51,7 +51,8 @@ void LowPassFilter_SecondOrder_Apply(LowPassFilter_SecondOrder_State* const stat
 			LowPassFilter_SecondOrder_State* const state = &states[current_channel];
 
 			const cc_s32f unclamped_output
-				= LOW_PASS_FILTER_FIXED_MULTIPLY((cc_s32f)*sample_pointer + state->previous_samples[0] + state->previous_samples[0] + state->previous_samples[1], sample_magic)
+				= LOW_PASS_FILTER_FIXED_MULTIPLY((cc_s32f)*sample_pointer + state->previous_samples[0], sample_magic)
+				+ LOW_PASS_FILTER_FIXED_MULTIPLY((cc_s32f)state->previous_samples[0] + state->previous_samples[1], sample_magic)
 				+ LOW_PASS_FILTER_FIXED_MULTIPLY(state->previous_outputs[0], output_magic_1)
 				- LOW_PASS_FILTER_FIXED_MULTIPLY(state->previous_outputs[1], output_magic_2);
 
