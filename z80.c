@@ -1113,6 +1113,7 @@ static void ExecuteInstruction(const Z80* const z80, const Z80_ReadAndWriteCallb
 			if (z80->state->b != 0)
 			{
 				z80->state->program_counter += CC_SIGN_EXTEND_UINT(7, instruction->literal);
+				z80->state->program_counter &= 0xFFFF;
 
 				/* Branching takes 5 cycles. */
 				z80->state->cycles += 5;
@@ -1126,6 +1127,7 @@ static void ExecuteInstruction(const Z80* const z80, const Z80_ReadAndWriteCallb
 			/* Fallthrough */
 		case Z80_OPCODE_JR_UNCONDITIONAL:
 			z80->state->program_counter += CC_SIGN_EXTEND_UINT(7, instruction->literal);
+			z80->state->program_counter &= 0xFFFF;
 
 			/* Branching takes 5 cycles. */
 			z80->state->cycles += 5;
