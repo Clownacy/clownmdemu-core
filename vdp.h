@@ -12,6 +12,11 @@ extern "C" {
 #define VDP_MAX_SCANLINE_WIDTH 320
 #define VDP_MAX_SCANLINES (240 * 2) /* V30 in interlace mode 2 */
 
+#define VDP_PALETTE_LINE_LENGTH 16
+#define VDP_TOTAL_PALETTE_LINES 4
+#define VDP_TOTAL_BRIGHTNESSES 3
+#define VDP_TOTAL_COLOURS (VDP_PALETTE_LINE_LENGTH * VDP_TOTAL_PALETTE_LINES * VDP_TOTAL_BRIGHTNESSES)
+
 typedef struct VDP_Configuration
 {
 	cc_bool sprites_disabled;
@@ -161,7 +166,7 @@ typedef struct VDP_State
 	} debug;
 
 	cc_u8l vram[0x10000];
-	cc_u16l cram[4 * 16];
+	cc_u16l cram[VDP_PALETTE_LINE_LENGTH * VDP_TOTAL_PALETTE_LINES];
 	/* http://gendev.spritesmind.net/forum/viewtopic.php?p=36727#p36727 */
 	/* According to Mask of Destiny on SpritesMind, later models of Mega Drive (MD2 VA4 and later) have 64 words
 	   of VSRAM, instead of the 40 words that earlier models have. */
