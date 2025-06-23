@@ -1,6 +1,7 @@
 /* TODO: */
 /* https://bitbucket.org/eke/genesis-plus-gx/issues/29/mega-cd-support */
 /* https://gendev.spritesmind.net/forum/viewtopic.php?t=3020 */
+/* https://gendev.spritesmind.net/forum/viewtopic.php?p=18935#p18935 - The address is always masked with 0xFFFFF! */
 
 #include "bus-sub-m68k.h"
 
