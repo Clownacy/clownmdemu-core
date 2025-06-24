@@ -1044,9 +1044,9 @@ static void DecodeInstruction(const Z80* const z80, const Z80_ReadAndWriteCallba
 
 static cc_bool ComputeParity(cc_u8f value)
 {
-	value |= value >> 4;
-	value |= value >> 2;
-	value |= value >> 1;
+	value ^= value >> 4;
+	value ^= value >> 2;
+	value ^= value >> 1;
 
 	return (value & 1) == 0;
 }
