@@ -302,6 +302,9 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 
 					value = Z80ReadCallbackWithCycle(user_data, (address + (do_high_byte ? 0 : 1)) & 0xFFFF, target_cycle);
 					value = value << 8 | value;
+
+					/* TODO: This should delay the 68k by a cycle. */
+					/* https://gendev.spritesmind.net/forum/viewtopic.php?p=29929&sid=7c86823ea17db0dca9238bb3fe32c93f#p29929 */
 				}
 			}
 			else if (address >= 0xA10000 && address <= 0xA1001F)
@@ -707,6 +710,9 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 						Z80WriteCallbackWithCycle(user_data, (address + 0) & 0xFFFF, high_byte, target_cycle);
 					else /*if (do_low_byte)*/
 						Z80WriteCallbackWithCycle(user_data, (address + 1) & 0xFFFF, low_byte, target_cycle);
+
+					/* TODO: This should delay the 68k by a cycle. */
+					/* https://gendev.spritesmind.net/forum/viewtopic.php?p=29929&sid=7c86823ea17db0dca9238bb3fe32c93f#p29929 */
 				}
 			}
 			else if (address >= 0xA10000 && address <= 0xA1001F)
