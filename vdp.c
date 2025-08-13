@@ -71,20 +71,23 @@ static cc_u32f GetSpriteTableAddress(const VDP_State* const state)
 	return state->sprite_table_address & (state->h40_enabled ? ~(cc_u32f)0x3FF : ~(cc_u32f)0x1FF);
 }
 
-static cc_u32f DecodeVRAMAddress(const VDP_State* const state, const cc_u32f address)
+static cc_u32f DecodeVRAMAddress(const VDP_State* const state, cc_u32f address)
 {
 	/* TODO: Master System mode. */
 
 	if (state->extended_vram_enabled)
 	{
 		/* 128KiB mode. Slower, but this mode is rarely used anyway. */
-		return ((address & 0x1F802) >> 1) | ((address & 0x400) >> 9) | (address & 0x3FC) | ((address & 1) << 16);
+		address = ((address & 0x1F802) >> 1) | ((address & 0x400) >> 9) | (address & 0x3FC) | ((address & 1) << 16);
 	}
 	else
 	{
 		/* 64KiB mode. Left mostly as-is to maximise performance of most Mega Drive software. */
-		return address & 0xFFFF;
+		address &= 0xFFFF;
 	}
+
+	/* Byte-swap VRAM, so that it is in the order expected by ROM-hackers and the like. */
+	return address ^ 1;
 }
 
 static cc_u8f ReadVRAM(const VDP_State* const state, const cc_u32f address)
