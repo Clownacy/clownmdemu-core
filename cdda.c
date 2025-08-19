@@ -46,6 +46,9 @@ void CDDA_SetVolume(CDDA* const cdda, const cc_u16f volume)
 	/* Scale the volume by the master volume. */
 	/* TODO: What happens if the volume exceeds 'CDDA_MAX_VOLUME'? */
 	cdda->volume = ScaleByMasterVolume(cdda, volume);
+
+	/* Halt any in-progress volume fade. */
+	cdda->fade_remaining = 0;
 }
 
 void CDDA_SetMasterVolume(CDDA* const cdda, const cc_u16f master_volume)
