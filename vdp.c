@@ -420,7 +420,6 @@ static cc_u16f GetVScrollTableOffset(const VDP_State* const state, const cc_u8f 
 static void RenderTilePair(const VDP* const vdp, const cc_u16f pixel_y_in_plane, const cc_u32f vram_address, const cc_u32f base_tile_vram_address, cc_u8l** const metapixels_pointer, const VDP_BlitLookupLower* const blit_lookup_list)
 {
 	const VDP_State* const state = vdp->state;
-	const cc_u8l* const vram = state->vram;
 
 	const cc_u8f tile_height_shift = GET_TILE_HEIGHT_SHIFT(state);
 	const cc_u8f tile_height_mask = (1 << tile_height_shift) - 1;
@@ -441,7 +440,7 @@ static void RenderTilePair(const VDP* const vdp, const cc_u16f pixel_y_in_plane,
 		/* Get raw tile data that contains the desired metapixel */
 		const cc_u32f tile_row_vram_address = base_tile_vram_address + TILE_Y_INDEX_TO_TILE_BYTE_INDEX((VDP_GetTileIndex(word) << tile_height_shift) + pixel_y_in_tile);
 
-		const cc_u8f byte_index_xor = 1 ^ 3 & x_flip;
+		const cc_u8f byte_index_xor = 1 ^ (3 & x_flip);
 		const cc_u8f nybble_shift_2 = 4 & x_flip;
 		const cc_u8f nybble_shift_1 = 4 ^ nybble_shift_2;
 
@@ -451,7 +450,7 @@ static void RenderTilePair(const VDP* const vdp, const cc_u16f pixel_y_in_plane,
 
 		for (j = 0; j < TILE_WIDTH / 2; ++j)
 		{
-			const cc_u8f byte = ReadVRAM(state, tile_row_vram_address + j ^ byte_index_xor);
+			const cc_u8f byte = ReadVRAM(state, (tile_row_vram_address + j) ^ byte_index_xor);
 
 			**metapixels_pointer = blit_lookup[**metapixels_pointer][(byte >> nybble_shift_1) & 0xF];
 			++*metapixels_pointer;
@@ -728,7 +727,7 @@ static void RenderForegroundPlane(const VDP* const vdp, const cc_u8f left_bounda
 	}
 }
 
-static void RenderSpritePlane(const VDP* const vdp, cc_u8l* const plane_metapixels, cc_u8l (* const sprite_metapixels)[2], const VDP_BlitLookupLower* const blit_lookup_list, const unsigned int mask, const cc_u16f left_boundary_pixels, const cc_u16f right_boundary_pixels)
+static void RenderSpritePlane(cc_u8l* const plane_metapixels, cc_u8l (* const sprite_metapixels)[2], const VDP_BlitLookupLower* const blit_lookup_list, const unsigned int mask, const cc_u16f left_boundary_pixels, const cc_u16f right_boundary_pixels)
 {
 	const cc_u8l *sprite_metapixels_pointer = sprite_metapixels[left_boundary_pixels];
 	cc_u8l *plane_metapixels_pointer = &plane_metapixels[left_boundary_pixels];
@@ -756,8 +755,6 @@ static void RenderForegroundAndSpritePlanes(const VDP* const vdp, const cc_u16f 
 	const cc_u16f left_boundary_pixels = left_boundary * TILE_PAIR_WIDTH;
 	const cc_u16f right_boundary_pixels = right_boundary * TILE_PAIR_WIDTH;
 
-	cc_u8f plane_index;
-
 	if (left_boundary == right_boundary)
 		return;
 
@@ -768,15 +765,15 @@ static void RenderForegroundAndSpritePlanes(const VDP* const vdp, const cc_u16f 
 			RenderForegroundPlane(vdp, left_boundary, right_boundary, scanline, plane_metapixels, constant->blit_lookup.normal, window_plane);
 
 			if (state->shadow_highlight_enabled)
-				RenderSpritePlane(vdp, plane_metapixels, sprite_metapixels, constant->blit_lookup.shadow_highlight, 0xFF, left_boundary_pixels, right_boundary_pixels);
+				RenderSpritePlane(plane_metapixels, sprite_metapixels, constant->blit_lookup.shadow_highlight, 0xFF, left_boundary_pixels, right_boundary_pixels);
 			else
-				RenderSpritePlane(vdp, plane_metapixels, sprite_metapixels, constant->blit_lookup.normal, 0x3F, left_boundary_pixels, right_boundary_pixels);
+				RenderSpritePlane(plane_metapixels, sprite_metapixels, constant->blit_lookup.normal, 0x3F, left_boundary_pixels, right_boundary_pixels);
 		}
 
 		switch (state->debug.forced_layer)
 		{
 			case 1:
-				RenderSpritePlane(vdp, plane_metapixels, sprite_metapixels, constant->blit_lookup.forced_layer, 0xFF, left_boundary_pixels, right_boundary_pixels);
+				RenderSpritePlane(plane_metapixels, sprite_metapixels, constant->blit_lookup.forced_layer, 0xFF, left_boundary_pixels, right_boundary_pixels);
 				break;
 
 			case 2:

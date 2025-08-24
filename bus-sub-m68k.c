@@ -107,6 +107,7 @@ static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const
 
 			ROMSEEK(clownmdemu, frontend_callbacks, starting_sector, 0);
 			CDCSTART(clownmdemu, frontend_callbacks);
+			break;
 		}
 
 		case 0x18:
