@@ -438,7 +438,7 @@ static void RenderTilePair(const VDP* const vdp, const cc_u16f pixel_y_in_plane,
 		const cc_u8f nybble_shift_2 = 4 & x_flip;
 		const cc_u8f nybble_shift_1 = 4 ^ nybble_shift_2;
 
-		const VDP_BlitLookupLower* const blit_lookup = blit_lookup_list[(word >> 9) & 0x70];
+		const VDP_BlitLookupLower* const blit_lookup = &blit_lookup_list[(word >> 9) & 0x70];
 
 		cc_u8f j;
 
