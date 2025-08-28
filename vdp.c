@@ -417,7 +417,7 @@ static cc_u16f GetVScrollTableOffset(const VDP_State* const state, const cc_u8f 
 	}
 }
 
-static void RenderTilePair(const VDP* const vdp, const cc_u16f pixel_y_in_plane, const cc_u32f vram_address, const cc_u32f base_tile_vram_address, cc_u8l** const metapixels_pointer, const VDP_BlitLookupLower* const blit_lookup_list)
+static void RenderTilePair(const VDP* const vdp, const cc_u16f pixel_y_in_plane, const cc_u32f vram_address, const cc_u32f base_tile_vram_address, cc_u8l** const metapixels_pointer_pointer, const VDP_BlitLookupLower* const blit_lookup_list)
 {
 	const VDP_State* const state = vdp->state;
 
@@ -425,6 +425,7 @@ static void RenderTilePair(const VDP* const vdp, const cc_u16f pixel_y_in_plane,
 	const cc_u8f tile_height_mask = (1 << tile_height_shift) - 1;
 	const cc_u8f pixel_y_in_tile_unflipped = pixel_y_in_plane & tile_height_mask;
 
+	cc_u8l *metapixels_pointer = *metapixels_pointer_pointer;
 	cc_u8f i;
 
 	for (i = 0; i < TILE_PAIR_COUNT; ++i)
@@ -452,12 +453,14 @@ static void RenderTilePair(const VDP* const vdp, const cc_u16f pixel_y_in_plane,
 		{
 			const cc_u8f byte = ReadVRAM(state, (tile_row_vram_address + j) ^ byte_index_xor);
 
-			**metapixels_pointer = blit_lookup[**metapixels_pointer][(byte >> nybble_shift_1) & 0xF];
-			++*metapixels_pointer;
-			**metapixels_pointer = blit_lookup[**metapixels_pointer][(byte >> nybble_shift_2) & 0xF];
-			++*metapixels_pointer;
+			*metapixels_pointer = blit_lookup[*metapixels_pointer][(byte >> nybble_shift_1) & 0xF];
+			++metapixels_pointer;
+			*metapixels_pointer = blit_lookup[*metapixels_pointer][(byte >> nybble_shift_2) & 0xF];
+			++metapixels_pointer;
 		}
 	}
+
+	*metapixels_pointer_pointer = metapixels_pointer;
 }
 
 static void RenderScrollingPlane(const VDP* const vdp, const cc_u8f start, const cc_u8f end, const cc_u16f scanline, const cc_u8f plane_index, const cc_u16f plane_x_offset, cc_u8l* const metapixels, const VDP_BlitLookupLower* const blit_lookup_list)
