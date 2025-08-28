@@ -24,8 +24,8 @@ typedef struct VDP_Configuration
 	cc_bool planes_disabled[2];
 } VDP_Configuration;
 
-typedef cc_u8l VDP_BlitLookupNybble[1 << 4];
-typedef VDP_BlitLookupNybble VDP_BlitLookupLower[1 << (1 + 1 + 2 + 4)];
+typedef cc_u8l VDP_BlitLookupNybble[1 << (1 + 1 + 2 + 4)];
+typedef VDP_BlitLookupNybble VDP_BlitLookupLower[1 << 4];
 typedef VDP_BlitLookupLower VDP_BlitLookup[1 << (1 + 2)];
 
 typedef struct VDP_Constant

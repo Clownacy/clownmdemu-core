@@ -252,13 +252,13 @@ void VDP_Constant_Initialise(VDP_Constant* const constant)
 
 	for (new_pixel_high = 0; new_pixel_high < CC_COUNT_OF(constant->blit_lookup.normal); ++new_pixel_high)
 	{
-		cc_u16f old_pixel;
+		cc_u16f new_pixel_low;
 
-		for (old_pixel = 0; old_pixel < CC_COUNT_OF(constant->blit_lookup.normal[0]); ++old_pixel)
+		for (new_pixel_low = 0; new_pixel_low < CC_COUNT_OF(constant->blit_lookup.normal[0]); ++new_pixel_low)
 		{
-			cc_u16f new_pixel_low;
+			cc_u16f old_pixel;
 
-			for (new_pixel_low = 0; new_pixel_low < CC_COUNT_OF(constant->blit_lookup.normal[0][0]); ++new_pixel_low)
+			for (old_pixel = 0; old_pixel < CC_COUNT_OF(constant->blit_lookup.normal[0][0]); ++old_pixel)
 			{
 				const cc_u16f palette_line_index_mask = 0xF;
 				const cc_u16f colour_index_mask = 0x3F;
@@ -286,7 +286,7 @@ void VDP_Constant_Initialise(VDP_Constant* const constant)
 
 				output |= old_not_shadowed || new_not_shadowed ? not_shadowed_mask : 0;
 
-				constant->blit_lookup.normal[new_pixel_high][old_pixel][new_pixel_low] = (cc_u8l)output;
+				constant->blit_lookup.normal[new_pixel_high][new_pixel_low][old_pixel] = (cc_u8l)output;
 
 				/* Now, generate the table for shadow/highlight blitting */
 				if (draw_new_pixel)
@@ -319,10 +319,10 @@ void VDP_Constant_Initialise(VDP_Constant* const constant)
 					output = old_colour_index | (old_not_shadowed ? SHADOW_HIGHLIGHT_NORMAL : SHADOW_HIGHLIGHT_SHADOW);
 				}
 
-				constant->blit_lookup.shadow_highlight[new_pixel_high][old_pixel][new_pixel_low] = (cc_u8l)output;
+				constant->blit_lookup.shadow_highlight[new_pixel_high][new_pixel_low][old_pixel] = (cc_u8l)output;
 
 				/* Finally, generate AND lookup table, for the debug register. */
-				constant->blit_lookup.forced_layer[new_pixel_high][old_pixel][new_pixel_low] = (cc_u8l)(old_pixel & (new_colour_index | ~colour_index_mask));
+				constant->blit_lookup.forced_layer[new_pixel_high][new_pixel_low][old_pixel] = (cc_u8l)(old_pixel & (new_colour_index | ~colour_index_mask));
 			}
 		}
 	}
@@ -453,9 +453,9 @@ static void RenderTilePair(const VDP* const vdp, const cc_u16f pixel_y_in_plane,
 		{
 			const cc_u8f byte = ReadVRAM(state, (tile_row_vram_address + j) ^ byte_index_xor);
 
-			*metapixels_pointer = blit_lookup[*metapixels_pointer][(byte >> nybble_shift_1) & 0xF];
+			*metapixels_pointer = blit_lookup[(byte >> nybble_shift_1) & 0xF][*metapixels_pointer];
 			++metapixels_pointer;
-			*metapixels_pointer = blit_lookup[*metapixels_pointer][(byte >> nybble_shift_2) & 0xF];
+			*metapixels_pointer = blit_lookup[(byte >> nybble_shift_2) & 0xF][*metapixels_pointer];
 			++metapixels_pointer;
 		}
 	}
@@ -739,7 +739,7 @@ static void RenderSpritePlane(cc_u8l* const plane_metapixels, cc_u8l (* const sp
 
 	for (i = left_boundary_pixels; i < right_boundary_pixels; ++i)
 	{
-		*plane_metapixels_pointer = blit_lookup_list[sprite_metapixels_pointer[1]][*plane_metapixels_pointer][sprite_metapixels_pointer[0]] & mask;
+		*plane_metapixels_pointer = blit_lookup_list[sprite_metapixels_pointer[1]][sprite_metapixels_pointer[0]][*plane_metapixels_pointer] & mask;
 		++plane_metapixels_pointer;
 		sprite_metapixels_pointer += 2;
 	}
