@@ -248,82 +248,75 @@ void VDP_Constant_Initialise(VDP_Constant* const constant)
 	/* This essentially pre-computes the VDP's depth-test and alpha-test,
 	   generating a lookup table to eliminate the need to perform these
 	   every time a pixel is blitted. This provides a *massive* speed boost. */
-	cc_u16f new_pixel_high;
+	cc_u16f new_pixel;
 
-	for (new_pixel_high = 0; new_pixel_high < CC_COUNT_OF(constant->blit_lookup.normal); ++new_pixel_high)
+	for (new_pixel = 0; new_pixel < CC_COUNT_OF(constant->blit_lookup.normal); ++new_pixel)
 	{
-		cc_u16f new_pixel_low;
+		cc_u16f old_pixel;
 
-		for (new_pixel_low = 0; new_pixel_low < CC_COUNT_OF(constant->blit_lookup.normal[0]); ++new_pixel_low)
+		for (old_pixel = 0; old_pixel < CC_COUNT_OF(constant->blit_lookup.normal[0]); ++old_pixel)
 		{
-			cc_u16f old_pixel;
+			const cc_u16f palette_line_index_mask = 0xF;
+			const cc_u16f colour_index_mask = 0x3F;
+			const cc_u16f priority_mask = 0x40;
+			const cc_u16f not_shadowed_mask = 0x80;
 
-			for (old_pixel = 0; old_pixel < CC_COUNT_OF(constant->blit_lookup.normal[0][0]); ++old_pixel)
+			const cc_u16f old_palette_line_index = old_pixel & palette_line_index_mask;
+			const cc_u16f old_colour_index = old_pixel & colour_index_mask;
+			const cc_bool old_priority = (old_pixel & priority_mask) != 0;
+			const cc_bool old_not_shadowed = (old_pixel & not_shadowed_mask) != 0;
+
+			const cc_u16f new_palette_line_index = new_pixel & palette_line_index_mask;
+			const cc_u16f new_colour_index = new_pixel & colour_index_mask;
+			const cc_bool new_priority = (new_pixel & priority_mask) != 0;
+			const cc_bool new_not_shadowed = new_priority;
+
+			const cc_bool draw_new_pixel = new_palette_line_index != 0 && (old_palette_line_index == 0 || !old_priority || new_priority);
+
+			cc_u16f output;
+
+			/* First, generate the table for regular blitting */
+			output = draw_new_pixel ? new_pixel : old_pixel;
+
+			output |= old_not_shadowed || new_not_shadowed ? not_shadowed_mask : 0;
+
+			constant->blit_lookup.normal[new_pixel][old_pixel] = (cc_u8l)output;
+
+			/* Now, generate the table for shadow/highlight blitting */
+			if (draw_new_pixel)
 			{
-				const cc_u16f palette_line_index_mask = 0xF;
-				const cc_u16f colour_index_mask = 0x3F;
-				const cc_u16f priority_mask = 0x40;
-				const cc_u16f not_shadowed_mask = 0x80;
-
-				const cc_u16f old_palette_line_index = old_pixel & palette_line_index_mask;
-				const cc_u16f old_colour_index = old_pixel & colour_index_mask;
-				const cc_bool old_priority = (old_pixel & priority_mask) != 0;
-				const cc_bool old_not_shadowed = (old_pixel & not_shadowed_mask) != 0;
-
-				const cc_u16f new_pixel = (new_pixel_high << 4) | new_pixel_low;
-
-				const cc_u16f new_palette_line_index = new_pixel & palette_line_index_mask;
-				const cc_u16f new_colour_index = new_pixel & colour_index_mask;
-				const cc_bool new_priority = (new_pixel & priority_mask) != 0;
-				const cc_bool new_not_shadowed = new_priority;
-
-				const cc_bool draw_new_pixel = new_palette_line_index != 0 && (old_palette_line_index == 0 || !old_priority || new_priority);
-
-				cc_u16f output;
-
-				/* First, generate the table for regular blitting */
-				output = draw_new_pixel ? new_pixel : old_pixel;
-
-				output |= old_not_shadowed || new_not_shadowed ? not_shadowed_mask : 0;
-
-				constant->blit_lookup.normal[new_pixel_high][new_pixel_low][old_pixel] = (cc_u8l)output;
-
-				/* Now, generate the table for shadow/highlight blitting */
-				if (draw_new_pixel)
+				/* Sprite goes on top of plane */
+				if (new_colour_index == 0x3E)
 				{
-					/* Sprite goes on top of plane */
-					if (new_colour_index == 0x3E)
-					{
-						/* Transparent highlight pixel */
-						output = old_colour_index | (old_not_shadowed ? SHADOW_HIGHLIGHT_HIGHLIGHT : SHADOW_HIGHLIGHT_NORMAL);
-					}
-					else if (new_colour_index == 0x3F)
-					{
-						/* Transparent shadow pixel */
-						output = old_colour_index | SHADOW_HIGHLIGHT_SHADOW;
-					}
-					else if (new_palette_line_index == 0xE)
-					{
-						/* Always-normal pixel */
-						output = new_colour_index | SHADOW_HIGHLIGHT_NORMAL;
-					}
-					else
-					{
-						/* Regular sprite pixel */
-						output = new_colour_index | (new_not_shadowed || old_not_shadowed ? SHADOW_HIGHLIGHT_NORMAL : SHADOW_HIGHLIGHT_SHADOW);
-					}
+					/* Transparent highlight pixel */
+					output = old_colour_index | (old_not_shadowed ? SHADOW_HIGHLIGHT_HIGHLIGHT : SHADOW_HIGHLIGHT_NORMAL);
+				}
+				else if (new_colour_index == 0x3F)
+				{
+					/* Transparent shadow pixel */
+					output = old_colour_index | SHADOW_HIGHLIGHT_SHADOW;
+				}
+				else if (new_palette_line_index == 0xE)
+				{
+					/* Always-normal pixel */
+					output = new_colour_index | SHADOW_HIGHLIGHT_NORMAL;
 				}
 				else
 				{
-					/* Plane goes on top of sprite */
-					output = old_colour_index | (old_not_shadowed ? SHADOW_HIGHLIGHT_NORMAL : SHADOW_HIGHLIGHT_SHADOW);
+					/* Regular sprite pixel */
+					output = new_colour_index | (new_not_shadowed || old_not_shadowed ? SHADOW_HIGHLIGHT_NORMAL : SHADOW_HIGHLIGHT_SHADOW);
 				}
-
-				constant->blit_lookup.shadow_highlight[new_pixel_high][new_pixel_low][old_pixel] = (cc_u8l)output;
-
-				/* Finally, generate AND lookup table, for the debug register. */
-				constant->blit_lookup.forced_layer[new_pixel_high][new_pixel_low][old_pixel] = (cc_u8l)(old_pixel & (new_colour_index | ~colour_index_mask));
 			}
+			else
+			{
+				/* Plane goes on top of sprite */
+				output = old_colour_index | (old_not_shadowed ? SHADOW_HIGHLIGHT_NORMAL : SHADOW_HIGHLIGHT_SHADOW);
+			}
+
+			constant->blit_lookup.shadow_highlight[new_pixel][old_pixel] = (cc_u8l)output;
+
+			/* Finally, generate AND lookup table, for the debug register. */
+			constant->blit_lookup.forced_layer[new_pixel][old_pixel] = (cc_u8l)(old_pixel & (new_colour_index | ~colour_index_mask));
 		}
 	}
 }
@@ -445,7 +438,7 @@ static void RenderTilePair(const VDP* const vdp, const cc_u16f pixel_y_in_plane,
 		const cc_u8f nybble_shift_2 = 4 & x_flip;
 		const cc_u8f nybble_shift_1 = 4 ^ nybble_shift_2;
 
-		const VDP_BlitLookupNybble* const blit_lookup = blit_lookup_list[(word >> 13) & 7];
+		const VDP_BlitLookupLower* const blit_lookup = blit_lookup_list[(word >> 9) & 0x70];
 
 		cc_u8f j;
 
@@ -581,7 +574,7 @@ static void UpdateSpriteCache(VDP_State* const state)
 	while (sprite_index != 0 && --sprites_remaining != 0);
 }
 
-static void RenderSprites(cc_u8l (* const sprite_metapixels)[2], VDP_State* const state, const cc_u16f scanline)
+static void RenderSprites(cc_u8l* const sprite_metapixels, VDP_State* const state, const cc_u16f scanline)
 {
 	const cc_u32f base_tile_vram_address = VRAM_ADDRESS_BASE_OFFSET(state->sprite_tile_index_rebase);
 	const cc_u8f tile_height_shift = GET_TILE_HEIGHT_SHIFT(state);
@@ -627,7 +620,7 @@ static void RenderSprites(cc_u8l (* const sprite_metapixels)[2], VDP_State* cons
 			const cc_bool x_flip = VDP_GetTileXFlip(word);
 			const cc_bool y_flip = VDP_GetTileYFlip(word);
 
-			const cc_u8f metapixel_high_bits = (word >> 13) & 7;
+			const cc_u8f metapixel_high_bits = (word >> 9) & 0x70;
 
 			const cc_u8f byte_index_xor = 1 ^ (x_flip ? 3 : 0);
 
@@ -635,7 +628,7 @@ static void RenderSprites(cc_u8l (* const sprite_metapixels)[2], VDP_State* cons
 			const cc_u8f y_in_sprite = y_flip ? (height << tile_height_shift) - y_in_sprite_non_flipped - 1 : y_in_sprite_non_flipped;
 			const cc_u16f pixel_y_in_tile = y_in_sprite & tile_height_mask;
 
-			cc_u8l *metapixels_pointer = sprite_metapixels[(MAX_SPRITE_WIDTH - 1) + x - 0x80];
+			cc_u8l *metapixels_pointer = &sprite_metapixels[(MAX_SPRITE_WIDTH - 1) + x - 0x80];
 
 			cc_u8f nybble_shift[2];
 			cc_u16f j;
@@ -669,17 +662,13 @@ static void RenderSprites(cc_u8l (* const sprite_metapixels)[2], VDP_State* cons
 
 					for (l = 0; l < CC_COUNT_OF(nybble_shift); ++l)
 					{
-						const cc_u8f palette_line_index = (byte >> nybble_shift[l]) & 0xF;
+						if ((*metapixels_pointer & 0xF) == 0)
+						{
+							const cc_u8f palette_line_index = (byte >> nybble_shift[l]) & 0xF;
+							*metapixels_pointer = metapixel_high_bits | palette_line_index;
+						}
 
-						if (*metapixels_pointer == 0)
-						{
-							*metapixels_pointer++ = palette_line_index;
-							*metapixels_pointer++ = metapixel_high_bits;
-						}
-						else
-						{
-							metapixels_pointer += 2;
-						}
+						++metapixels_pointer;
 
 						if (--pixel_limit == 0)
 							return;
@@ -730,22 +719,22 @@ static void RenderForegroundPlane(const VDP* const vdp, const cc_u8f left_bounda
 	}
 }
 
-static void RenderSpritePlane(cc_u8l* const plane_metapixels, cc_u8l (* const sprite_metapixels)[2], const VDP_BlitLookupLower* const blit_lookup_list, const unsigned int mask, const cc_u16f left_boundary_pixels, const cc_u16f right_boundary_pixels)
+static void RenderSpritePlane(cc_u8l* const plane_metapixels, cc_u8l* const sprite_metapixels, const VDP_BlitLookupLower* const blit_lookup_list, const unsigned int mask, const cc_u16f left_boundary_pixels, const cc_u16f right_boundary_pixels)
 {
-	const cc_u8l *sprite_metapixels_pointer = sprite_metapixels[left_boundary_pixels];
+	const cc_u8l *sprite_metapixels_pointer = &sprite_metapixels[left_boundary_pixels];
 	cc_u8l *plane_metapixels_pointer = &plane_metapixels[left_boundary_pixels];
 
 	cc_u16f i;
 
 	for (i = left_boundary_pixels; i < right_boundary_pixels; ++i)
 	{
-		*plane_metapixels_pointer = blit_lookup_list[sprite_metapixels_pointer[1]][sprite_metapixels_pointer[0]][*plane_metapixels_pointer] & mask;
+		*plane_metapixels_pointer = blit_lookup_list[*sprite_metapixels_pointer][*plane_metapixels_pointer] & mask;
 		++plane_metapixels_pointer;
-		sprite_metapixels_pointer += 2;
+		++sprite_metapixels_pointer;
 	}
 }
 
-static void RenderForegroundAndSpritePlanes(const VDP* const vdp, const cc_u16f scanline, cc_u8l* const plane_metapixels, cc_u8l (* const sprite_metapixels)[2], const cc_bool window_plane, const VDP_ScanlineRenderedCallback scanline_rendered_callback, const void* const scanline_rendered_callback_user_data)
+static void RenderForegroundAndSpritePlanes(const VDP* const vdp, const cc_u16f scanline, cc_u8l* const plane_metapixels, cc_u8l* const sprite_metapixels, const cc_bool window_plane, const VDP_ScanlineRenderedCallback scanline_rendered_callback, const void* const scanline_rendered_callback_user_data)
 {
 	const VDP_Constant* const constant = vdp->constant;
 	const VDP_State* const state = vdp->state;
@@ -805,8 +794,8 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 
 	/* The padding bytes of the left and right are for allowing sprites to overdraw at the
 	   edges of the screen. */
-	cc_u8l sprite_metapixels_buffer[(MAX_SPRITE_WIDTH - 1) + VDP_MAX_SCANLINE_WIDTH + (MAX_SPRITE_WIDTH - 1)][2];
-	cc_u8l (* const sprite_metapixels)[2] = &sprite_metapixels_buffer[MAX_SPRITE_WIDTH - 1];
+	cc_u8l sprite_metapixels_buffer[(MAX_SPRITE_WIDTH - 1) + VDP_MAX_SCANLINE_WIDTH + (MAX_SPRITE_WIDTH - 1)];
+	cc_u8l* const sprite_metapixels = &sprite_metapixels_buffer[MAX_SPRITE_WIDTH - 1];
 
 	assert(scanline < VDP_MAX_SCANLINES);
 
