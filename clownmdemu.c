@@ -214,7 +214,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 	ClownMDEmu_State* const state = clownmdemu->state;
 
 	const cc_u16f television_vertical_resolution = GetTelevisionVerticalResolution(clownmdemu);
-	const cc_u16f console_vertical_resolution = (state->vdp.v30_enabled ? 30 : 28) * 8; /* 240 and 224 */
+	const cc_u16f console_vertical_resolution = VDP_GetScreenHeightInTilePairs(&state->vdp) * VDP_STANDARD_TILE_PAIR_HEIGHT;
 	const CycleMegaDrive cycles_per_frame_mega_drive = GetMegaDriveCyclesPerFrame(clownmdemu);
 	const cc_u16f cycles_per_scanline = cycles_per_frame_mega_drive.cycle / television_vertical_resolution;
 	const cc_u16f cycles_until_horizontal_sync = CyclesUntilHorizontalSync(clownmdemu);

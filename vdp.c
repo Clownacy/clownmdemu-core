@@ -545,7 +545,7 @@ static void UpdateSpriteCache(VDP_State* const state)
 		const cc_u16f blank_lines = 128 << state->double_resolution_enabled;
 
 		/* This loop only processes rows that are on-screen. */
-		for (i = CC_MAX(blank_lines, cached_sprite.y); i < CC_MIN(blank_lines + ((state->v30_enabled ? 30 : 28) << tile_height_shift), cached_sprite.y + (cached_sprite.height << tile_height_shift)); ++i)
+		for (i = CC_MAX(blank_lines, cached_sprite.y); i < CC_MIN(blank_lines + (VDP_GetScreenHeightInTiles(state) << tile_height_shift), cached_sprite.y + (cached_sprite.height << tile_height_shift)); ++i)
 		{
 			struct VDP_SpriteRowCacheRow* const row = &state->sprite_row_cache.rows[i - blank_lines];
 
@@ -779,7 +779,7 @@ static void RenderForegroundAndSpritePlanes(const VDP* const vdp, const cc_u16f 
 	}
 
 	/* Send pixels to the frontend to be displayed */
-	scanline_rendered_callback((void*)scanline_rendered_callback_user_data, scanline, plane_metapixels, left_boundary_pixels, right_boundary_pixels, VDP_GetScreenWidthInTilePairs(state) * TILE_PAIR_WIDTH, MULTIPLY_BY_TILE_HEIGHT(state, state->v30_enabled ? 30 : 28));
+	scanline_rendered_callback((void*)scanline_rendered_callback_user_data, scanline, plane_metapixels, left_boundary_pixels, right_boundary_pixels, VDP_GetScreenWidthInTilePairs(state) * TILE_PAIR_WIDTH, MULTIPLY_BY_TILE_HEIGHT(state, VDP_GetScreenHeightInTiles(state)));
 }
 
 void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_ScanlineRenderedCallback scanline_rendered_callback, const void* const scanline_rendered_callback_user_data)
