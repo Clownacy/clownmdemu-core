@@ -104,7 +104,7 @@ static void WriteVRAM(VDP_State* const state, const cc_u32f address, const cc_u8
 	/* TODO: Do DMA fills and copies do this? */
 	const cc_u32f sprite_table_index = address - GetSpriteTableAddress(state);
 
-	if (sprite_table_index < VDP_GetScreenWidthInTilePairs(state) * 4 * 8 && (sprite_table_index & 4) == 0)
+	if (sprite_table_index < VDP_GetScreenWidthInTiles(state) * 2 * 8 && (sprite_table_index & 4) == 0)
 	{
 		cc_u8l* const cache_bytes = state->sprite_table_cache[sprite_table_index / 8];
 
@@ -522,7 +522,7 @@ static void UpdateSpriteCache(VDP_State* const state)
 	   scanning the entire sprite table every time it renders a scanline. The VDP actually
 	   partially caches its sprite data too, though I don't know if it's for the same purpose. */
 	const cc_u8f tile_height_shift = GET_TILE_HEIGHT_SHIFT(state);
-	const cc_u8f max_sprites = VDP_GetScreenWidthInTilePairs(state) * 4;
+	const cc_u8f max_sprites = VDP_GetScreenWidthInTiles(state) * 2;
 
 	cc_u16f i;
 	cc_u8f sprite_index;
@@ -605,7 +605,7 @@ static void RenderSprites(cc_u8l* const sprite_metapixels, VDP_State* const stat
 			state->allow_sprite_masking = cc_true;
 
 		/* Skip rendering when possible or required. */
-		if (masked || x + width * TILE_WIDTH <= 0x80u || x >= 0x80u + VDP_GetScreenWidthInTilePairs(state) * TILE_PAIR_WIDTH)
+		if (masked || x + width * TILE_WIDTH <= 0x80u || x >= 0x80u + VDP_GetScreenWidthInTiles(state) * TILE_WIDTH)
 		{
 			if (pixel_limit <= width * TILE_WIDTH)
 				return;
@@ -779,7 +779,7 @@ static void RenderForegroundAndSpritePlanes(const VDP* const vdp, const cc_u16f 
 	}
 
 	/* Send pixels to the frontend to be displayed */
-	scanline_rendered_callback((void*)scanline_rendered_callback_user_data, scanline, plane_metapixels, left_boundary_pixels, right_boundary_pixels, VDP_GetScreenWidthInTilePairs(state) * TILE_PAIR_WIDTH, MULTIPLY_BY_TILE_HEIGHT(state, VDP_GetScreenHeightInTiles(state)));
+	scanline_rendered_callback((void*)scanline_rendered_callback_user_data, scanline, plane_metapixels, left_boundary_pixels, right_boundary_pixels, VDP_GetScreenWidthInTiles(state) * TILE_WIDTH, MULTIPLY_BY_TILE_HEIGHT(state, VDP_GetScreenHeightInTiles(state)));
 }
 
 void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_ScanlineRenderedCallback scanline_rendered_callback, const void* const scanline_rendered_callback_user_data)

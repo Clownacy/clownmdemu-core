@@ -231,6 +231,7 @@ VDP_CachedSprite VDP_GetCachedSprite(const VDP_State *state, cc_u16f sprite_inde
 #define VDP_GetTilePriority(metadata) (((metadata) & 0x8000) != 0)
 
 #define VDP_GetScreenWidthInTilePairs(state) ((state)->h40_enabled ? VDP_MAX_SCANLINE_WIDTH_IN_TILE_PAIRS : 16)
+#define VDP_GetScreenWidthInTiles(state) (VDP_GetScreenWidthInTilePairs(state) * VDP_TILE_PAIR_COUNT)
 #define VDP_GetScreenHeightInTilePairs(state) ((state)->v30_enabled ? VDP_MAX_SCANLINES_IN_TILE_PAIRS : 14)
 #define VDP_GetScreenHeightInTiles(state) (VDP_GetScreenHeightInTilePairs(state) * VDP_TILE_PAIR_COUNT)
 
