@@ -397,8 +397,10 @@ static cc_u16f GetHScrollTableOffset(const VDP_State* const state, const cc_u16f
 	return ((scanline >> state->double_resolution_enabled) & state->hscroll_mask) * 4;
 }
 
-static cc_u16f GetVScrollTableOffset(const VDP_State* const state, const cc_u8f tile_pair)
+static cc_u16f GetVScrollTableOffset(const VDP* const vdp, const cc_u8f tile_pair)
 {
+	const VDP_State* const state = vdp->state;
+
 	switch (state->vscroll_mode)
 	{
 		default:
@@ -409,7 +411,7 @@ static cc_u16f GetVScrollTableOffset(const VDP_State* const state, const cc_u8f 
 			return 0;
 
 		case VDP_VSCROLL_MODE_2CELL:
-			return (tile_pair * 2) % CC_COUNT_OF(state->vsram);
+			return ((tile_pair - WIDESCREEN_X_OFFSET_TILE_PAIRS(vdp)) * 2) % CC_COUNT_OF(state->vsram);
 	}
 }
 
@@ -479,7 +481,7 @@ static void RenderScrollingPlane(const VDP* const vdp, const cc_u8f start, const
 	for (i = start; i <= end && i < SCANLINE_WIDTH_IN_TILE_PAIRS + 1; ++i)
 	{
 		/* The '-1' here causes the first tile pair V-scroll value to be invalid, recreating a behaviour that occurs on real Mega Drives. */
-		const cc_u16f vscroll = state->vsram[plane_index + GetVScrollTableOffset(state, i - 1)];
+		const cc_u16f vscroll = state->vsram[plane_index + GetVScrollTableOffset(vdp, i - 1)];
 
 		/* Get the Y coordinate of the pixel in the plane */
 		const cc_u16f pixel_y_in_plane = vscroll + scanline;
