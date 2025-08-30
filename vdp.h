@@ -16,7 +16,7 @@ extern "C" {
 #define VDP_STANDARD_TILE_PAIR_HEIGHT (VDP_STANDARD_TILE_HEIGHT * VDP_TILE_PAIR_COUNT)
 #define VDP_MAX_TILE_HEIGHT 16
 #define VDP_MAX_TILE_PAIR_HEIGHT (VDP_MAX_TILE_HEIGHT * VDP_TILE_PAIR_COUNT)
-#define VDP_MAX_SCANLINE_WIDTH_IN_TILE_PAIRS 20
+#define VDP_MAX_SCANLINE_WIDTH_IN_TILE_PAIRS 25 /* TODO: A common addition of 5 to both widths! */
 #define VDP_MAX_SCANLINES_IN_TILE_PAIRS 15
 #define VDP_MAX_SCANLINE_WIDTH (VDP_MAX_SCANLINE_WIDTH_IN_TILE_PAIRS * VDP_TILE_PAIR_WIDTH)
 #define VDP_MAX_SCANLINES (VDP_MAX_SCANLINES_IN_TILE_PAIRS * VDP_MAX_TILE_PAIR_HEIGHT)
@@ -230,7 +230,7 @@ VDP_CachedSprite VDP_GetCachedSprite(const VDP_State *state, cc_u16f sprite_inde
 #define VDP_GetTileYFlip(metadata) (((metadata) & 0x1000) != 0)
 #define VDP_GetTilePriority(metadata) (((metadata) & 0x8000) != 0)
 
-#define VDP_GetScreenWidthInTilePairs(state) ((state)->h40_enabled ? VDP_MAX_SCANLINE_WIDTH_IN_TILE_PAIRS : 16)
+#define VDP_GetScreenWidthInTilePairs(state) ((state)->h40_enabled ? VDP_MAX_SCANLINE_WIDTH_IN_TILE_PAIRS : 20)
 #define VDP_GetScreenWidthInTiles(state) (VDP_GetScreenWidthInTilePairs(state) * VDP_TILE_PAIR_COUNT)
 #define VDP_GetScreenHeightInTilePairs(state) ((state)->v30_enabled ? VDP_MAX_SCANLINES_IN_TILE_PAIRS : 14)
 #define VDP_GetScreenHeightInTiles(state) (VDP_GetScreenHeightInTilePairs(state) * VDP_TILE_PAIR_COUNT)

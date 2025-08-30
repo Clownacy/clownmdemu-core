@@ -36,6 +36,9 @@
 
 #define VRAM_ADDRESS_BASE_OFFSET(OPTION) ((OPTION) ? 0x10000 : 0)
 
+#define WIDESCREEN_X_OFFSET_TILE_PAIRS ((VDP_MAX_SCANLINE_WIDTH_IN_TILE_PAIRS - 20) / 2)
+#define WIDESCREEN_X_OFFSET_PIXELS (WIDESCREEN_X_OFFSET_TILE_PAIRS * TILE_PAIR_WIDTH)
+
 enum
 {
 	SHADOW_HIGHLIGHT_NORMAL = 0 << 6,
@@ -406,7 +409,7 @@ static cc_u16f GetVScrollTableOffset(const VDP_State* const state, const cc_u8f 
 			return 0;
 
 		case VDP_VSCROLL_MODE_2CELL:
-			return (tile_pair * 2) % CC_COUNT_OF(state->vsram);
+			return ((tile_pair - WIDESCREEN_X_OFFSET_TILE_PAIRS) * 2) % CC_COUNT_OF(state->vsram);
 	}
 }
 
@@ -504,7 +507,7 @@ static void RenderWindowPlane(const VDP* const vdp, const cc_u8f start, const cc
 	const cc_u8f plane_pitch_shift = 5 + state->h40_enabled;
 
 	cc_u8l *metapixels_pointer = &metapixels[start * TILE_PAIR_WIDTH];
-	cc_u32f vram_address = state->window_address + ((tile_y << plane_pitch_shift) + start * TILE_PAIR_COUNT) * 2;
+	cc_u32f vram_address = state->window_address + ((tile_y << plane_pitch_shift) + (start - WIDESCREEN_X_OFFSET_TILE_PAIRS) * TILE_PAIR_COUNT) * 2;
 
 	cc_u8f i;
 
@@ -595,10 +598,11 @@ static void RenderSprites(cc_u8l* const sprite_metapixels, VDP_State* const stat
 		/* Decode sprite data */
 		const cc_u32f sprite_index = GetSpriteTableAddress(state) + sprite_row_cache_entry->table_index * 8;
 		const cc_u16f width = sprite_row_cache_entry->width;
-		const cc_u16f x = READ_VRAM_WORD(state, sprite_index + 6) & 0x1FF;
+		const cc_u16f raw_x = READ_VRAM_WORD(state, sprite_index + 6) & 0x1FF;
+		const cc_u16f x = raw_x + WIDESCREEN_X_OFFSET_PIXELS;
 
 		/* This is a masking sprite: prevent all remaining sprites from being drawn */
-		if (x == 0)
+		if (raw_x == 0)
 			masked = state->allow_sprite_masking;
 		else
 			/* Enable sprite masking after successfully drawing a sprite. */
@@ -692,7 +696,7 @@ static void RenderScrollPlane(const VDP* const vdp, const cc_u8f left_boundary, 
 	if (!vdp->configuration->planes_disabled[plane_index])
 	{
 		const cc_u32f hscroll_vram_address = state->hscroll_address + plane_index * 2 + GetHScrollTableOffset(state, scanline);
-		const cc_u16f hscroll = READ_VRAM_WORD(state, hscroll_vram_address);
+		const cc_u16f hscroll = READ_VRAM_WORD(state, hscroll_vram_address) + WIDESCREEN_X_OFFSET_PIXELS;
 
 		/* Get the value used to offset the writes to the metapixel buffer */
 		const cc_u16f scroll_offset = TILE_PAIR_WIDTH - (hscroll % TILE_PAIR_WIDTH);
@@ -740,9 +744,11 @@ static void RenderForegroundAndSpritePlanes(const VDP* const vdp, const cc_u16f 
 	const VDP_State* const state = vdp->state;
 
 	const cc_bool full_window_plane_line = (scanline < state->window.vertical_boundary) != state->window.aligned_bottom;
+	/* Prevent the window plane from always being visible on the left in widescreen. */
+	const cc_u16f window_horizontal_boundary = state->window.horizontal_boundary == 0 ? 0 : WIDESCREEN_X_OFFSET_TILE_PAIRS + state->window.horizontal_boundary;
 
-	const cc_u8f left_boundary = full_window_plane_line ? 0 : state->window.aligned_right == window_plane ? state->window.horizontal_boundary : 0;
-	const cc_u8f right_boundary = full_window_plane_line ? window_plane ? SCANLINE_WIDTH_IN_TILE_PAIRS : 0 : state->window.aligned_right == window_plane ? SCANLINE_WIDTH_IN_TILE_PAIRS : state->window.horizontal_boundary;
+	const cc_u8f left_boundary = full_window_plane_line ? 0 : state->window.aligned_right == window_plane ? window_horizontal_boundary : 0;
+	const cc_u8f right_boundary = full_window_plane_line ? window_plane ? SCANLINE_WIDTH_IN_TILE_PAIRS : 0 : state->window.aligned_right == window_plane ? SCANLINE_WIDTH_IN_TILE_PAIRS : window_horizontal_boundary;
 
 	const cc_u16f left_boundary_pixels = left_boundary * TILE_PAIR_WIDTH;
 	const cc_u16f right_boundary_pixels = right_boundary * TILE_PAIR_WIDTH;
