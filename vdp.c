@@ -37,7 +37,8 @@
 #define VRAM_ADDRESS_BASE_OFFSET(OPTION) ((OPTION) ? 0x10000 : 0)
 
 #define WIDESCREEN_X_OFFSET_TILE_PAIRS(VDP) ((VDP)->configuration->widescreen_enabled ? VDP_WIDESCREEN_MARGIN_TILE_PAIRS : 0)
-#define WIDESCREEN_X_OFFSET_PIXELS(VDP) (WIDESCREEN_X_OFFSET_TILE_PAIRS(VDP) * TILE_PAIR_WIDTH)
+#define WIDESCREEN_X_OFFSET_TILES(VDP) (WIDESCREEN_X_OFFSET_TILE_PAIRS(VDP) * TILE_PAIR_COUNT)
+#define WIDESCREEN_X_OFFSET_PIXELS(VDP) (WIDESCREEN_X_OFFSET_TILES(VDP) * TILE_WIDTH)
 
 enum
 {
@@ -507,18 +508,18 @@ static void RenderWindowPlane(const VDP* const vdp, const cc_u8f start, const cc
 	const cc_u32f base_tile_vram_address = VRAM_ADDRESS_BASE_OFFSET(state->plane_a_tile_index_rebase);
 	const cc_u16f tile_y = DIVIDE_BY_TILE_HEIGHT(state, scanline);
 	const cc_u8f plane_pitch_shift = 5 + state->h40_enabled;
+	const cc_u8f plane_width_bitmask = (1 << plane_pitch_shift) - 1;
+
+	const cc_u32f vram_address_base = state->window_address + (tile_y << plane_pitch_shift) * 2;
+	const cc_u16f tile_x_base = (start * TILE_PAIR_COUNT - WIDESCREEN_X_OFFSET_TILES(vdp)) & plane_width_bitmask;
 
 	cc_u8l *metapixels_pointer = &metapixels[start * TILE_PAIR_WIDTH];
-	cc_u32f vram_address = state->window_address + ((tile_y << plane_pitch_shift) + (start - WIDESCREEN_X_OFFSET_TILE_PAIRS(vdp)) * TILE_PAIR_COUNT) * 2;
 
 	cc_u8f i;
 
 	/* Render tiles */
 	for (i = start; i < end && i < SCANLINE_WIDTH_IN_TILE_PAIRS; ++i)
-	{
-		RenderTilePair(vdp, scanline, vram_address, base_tile_vram_address, &metapixels_pointer, blit_lookup_list);
-		vram_address += 4;
-	}
+		RenderTilePair(vdp, scanline, vram_address_base + ((tile_x_base + i * TILE_PAIR_COUNT) & plane_width_bitmask) * 2, base_tile_vram_address, &metapixels_pointer, blit_lookup_list);
 }
 
 static void UpdateSpriteCache(VDP_State* const state)
