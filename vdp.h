@@ -9,15 +9,32 @@
 extern "C" {
 #endif
 
-#define VDP_TILE_WIDTH 8
 #define VDP_TILE_PAIR_COUNT 2
+
+#define VDP_TILE_WIDTH 8
 #define VDP_TILE_PAIR_WIDTH (VDP_TILE_WIDTH * VDP_TILE_PAIR_COUNT)
+
 #define VDP_STANDARD_TILE_HEIGHT 8
 #define VDP_STANDARD_TILE_PAIR_HEIGHT (VDP_STANDARD_TILE_HEIGHT * VDP_TILE_PAIR_COUNT)
+
 #define VDP_MAX_TILE_HEIGHT 16
 #define VDP_MAX_TILE_PAIR_HEIGHT (VDP_MAX_TILE_HEIGHT * VDP_TILE_PAIR_COUNT)
-#define VDP_MAX_SCANLINE_WIDTH_IN_TILE_PAIRS 25 /* TODO: A common addition of 5 to both widths! */
+
+#define VDP_WIDESCREEN_MARGIN_TILE_PAIRS 3
+#define VDP_WIDESCREEN_MARGIN_PIXELS (VDP_WIDESCREEN_MARGIN_TILE_PAIRS * TILE_PAIR_WIDTH)
+
+#define VDP_PAD_TILE_PAIRS_TO_WIDESCREEN(WIDTH) (VDP_WIDESCREEN_MARGIN_TILE_PAIRS + (WIDTH) + VDP_WIDESCREEN_MARGIN_TILE_PAIRS)
+
+#define VDP_H40_SCREEN_WIDTH_IN_TILE_PAIRS 20
+#define VDP_H32_SCREEN_WIDTH_IN_TILE_PAIRS 16
+#define VDP_MAX_SCREEN_WIDTH_IN_TILE_PAIRS CC_MAX(VDP_H40_SCREEN_WIDTH_IN_TILE_PAIRS, VDP_H32_SCREEN_WIDTH_IN_TILE_PAIRS)
+#define VDP_MAX_SCREEN_WIDTH_IN_TILES (VDP_MAX_SCREEN_WIDTH_IN_TILE_PAIRS * VDP_TILE_PAIR_COUNT)
+#define VDP_MAX_SCREEN_WIDTH_IN_PIXELS (VDP_MAX_SCREEN_WIDTH_IN_TILES * VDP_TILE_WIDTH)
+
+#define VDP_MAX_SCANLINE_WIDTH_IN_TILE_PAIRS VDP_PAD_TILE_PAIRS_TO_WIDESCREEN(VDP_MAX_SCREEN_WIDTH_IN_TILE_PAIRS)
+#define VDP_MAX_SCANLINE_WIDTH_IN_TILES (VDP_MAX_SCANLINE_WIDTH_IN_TILE_PAIRS * VDP_TILE_PAIR_COUNT)
 #define VDP_MAX_SCANLINES_IN_TILE_PAIRS 15
+
 #define VDP_MAX_SCANLINE_WIDTH (VDP_MAX_SCANLINE_WIDTH_IN_TILE_PAIRS * VDP_TILE_PAIR_WIDTH)
 #define VDP_MAX_SCANLINES (VDP_MAX_SCANLINES_IN_TILE_PAIRS * VDP_MAX_TILE_PAIR_HEIGHT)
 
@@ -31,6 +48,7 @@ typedef struct VDP_Configuration
 	cc_bool sprites_disabled;
 	cc_bool window_disabled;
 	cc_bool planes_disabled[2];
+	cc_bool widescreen_enabled;
 } VDP_Configuration;
 
 typedef cc_u8l VDP_BlitLookupLower[1 << (1 + 1 + 2 + 4)];
@@ -181,7 +199,7 @@ typedef struct VDP_State
 	/* TODO: Add a toggle for Model 1 and Model 2 behaviour. */
 	cc_u16l vsram[64];
 
-	cc_u8l sprite_table_cache[VDP_MAX_SCANLINE_WIDTH_IN_TILE_PAIRS * 4][4];
+	cc_u8l sprite_table_cache[VDP_MAX_SCANLINE_WIDTH_IN_TILES * 2][4];
 
 	struct
 	{
@@ -230,10 +248,16 @@ VDP_CachedSprite VDP_GetCachedSprite(const VDP_State *state, cc_u16f sprite_inde
 #define VDP_GetTileYFlip(metadata) (((metadata) & 0x1000) != 0)
 #define VDP_GetTilePriority(metadata) (((metadata) & 0x8000) != 0)
 
-#define VDP_GetScreenWidthInTilePairs(state) ((state)->h40_enabled ? VDP_MAX_SCANLINE_WIDTH_IN_TILE_PAIRS : 20)
+#define VDP_GetScreenWidthInTilePairs(state) ((state)->h40_enabled ? VDP_H40_SCREEN_WIDTH_IN_TILE_PAIRS : VDP_H32_SCREEN_WIDTH_IN_TILE_PAIRS)
 #define VDP_GetScreenWidthInTiles(state) (VDP_GetScreenWidthInTilePairs(state) * VDP_TILE_PAIR_COUNT)
+#define VDP_GetScreenWidthInPixels(state) (VDP_GetScreenWidthInTiles(state) * VDP_TILE_WIDTH)
+
 #define VDP_GetScreenHeightInTilePairs(state) ((state)->v30_enabled ? VDP_MAX_SCANLINES_IN_TILE_PAIRS : 14)
 #define VDP_GetScreenHeightInTiles(state) (VDP_GetScreenHeightInTilePairs(state) * VDP_TILE_PAIR_COUNT)
+
+#define VDP_GetExtendedScreenWidthInTilePairs(vdp) ((vdp)->configuration->widescreen_enabled ? VDP_PAD_TILE_PAIRS_TO_WIDESCREEN(VDP_GetScreenWidthInTilePairs((vdp)->state)) : VDP_GetScreenWidthInTilePairs((vdp)->state))
+#define VDP_GetExtendedScreenWidthInTiles(vdp) (VDP_GetExtendedScreenWidthInTilePairs(vdp) * VDP_TILE_PAIR_COUNT)
+#define VDP_GetExtendedScreenWidthInPixels(vdp) (VDP_GetExtendedScreenWidthInTiles(vdp) * VDP_TILE_WIDTH)
 
 #ifdef __cplusplus
 }

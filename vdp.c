@@ -20,7 +20,7 @@
 #define TILE_WIDTH VDP_TILE_WIDTH
 #define TILE_PAIR_COUNT VDP_TILE_PAIR_COUNT
 #define TILE_PAIR_WIDTH VDP_TILE_PAIR_WIDTH
-#define SCANLINE_WIDTH_IN_TILE_PAIRS CC_DIVIDE_CEILING(VDP_MAX_SCANLINE_WIDTH, TILE_PAIR_WIDTH)
+#define SCANLINE_WIDTH_IN_TILE_PAIRS VDP_MAX_SCANLINE_WIDTH_IN_TILE_PAIRS
 #define MAX_SPRITE_WIDTH (TILE_WIDTH * 4)
 
 #define TILE_Y_INDEX_TO_TILE_BYTE_INDEX_SHIFT 2
@@ -36,8 +36,8 @@
 
 #define VRAM_ADDRESS_BASE_OFFSET(OPTION) ((OPTION) ? 0x10000 : 0)
 
-#define WIDESCREEN_X_OFFSET_TILE_PAIRS ((VDP_MAX_SCANLINE_WIDTH_IN_TILE_PAIRS - 20) / 2)
-#define WIDESCREEN_X_OFFSET_PIXELS (WIDESCREEN_X_OFFSET_TILE_PAIRS * TILE_PAIR_WIDTH)
+#define WIDESCREEN_X_OFFSET_TILE_PAIRS(VDP) ((VDP)->configuration->widescreen_enabled ? VDP_WIDESCREEN_MARGIN_TILE_PAIRS : 0)
+#define WIDESCREEN_X_OFFSET_PIXELS(VDP) (WIDESCREEN_X_OFFSET_TILE_PAIRS(VDP) * TILE_PAIR_WIDTH)
 
 enum
 {
@@ -409,7 +409,7 @@ static cc_u16f GetVScrollTableOffset(const VDP_State* const state, const cc_u8f 
 			return 0;
 
 		case VDP_VSCROLL_MODE_2CELL:
-			return ((tile_pair - WIDESCREEN_X_OFFSET_TILE_PAIRS) * 2) % CC_COUNT_OF(state->vsram);
+			return (tile_pair * 2) % CC_COUNT_OF(state->vsram);
 	}
 }
 
@@ -507,7 +507,7 @@ static void RenderWindowPlane(const VDP* const vdp, const cc_u8f start, const cc
 	const cc_u8f plane_pitch_shift = 5 + state->h40_enabled;
 
 	cc_u8l *metapixels_pointer = &metapixels[start * TILE_PAIR_WIDTH];
-	cc_u32f vram_address = state->window_address + ((tile_y << plane_pitch_shift) + (start - WIDESCREEN_X_OFFSET_TILE_PAIRS) * TILE_PAIR_COUNT) * 2;
+	cc_u32f vram_address = state->window_address + ((tile_y << plane_pitch_shift) + (start - WIDESCREEN_X_OFFSET_TILE_PAIRS(vdp)) * TILE_PAIR_COUNT) * 2;
 
 	cc_u8f i;
 
@@ -577,8 +577,10 @@ static void UpdateSpriteCache(VDP_State* const state)
 	while (sprite_index != 0 && --sprites_remaining != 0);
 }
 
-static void RenderSprites(cc_u8l* const sprite_metapixels, VDP_State* const state, const cc_u16f scanline)
+static void RenderSprites(const VDP* const vdp, cc_u8l* const sprite_metapixels, const cc_u16f scanline)
 {
+	VDP_State* const state = vdp->state;
+
 	const cc_u32f base_tile_vram_address = VRAM_ADDRESS_BASE_OFFSET(state->sprite_tile_index_rebase);
 	const cc_u8f tile_height_shift = GET_TILE_HEIGHT_SHIFT(state);
 	const cc_u8f tile_height_mask = GET_TILE_HEIGHT_MASK(state);
@@ -599,7 +601,7 @@ static void RenderSprites(cc_u8l* const sprite_metapixels, VDP_State* const stat
 		const cc_u32f sprite_index = GetSpriteTableAddress(state) + sprite_row_cache_entry->table_index * 8;
 		const cc_u16f width = sprite_row_cache_entry->width;
 		const cc_u16f raw_x = READ_VRAM_WORD(state, sprite_index + 6) & 0x1FF;
-		const cc_u16f x = raw_x + WIDESCREEN_X_OFFSET_PIXELS;
+		const cc_u16f x = raw_x + WIDESCREEN_X_OFFSET_PIXELS(vdp);
 
 		/* This is a masking sprite: prevent all remaining sprites from being drawn */
 		if (raw_x == 0)
@@ -609,7 +611,7 @@ static void RenderSprites(cc_u8l* const sprite_metapixels, VDP_State* const stat
 			state->allow_sprite_masking = cc_true;
 
 		/* Skip rendering when possible or required. */
-		if (masked || x + width * TILE_WIDTH <= 0x80u || x >= 0x80u + VDP_GetScreenWidthInTiles(state) * TILE_WIDTH)
+		if (masked || x + width * TILE_WIDTH <= 0x80u || x >= 0x80u + VDP_GetExtendedScreenWidthInTiles(vdp) * TILE_WIDTH)
 		{
 			if (pixel_limit <= width * TILE_WIDTH)
 				return;
@@ -696,7 +698,7 @@ static void RenderScrollPlane(const VDP* const vdp, const cc_u8f left_boundary, 
 	if (!vdp->configuration->planes_disabled[plane_index])
 	{
 		const cc_u32f hscroll_vram_address = state->hscroll_address + plane_index * 2 + GetHScrollTableOffset(state, scanline);
-		const cc_u16f hscroll = READ_VRAM_WORD(state, hscroll_vram_address) + WIDESCREEN_X_OFFSET_PIXELS;
+		const cc_u16f hscroll = READ_VRAM_WORD(state, hscroll_vram_address) + WIDESCREEN_X_OFFSET_PIXELS(vdp);
 
 		/* Get the value used to offset the writes to the metapixel buffer */
 		const cc_u16f scroll_offset = TILE_PAIR_WIDTH - (hscroll % TILE_PAIR_WIDTH);
@@ -745,7 +747,7 @@ static void RenderForegroundAndSpritePlanes(const VDP* const vdp, const cc_u16f 
 
 	const cc_bool full_window_plane_line = (scanline < state->window.vertical_boundary) != state->window.aligned_bottom;
 	/* Prevent the window plane from always being visible on the left in widescreen. */
-	const cc_u16f window_horizontal_boundary = state->window.horizontal_boundary == 0 ? 0 : WIDESCREEN_X_OFFSET_TILE_PAIRS + state->window.horizontal_boundary;
+	const cc_u16f window_horizontal_boundary = state->window.horizontal_boundary == 0 ? 0 : WIDESCREEN_X_OFFSET_TILE_PAIRS(vdp) + state->window.horizontal_boundary;
 
 	const cc_u8f left_boundary = full_window_plane_line ? 0 : state->window.aligned_right == window_plane ? window_horizontal_boundary : 0;
 	const cc_u8f right_boundary = full_window_plane_line ? window_plane ? SCANLINE_WIDTH_IN_TILE_PAIRS : 0 : state->window.aligned_right == window_plane ? SCANLINE_WIDTH_IN_TILE_PAIRS : window_horizontal_boundary;
@@ -785,7 +787,21 @@ static void RenderForegroundAndSpritePlanes(const VDP* const vdp, const cc_u16f 
 	}
 
 	/* Send pixels to the frontend to be displayed */
-	scanline_rendered_callback((void*)scanline_rendered_callback_user_data, scanline, plane_metapixels, left_boundary_pixels, right_boundary_pixels, VDP_GetScreenWidthInTiles(state) * TILE_WIDTH, MULTIPLY_BY_TILE_HEIGHT(state, VDP_GetScreenHeightInTiles(state)));
+	{
+		/* We want to output at 400 pixels, but cannot render at that internally because 200 is not a multiple of 16. */
+		const cc_u16f input_extra_tile_pairs = vdp->configuration->widescreen_enabled ? VDP_WIDESCREEN_MARGIN_TILE_PAIRS * 2 : 0;
+		const cc_u16f input_extra_tile_pairs_in_pixels = input_extra_tile_pairs * TILE_PAIR_WIDTH;
+
+		const cc_u16f output_extra_tile_pairs = vdp->configuration->widescreen_enabled ? 5 : 0;
+		const cc_u16f output_extra_tile_pairs_in_pixels = output_extra_tile_pairs * TILE_PAIR_WIDTH;
+		const cc_u16f output_width = VDP_GetScreenWidthInPixels(state) + output_extra_tile_pairs_in_pixels;
+
+		const cc_u16f x_offset = (input_extra_tile_pairs_in_pixels - output_extra_tile_pairs_in_pixels) / 2;
+		const cc_u16f clamped_left_boundary_pixels = CC_CLAMP(x_offset, x_offset + output_width, left_boundary_pixels) - x_offset;
+		const cc_u16f clamped_right_boundary_pixels = CC_CLAMP(x_offset, x_offset + output_width, right_boundary_pixels) - x_offset;
+
+		scanline_rendered_callback((void*)scanline_rendered_callback_user_data, scanline, plane_metapixels + x_offset, clamped_left_boundary_pixels, clamped_right_boundary_pixels, output_width, MULTIPLY_BY_TILE_HEIGHT(state, VDP_GetScreenHeightInTiles(state)));
+	}
 }
 
 void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_ScanlineRenderedCallback scanline_rendered_callback, const void* const scanline_rendered_callback_user_data)
@@ -812,7 +828,7 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 	memset(sprite_metapixels_buffer, 0, sizeof(sprite_metapixels_buffer));
 
 	if (!vdp->configuration->sprites_disabled)
-		RenderSprites(sprite_metapixels_buffer, state, scanline);
+		RenderSprites(vdp, sprite_metapixels_buffer, scanline);
 
 	/* Fill the scanline buffer with the background colour. */
 	/* When forcing a layer, we set all the colour bits to simulate it replacing the background colour layer (since it is ANDed). */
