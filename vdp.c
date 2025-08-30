@@ -17,9 +17,9 @@
 
 #include "log.h"
 
-#define TILE_WIDTH 8
-#define TILE_PAIR_COUNT 2
-#define TILE_PAIR_WIDTH (TILE_WIDTH * TILE_PAIR_COUNT)
+#define TILE_WIDTH VDP_TILE_WIDTH
+#define TILE_PAIR_COUNT VDP_TILE_PAIR_COUNT
+#define TILE_PAIR_WIDTH VDP_TILE_PAIR_WIDTH
 #define SCANLINE_WIDTH_IN_TILE_PAIRS CC_DIVIDE_CEILING(VDP_MAX_SCANLINE_WIDTH, TILE_PAIR_WIDTH)
 #define MAX_SPRITE_WIDTH (TILE_WIDTH * 4)
 
@@ -104,7 +104,7 @@ static void WriteVRAM(VDP_State* const state, const cc_u32f address, const cc_u8
 	/* TODO: Do DMA fills and copies do this? */
 	const cc_u32f sprite_table_index = address - GetSpriteTableAddress(state);
 
-	if (sprite_table_index < (state->h40_enabled ? 80u : 64u) * 8u && (sprite_table_index & 4) == 0)
+	if (sprite_table_index < VDP_GetScreenWidthInTilePairs(state) * 4 * 8 && (sprite_table_index & 4) == 0)
 	{
 		cc_u8l* const cache_bytes = state->sprite_table_cache[sprite_table_index / 8];
 
@@ -522,7 +522,7 @@ static void UpdateSpriteCache(VDP_State* const state)
 	   scanning the entire sprite table every time it renders a scanline. The VDP actually
 	   partially caches its sprite data too, though I don't know if it's for the same purpose. */
 	const cc_u8f tile_height_shift = GET_TILE_HEIGHT_SHIFT(state);
-	const cc_u8f max_sprites = state->h40_enabled ? 80 : 64;
+	const cc_u8f max_sprites = VDP_GetScreenWidthInTilePairs(state) * 4;
 
 	cc_u16f i;
 	cc_u8f sprite_index;
@@ -550,7 +550,7 @@ static void UpdateSpriteCache(VDP_State* const state)
 			struct VDP_SpriteRowCacheRow* const row = &state->sprite_row_cache.rows[i - blank_lines];
 
 			/* Don't write more sprites than are allowed to be drawn on this line */
-			if (row->total != (state->h40_enabled ? 20 : 16))
+			if (row->total != VDP_GetScreenWidthInTilePairs(state))
 			{
 				struct VDP_SpriteRowCacheEntry* const sprite_row_cache_entry = &row->sprites[row->total++];
 
@@ -581,8 +581,8 @@ static void RenderSprites(cc_u8l* const sprite_metapixels, VDP_State* const stat
 	const cc_u8f tile_height_mask = GET_TILE_HEIGHT_MASK(state);
 
 	cc_u8f i;
-	cc_u16f sprite_limit = state->h40_enabled ? 20 : 16;
-	cc_u16f pixel_limit = state->h40_enabled ? 320 : 256;
+	cc_u16f sprite_limit = VDP_GetScreenWidthInTilePairs(state);
+	cc_u16f pixel_limit = sprite_limit * 16;
 	cc_bool masked = cc_false;
 
 	/* Render sprites */
@@ -605,7 +605,7 @@ static void RenderSprites(cc_u8l* const sprite_metapixels, VDP_State* const stat
 			state->allow_sprite_masking = cc_true;
 
 		/* Skip rendering when possible or required. */
-		if (masked || x + width * TILE_WIDTH <= 0x80u || x >= 0x80u + (state->h40_enabled ? 40 : 32) * TILE_WIDTH)
+		if (masked || x + width * TILE_WIDTH <= 0x80u || x >= 0x80u + VDP_GetScreenWidthInTilePairs(state) * TILE_PAIR_WIDTH)
 		{
 			if (pixel_limit <= width * TILE_WIDTH)
 				return;
@@ -779,7 +779,7 @@ static void RenderForegroundAndSpritePlanes(const VDP* const vdp, const cc_u16f 
 	}
 
 	/* Send pixels to the frontend to be displayed */
-	scanline_rendered_callback((void*)scanline_rendered_callback_user_data, scanline, plane_metapixels, left_boundary_pixels, right_boundary_pixels, (state->h40_enabled ? 40 : 32) * TILE_WIDTH, MULTIPLY_BY_TILE_HEIGHT(state, state->v30_enabled ? 30 : 28));
+	scanline_rendered_callback((void*)scanline_rendered_callback_user_data, scanline, plane_metapixels, left_boundary_pixels, right_boundary_pixels, VDP_GetScreenWidthInTilePairs(state) * TILE_PAIR_WIDTH, MULTIPLY_BY_TILE_HEIGHT(state, state->v30_enabled ? 30 : 28));
 }
 
 void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_ScanlineRenderedCallback scanline_rendered_callback, const void* const scanline_rendered_callback_user_data)

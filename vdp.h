@@ -9,7 +9,11 @@
 extern "C" {
 #endif
 
-#define VDP_MAX_SCANLINE_WIDTH 320
+#define VDP_TILE_WIDTH 8
+#define VDP_TILE_PAIR_COUNT 2
+#define VDP_TILE_PAIR_WIDTH (VDP_TILE_WIDTH * VDP_TILE_PAIR_COUNT)
+#define VDP_MAX_SCANLINE_WIDTH_IN_TILE_PAIRS 20
+#define VDP_MAX_SCANLINE_WIDTH (VDP_MAX_SCANLINE_WIDTH_IN_TILE_PAIRS * VDP_TILE_PAIR_WIDTH)
 #define VDP_MAX_SCANLINES (240 * 2) /* V30 in interlace mode 2 */
 
 #define VDP_PALETTE_LINE_LENGTH 16
@@ -95,7 +99,7 @@ typedef struct VDP_SpriteRowCacheEntry
 typedef struct VDP_SpriteRowCacheRow
 {
 	cc_u8l total;
-	VDP_SpriteRowCacheEntry sprites[20];
+	VDP_SpriteRowCacheEntry sprites[VDP_MAX_SCANLINE_WIDTH_IN_TILE_PAIRS];
 } VDP_SpriteRowCacheRow;
 
 typedef struct VDP_State
@@ -172,7 +176,7 @@ typedef struct VDP_State
 	/* TODO: Add a toggle for Model 1 and Model 2 behaviour. */
 	cc_u16l vsram[64];
 
-	cc_u8l sprite_table_cache[80][4];
+	cc_u8l sprite_table_cache[VDP_MAX_SCANLINE_WIDTH_IN_TILE_PAIRS * 4][4];
 
 	struct
 	{
@@ -220,6 +224,8 @@ VDP_CachedSprite VDP_GetCachedSprite(const VDP_State *state, cc_u16f sprite_inde
 #define VDP_GetTileXFlip(metadata) (((metadata) & 0x800) != 0)
 #define VDP_GetTileYFlip(metadata) (((metadata) & 0x1000) != 0)
 #define VDP_GetTilePriority(metadata) (((metadata) & 0x8000) != 0)
+
+#define VDP_GetScreenWidthInTilePairs(state) ((state)->h40_enabled ? VDP_MAX_SCANLINE_WIDTH_IN_TILE_PAIRS : 16)
 
 #ifdef __cplusplus
 }
