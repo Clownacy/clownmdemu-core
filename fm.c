@@ -287,18 +287,20 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 					/* TODO: Check what happens if you try to access the 'gap' channels on real hardware. */
 					static const cc_u8f table[8] = {0, 1, 2, 0, 3, 4, 5, 0};
 					const cc_u8f table_index = data % CC_COUNT_OF(table);
-					const FM_Channel* const channel = &fm->channels[table[table_index]];
 
 					if (table_index == 3 || table_index == 7)
 					{
 						LogMessage("Key-on/off command uses invalid 'gap' channel index.");
-						break;
 					}
+					else
+					{
+						const FM_Channel* const channel = &fm->channels[table[table_index]];
 
-					FM_Channel_SetKeyOn(channel, 0, (data & (1 << 4)) != 0);
-					FM_Channel_SetKeyOn(channel, 1, (data & (1 << 5)) != 0);
-					FM_Channel_SetKeyOn(channel, 2, (data & (1 << 6)) != 0);
-					FM_Channel_SetKeyOn(channel, 3, (data & (1 << 7)) != 0);
+						cc_u8f i;
+
+						for (i = 0; i < CC_COUNT_OF(channel->operators); ++i)
+							FM_Channel_SetKeyOn(channel, i, (data & (1 << (4 + i))) != 0);
+					}
 
 					break;
 				}
