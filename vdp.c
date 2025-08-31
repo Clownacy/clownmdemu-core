@@ -122,7 +122,7 @@ static void WriteVRAM(VDP_State* const state, const cc_u32f address, const cc_u8
 		state->vram[decoded_address] = value;
 }
 
-static void IncrementAddressRegister(VDP_State* const state)
+static void IncrementAccessAddressRegister(VDP_State* const state)
 {
 	state->access.address_register += state->access.increment;
 	state->access.address_register &= 0x1FFFF; /* Needs to be able to address 128KiB. */
@@ -201,7 +201,7 @@ static void WriteAndIncrement(VDP_State* const state, const cc_u16f value, const
 			break;
 	}
 
-	IncrementAddressRegister(state);
+	IncrementAccessAddressRegister(state);
 }
 
 static cc_u16f ReadAndIncrement(VDP_State* const state)
@@ -242,7 +242,7 @@ static cc_u16f ReadAndIncrement(VDP_State* const state)
 			break;
 	}
 
-	IncrementAddressRegister(state);
+	IncrementAccessAddressRegister(state);
 
 	return value;
 }
@@ -914,7 +914,7 @@ void VDP_WriteData(const VDP* const vdp, const cc_u16f value, const VDP_ColourUp
 
 		/* According to GENESIS SOFTWARE DEVELOPMENT MANUAL (COMPLEMENT) section 4.1,
 		   data should not be written, but the address should be incremented */
-		IncrementAddressRegister(state);
+		IncrementAccessAddressRegister(state);
 	}
 	else
 	{
@@ -932,7 +932,7 @@ void VDP_WriteData(const VDP* const vdp, const cc_u16f value, const VDP_ColourUp
 				if (state->access.selected_buffer == VDP_ACCESS_VRAM)
 				{
 					WriteVRAM(state, state->access.address_register, (cc_u8f)(value >> 8));
-					IncrementAddressRegister(state);
+					IncrementAccessAddressRegister(state);
 				}
 				else
 				{
@@ -1286,7 +1286,7 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 			else /*if (state->dma.mode == VDP_DMA_MODE_COPY)*/
 			{
 				WriteVRAM(state, state->access.address_register, ReadVRAM(state, state->dma.source_address_low));
-				IncrementAddressRegister(state);
+				IncrementAccessAddressRegister(state);
 			}
 
 			/* Emulate the 128KiB DMA wrap-around bug. */
