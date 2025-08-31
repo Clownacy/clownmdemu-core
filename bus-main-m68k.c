@@ -594,7 +594,8 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 						{
 							case 0:
 							case 2:
-								clownmdemu->state->external_ram.buffer[index + 0] = high_byte;
+								if (do_high_byte)
+									clownmdemu->state->external_ram.buffer[index + 0] = high_byte;
 								break;
 						}
 
@@ -602,7 +603,8 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 						{
 							case 0:
 							case 3:
-								clownmdemu->state->external_ram.buffer[index + 1] = low_byte;
+								if (do_low_byte)
+									clownmdemu->state->external_ram.buffer[index + 1] = low_byte;
 								break;
 						}
 					}
