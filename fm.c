@@ -295,10 +295,9 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 						break;
 					}
 
-					/* TODO: Is this operator ordering actually correct? */
 					FM_Channel_SetKeyOn(channel, 0, (data & (1 << 4)) != 0);
-					FM_Channel_SetKeyOn(channel, 2, (data & (1 << 5)) != 0);
-					FM_Channel_SetKeyOn(channel, 1, (data & (1 << 6)) != 0);
+					FM_Channel_SetKeyOn(channel, 1, (data & (1 << 5)) != 0);
+					FM_Channel_SetKeyOn(channel, 2, (data & (1 << 6)) != 0);
 					FM_Channel_SetKeyOn(channel, 3, (data & (1 << 7)) != 0);
 
 					break;
