@@ -285,14 +285,10 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 					/* Key on/off. */
 					/* There's a gap between channels 3 and 4. */
 					/* TODO: Check what happens if you try to access the 'gap' channels on real hardware. */
-					static const cc_u8f table[8] = {0, 1, 2, 0, 3, 4, 5, 0};
+					static const cc_u8f table[8] = {0, 1, 2, 0xFF, 3, 4, 5, 0xFF};
 					const cc_u8f table_index = data % CC_COUNT_OF(table);
 
-					if (table_index == 3 || table_index == 7)
-					{
-						LogMessage("Key-on/off command uses invalid 'gap' channel index.");
-					}
-					else
+					if (table_index != 0xFF)
 					{
 						const FM_Channel* const channel = &fm->channels[table[table_index]];
 
@@ -334,11 +330,7 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 
 		/* There is no fourth channel per slot. */
 		/* TODO: See how real hardware handles this. */
-		if (slot_index == 3)
-		{
-			LogMessage("Attempted to access invalid fourth FM slot channel (address was 0x%02" CC_PRIXLEAST8 ")", state->address);
-		}
-		else
+		if (slot_index != 3)
 		{
 			if (state->address < 0xA0)
 			{
