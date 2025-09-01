@@ -976,26 +976,26 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 
 		switch ((state->access.code_register >> 1) & 7)
 		{
-		case 0: /* VRAM */
-			state->access.selected_buffer = VDP_ACCESS_VRAM;
-			break;
+			case 0: /* VRAM */
+				state->access.selected_buffer = VDP_ACCESS_VRAM;
+				break;
 
-		case 4: /* CRAM (read) */
-		case 1: /* CRAM (write) */
-			state->access.selected_buffer = VDP_ACCESS_CRAM;
-			break;
+			case 4: /* CRAM (read) */
+			case 1: /* CRAM (write) */
+				state->access.selected_buffer = VDP_ACCESS_CRAM;
+				break;
 
-		case 2: /* VSRAM */
-			state->access.selected_buffer = VDP_ACCESS_VSRAM;
-			break;
+			case 2: /* VSRAM */
+				state->access.selected_buffer = VDP_ACCESS_VSRAM;
+				break;
 
-		case 6: /* VRAM (8-bit, undocumented) */
-			state->access.selected_buffer = VDP_ACCESS_VRAM_8BIT;
-			break;
+			case 6: /* VRAM (8-bit, undocumented) */
+				state->access.selected_buffer = VDP_ACCESS_VRAM_8BIT;
+				break;
 
-		default: /* Invalid */
-			state->access.selected_buffer = VDP_ACCESS_INVALID;
-			break;
+			default: /* Invalid */
+				state->access.selected_buffer = VDP_ACCESS_INVALID;
+				break;
 		}
 	}
 	else
@@ -1018,13 +1018,13 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 
 					/* TODO */
 					if ((data & (1 << 5)) != 0)
-							LogMessage("'Blank 8 leftmost pixel columns' flag set but is currently unemulated.");
+						LogMessage("'Blank 8 leftmost pixel columns' flag set but is currently unemulated.");
 
 					state->h_int_enabled = (data & (1 << 4)) != 0;
 
 					/* TODO */
 					if ((data & (1 << 1)) != 0)
-							LogMessage("'Latch H/V counter' flag set but is currently unemulated.");
+						LogMessage("'Latch H/V counter' flag set but is currently unemulated.");
 
 					break;
 
