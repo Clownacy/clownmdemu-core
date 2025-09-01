@@ -797,13 +797,16 @@ static void RenderForegroundAndSpritePlanes(const VDP* const vdp, const cc_u16f 
 
 		const cc_u16f output_extra_tile_pairs = vdp->configuration->widescreen_enabled ? 5 : 0;
 		const cc_u16f output_extra_tile_pairs_in_pixels = output_extra_tile_pairs * TILE_PAIR_WIDTH;
-		const cc_u16f output_width = VDP_GetScreenWidthInPixels(state) + output_extra_tile_pairs_in_pixels;
 
 		const cc_u16f x_offset = (input_extra_tile_pairs_in_pixels - output_extra_tile_pairs_in_pixels) / 2;
+
+		const cc_u16f output_width = VDP_GetScreenWidthInPixels(state) + output_extra_tile_pairs_in_pixels;
+		const cc_u16f output_height = MULTIPLY_BY_TILE_HEIGHT(state, VDP_GetScreenHeightInTiles(state));
+
 		const cc_u16f clamped_left_boundary_pixels = CC_CLAMP(x_offset, x_offset + output_width, left_boundary_pixels) - x_offset;
 		const cc_u16f clamped_right_boundary_pixels = CC_CLAMP(x_offset, x_offset + output_width, right_boundary_pixels) - x_offset;
 
-		scanline_rendered_callback((void*)scanline_rendered_callback_user_data, scanline, plane_metapixels + x_offset, clamped_left_boundary_pixels, clamped_right_boundary_pixels, output_width, MULTIPLY_BY_TILE_HEIGHT(state, VDP_GetScreenHeightInTiles(state)));
+		scanline_rendered_callback((void*)scanline_rendered_callback_user_data, scanline, plane_metapixels + x_offset, clamped_left_boundary_pixels, clamped_right_boundary_pixels, output_width, output_height);
 	}
 }
 
