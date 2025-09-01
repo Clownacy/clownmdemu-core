@@ -753,7 +753,7 @@ static void RenderForegroundAndSpritePlanes(const VDP* const vdp, const cc_u16f 
 	const cc_u16f window_horizontal_boundary = state->window.horizontal_boundary == 0 ? 0 : WIDESCREEN_X_OFFSET_TILE_PAIRS(vdp) + state->window.horizontal_boundary;
 
 	const cc_u8f left_boundary = full_window_plane_line ? 0 : state->window.aligned_right == window_plane ? window_horizontal_boundary : 0;
-	const cc_u8f right_boundary = full_window_plane_line ? window_plane ? SCANLINE_WIDTH_IN_TILE_PAIRS : 0 : state->window.aligned_right == window_plane ? SCANLINE_WIDTH_IN_TILE_PAIRS : window_horizontal_boundary;
+	const cc_u8f right_boundary = full_window_plane_line ? window_plane ? VDP_GetExtendedScreenWidthInTilePairs(vdp) : 0 : state->window.aligned_right == window_plane ? VDP_GetExtendedScreenWidthInTilePairs(vdp) : window_horizontal_boundary;
 
 	const cc_u16f left_boundary_pixels = left_boundary * TILE_PAIR_WIDTH;
 	const cc_u16f right_boundary_pixels = right_boundary * TILE_PAIR_WIDTH;
@@ -840,7 +840,7 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 	if (state->display_enabled && !state->debug.hide_layers)
 	{
 		/* Draw Plane B. */
-		RenderScrollPlane(vdp, 0, SCANLINE_WIDTH_IN_TILE_PAIRS, scanline, plane_metapixels, constant->blit_lookup.normal, 1);
+		RenderScrollPlane(vdp, 0, VDP_GetExtendedScreenWidthInTilePairs(vdp), scanline, plane_metapixels, constant->blit_lookup.normal, 1);
 	}
 
 	/* Draw Window Plane (and sprites). */
