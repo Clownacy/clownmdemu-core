@@ -33,7 +33,7 @@ typedef struct FM_Operator_State
 
 	cc_u16l total_level;
 	cc_u16l sustain_level;
-	cc_u16l key_scale;
+	cc_u8l key_scale;
 
 	cc_u16l rates[4];
 	FM_Operator_EnvelopeMode envelope_mode;

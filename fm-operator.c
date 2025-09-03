@@ -23,7 +23,7 @@ static cc_u16f CalculateRate(const FM_Operator_State* const state)
 	if (state->rates[state->envelope_mode] == 0)
 		return 0;
 
-	return CC_MIN(0x3F, state->rates[state->envelope_mode] * 2 + (FM_Phase_GetKeyCode(&state->phase) / state->key_scale));
+	return CC_MIN(0x3F, state->rates[state->envelope_mode] * 2 + (FM_Phase_GetKeyCode(&state->phase) >> state->key_scale));
 }
 
 static void EnterAttackMode(FM_Operator_State* const state)
@@ -188,7 +188,7 @@ void FM_Operator_SetTotalLevel(FM_Operator_State* const state, const cc_u16f tot
 
 void FM_Operator_SetKeyScaleAndAttackRate(FM_Operator_State* const state, const cc_u16f key_scale, const cc_u16f attack_rate)
 {
-	state->key_scale = 8 >> key_scale;
+	state->key_scale = 3 - key_scale;
 	state->rates[FM_OPERATOR_ENVELOPE_MODE_ATTACK] = attack_rate;
 }
 
