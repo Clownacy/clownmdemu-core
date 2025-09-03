@@ -200,36 +200,17 @@ void FM_Operator_SetSustainLevelAndReleaseRate(FM_Operator_State* const state, c
 	state->rates[FM_OPERATOR_ENVELOPE_MODE_RELEASE] = (release_rate << 1) | 1;
 }
 
+#define FM_SATURATION_SUBTRACT(VALUE, SUBTRAHEND) (CC_MAX(VALUE, SUBTRAHEND) - SUBTRAHEND)
+
 static cc_u16f GetEnvelopeDelta(FM_Operator_State* const state)
 {
 	if (--state->countdown == 0)
 	{
-		static const cc_u16f cycle_bitmasks[0x40 / 4] = {
-			#define GENERATE_BITMASK(x) ((1 << (x)) - 1)
-			GENERATE_BITMASK(11),
-			GENERATE_BITMASK(10),
-			GENERATE_BITMASK(9),
-			GENERATE_BITMASK(8),
-			GENERATE_BITMASK(7),
-			GENERATE_BITMASK(6),
-			GENERATE_BITMASK(5),
-			GENERATE_BITMASK(4),
-			GENERATE_BITMASK(3),
-			GENERATE_BITMASK(2),
-			GENERATE_BITMASK(1),
-			GENERATE_BITMASK(0),
-			GENERATE_BITMASK(0),
-			GENERATE_BITMASK(0),
-			GENERATE_BITMASK(0),
-			GENERATE_BITMASK(0)
-			#undef GENERATE_BITMASK
-		};
-
 		const cc_u16f rate = CalculateRate(state);
 
 		state->countdown = 3;
 
-		if ((state->cycle_counter++ & cycle_bitmasks[rate / 4]) == 0)
+		if ((state->cycle_counter++ & (1 << FM_SATURATION_SUBTRACT(11, rate / 4)) - 1) == 0)
 		{
 			static const cc_u16f deltas[0x40][8] = {
 				{0, 0, 0, 0, 0, 0, 0, 0},
