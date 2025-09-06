@@ -5,6 +5,8 @@
 
 #include "fm-operator.h"
 
+#define FM_TOTAL_OPERATORS 4
+
 #define FM_CHANNEL_PARAMETERS_INITIALISE(CONSTANT, STATE) { \
 		(CONSTANT), \
 		(STATE), \
@@ -39,7 +41,7 @@ typedef struct FM_Channel_Constant
 
 typedef struct FM_Channel_State
 {
-	FM_Operator_State operators[4];
+	FM_Operator_State operators[FM_TOTAL_OPERATORS];
 	cc_u8l feedback_divisor;
 	cc_u16l algorithm;
 	cc_u16l operator_1_previous_samples[2];
@@ -51,7 +53,7 @@ typedef struct FM_Channel
 	const FM_Channel_Constant *constant;
 	FM_Channel_State *state;
 
-	FM_Operator operators[4];
+	FM_Operator operators[FM_TOTAL_OPERATORS];
 } FM_Channel;
 
 #define FM_Channel_Constant_Initialise(constant) FM_Operator_Constant_Initialise(&(constant)->operators)

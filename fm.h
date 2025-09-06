@@ -13,9 +13,9 @@
 #define FM_VOLUME_DIVIDER 8
 
 #define FM_PRESCALER 6
+#define FM_TOTAL_CHANNELS 6
 
-/* 6 for the number of channels, and 4 for the number of operators per channel. */
-#define FM_SAMPLE_RATE_DIVIDER (FM_PRESCALER * 6 * 4)
+#define FM_SAMPLE_RATE_DIVIDER (FM_PRESCALER * FM_TOTAL_CHANNELS * FM_TOTAL_OPERATORS)
 
 #define FM_PARAMETERS_INITIALISE(CONFIGURATION, CONSTANT, STATE) { \
 		(CONFIGURATION), \
@@ -64,7 +64,7 @@ typedef struct FM_ChannelMetadata
 
 typedef struct FM_Configuration
 {
-	cc_bool fm_channels_disabled[6];
+	cc_bool fm_channels_disabled[FM_TOTAL_CHANNELS];
 	cc_bool dac_channel_disabled;
 	cc_bool ladder_effect_disabled;
 } FM_Configuration;
@@ -83,10 +83,10 @@ typedef struct FM_Timer
 
 typedef struct FM_State
 {
-	FM_ChannelMetadata channels[6];
+	FM_ChannelMetadata channels[FM_TOTAL_CHANNELS];
 	struct
 	{
-		cc_u16l frequencies[4];
+		cc_u16l frequencies[FM_TOTAL_OPERATORS];
 		cc_bool per_operator_frequencies_enabled;
 		cc_bool csm_mode_enabled;
 	} channel_3_metadata;
@@ -110,7 +110,7 @@ typedef struct FM
 	const FM_Constant *constant;
 	FM_State *state;
 
-	FM_Channel channels[6];
+	FM_Channel channels[FM_TOTAL_CHANNELS];
 } FM;
 
 void FM_Constant_Initialise(FM_Constant *constant);
