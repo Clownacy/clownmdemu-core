@@ -496,7 +496,7 @@ static cc_s16f GetFinalSample(const FM* const fm, cc_s16f sample, const cc_bool 
 
 	/* The FM sample is 9-bit, so convert it to 16-bit and then divide it so that it
 	   can be mixed with the other five FM channels and the PSG without clipping. */
-	return sample * (1 << (16 - 9)) / FM_VOLUME_DIVIDER;
+	return sample * (1 << (16 - 9)) / FM_VOLUME_DIVISOR;
 }
 
 #define FM_Unsigned9BitToSigned9Bit(value) ((cc_s16f)(value) - 0x100)

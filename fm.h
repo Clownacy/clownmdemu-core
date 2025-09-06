@@ -10,7 +10,7 @@
 
 /* 8 is chosen because there are 6 FM channels (of which the DAC can replace one).
    Dividing by 8 is simpler than dividing by 6, so that was opted for instead. */
-#define FM_VOLUME_DIVIDER 8
+#define FM_VOLUME_DIVISOR 8
 
 #define FM_PRESCALER 6
 #define FM_TOTAL_CHANNELS 6
