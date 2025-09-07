@@ -833,6 +833,8 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 				{
 					const cc_bool dmna = (low_byte & (1 << 1)) != 0;
 
+					/* Contrary to the official documentation, the DMNA bit needs to be set to 0 to request a 1M bank swap. */
+					/* https://gendev.spritesmind.net/forum/viewtopic.php?p=16388#p16388 */
 					if (dmna != clownmdemu->state->mega_cd.word_ram.in_1m_mode)
 					{
 						SyncMCDM68k(clownmdemu, callback_user_data, CycleMegaDriveToMegaCD(clownmdemu, target_cycle));
