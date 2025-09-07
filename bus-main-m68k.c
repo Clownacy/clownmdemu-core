@@ -222,7 +222,7 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 					}
 					else
 					{
-						if (clownmdemu->state->mega_cd.word_ram.dmna)
+						if (!clownmdemu->state->mega_cd.word_ram.ret)
 						{
 							LOG_MAIN_CPU_BUS_ERROR_0("MAIN-CPU attempted to read from WORD-RAM while SUB-CPU has it");
 						}
@@ -641,7 +641,7 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 					}
 					else
 					{
-						if (clownmdemu->state->mega_cd.word_ram.dmna)
+						if (!clownmdemu->state->mega_cd.word_ram.ret)
 						{
 							LOG_MAIN_CPU_BUS_ERROR_0("Attempted to write to WORD-RAM while SUB-CPU has it");
 						}
@@ -824,12 +824,16 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 			else if (address == 0xA12002)
 			{
 				/* Memory mode / Write protect */
+				/* TODO: Exact behaviour of DMNA and RET when toggling between 1M and 2M modes. */
+				/* https://gendev.spritesmind.net/forum/viewtopic.php?p=15269#p15269 */
 				if (do_high_byte)
 					clownmdemu->state->mega_cd.prg_ram.write_protect = high_byte;
 
 				if (do_low_byte)
 				{
-					if ((low_byte & (1 << 1)) != 0)
+					const cc_bool dmna = (low_byte & (1 << 1)) != 0;
+
+					if (dmna != clownmdemu->state->mega_cd.word_ram.in_1m_mode)
 					{
 						SyncMCDM68k(clownmdemu, callback_user_data, CycleMegaDriveToMegaCD(clownmdemu, target_cycle));
 

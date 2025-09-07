@@ -477,7 +477,7 @@ void ClownMDEmu_Reset(const ClownMDEmu* const clownmdemu, const cc_bool cd_boot,
 		CDSectorsTo68kRAM(clownmdemu->callbacks, &state->mega_cd.prg_ram.buffer[boot_header_offset / 2], sp_start, sp_length);
 
 		/* Give WORD-RAM to the SUB-CPU. */
-		state->mega_cd.word_ram.dmna = cc_true;
+		state->mega_cd.word_ram.dmna = cc_false;
 		state->mega_cd.word_ram.ret = cc_false;
 	}
 
