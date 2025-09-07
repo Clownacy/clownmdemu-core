@@ -148,6 +148,13 @@ static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const
 			clownmdemu->mcd_m68k->status_register &= ~1; /* Clear carry flag to signal that the BIOS is not busy. */
 			break;
 
+		case 0x83:
+			/* CDBTOCREAD */
+			/* TODO: Complete this! */
+			clownmdemu->mcd_m68k->data_registers[0] = clownmdemu->mcd_m68k->data_registers[1] & 0xFF;
+			clownmdemu->mcd_m68k->data_registers[1]	= 0xFF;
+			break;
+
 		case 0x85:
 		{
 			/* FDRSET */
