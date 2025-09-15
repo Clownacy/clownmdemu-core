@@ -335,8 +335,8 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 			if (state->address < 0xA0)
 			{
 				/* Per-operator. */
-				static const cc_u8l operator_mappings[4] = {0, 2, 1, 3}; /* The bits are backwards, so this lookup table will reverse them. */
-				const cc_u16f operator_index = operator_mappings[(state->address >> 2) & 3];
+				const cc_u8f operator_index_scrambled = (state->address >> 2) & 3;
+				const cc_u8f operator_index = (operator_index_scrambled >> 1 | operator_index_scrambled << 1) & 3;
 
 				switch (state->address / 0x10)
 				{
