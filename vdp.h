@@ -122,7 +122,7 @@ typedef struct VDP_SpriteRowCacheEntry
 typedef struct VDP_SpriteRowCacheRow
 {
 	cc_u8l total;
-	VDP_SpriteRowCacheEntry sprites[VDP_MAX_SCREEN_WIDTH_IN_TILE_PAIRS];
+	VDP_SpriteRowCacheEntry sprites[VDP_MAX_SCANLINE_WIDTH_IN_TILE_PAIRS];
 } VDP_SpriteRowCacheRow;
 
 typedef struct VDP_State
@@ -199,7 +199,7 @@ typedef struct VDP_State
 	/* TODO: Add a toggle for Model 1 and Model 2 behaviour. */
 	cc_u16l vsram[64];
 
-	cc_u8l sprite_table_cache[VDP_MAX_SCREEN_WIDTH_IN_TILE_PAIRS * 4][4];
+	cc_u8l sprite_table_cache[VDP_MAX_SCANLINE_WIDTH_IN_TILE_PAIRS * 4][4];
 
 	struct
 	{

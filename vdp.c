@@ -100,15 +100,17 @@ static cc_u8f ReadVRAM(const VDP_State* const state, const cc_u32f address)
 	return state->vram[DecodeVRAMAddress(state, address) % CC_COUNT_OF(state->vram)];
 }
 
-static void WriteVRAM(VDP_State* const state, const cc_u32f address, const cc_u8f value)
+static void WriteVRAM(const VDP* const vdp, const cc_u32f address, const cc_u8f value)
 {
+	VDP_State* const state = vdp->state;
+
 	const cc_u32f decoded_address = DecodeVRAMAddress(state, address);
 
 	/* Update sprite cache if we're writing to the sprite table */
 	/* TODO: Do DMA fills and copies do this? */
 	const cc_u32f sprite_table_index = address - GetSpriteTableAddress(state);
 
-	if (sprite_table_index < VDP_GetScreenWidthInTiles(state) * 2 * 8 && (sprite_table_index & 4) == 0)
+	if (sprite_table_index < VDP_GetExtendedScreenWidthInTiles(vdp) * 2 * 8 && (sprite_table_index & 4) == 0)
 	{
 		cc_u8l* const cache_bytes = state->sprite_table_cache[sprite_table_index / 8];
 
@@ -128,13 +130,15 @@ static void IncrementAccessAddressRegister(VDP_State* const state)
 	state->access.address_register &= 0x1FFFF; /* Needs to be able to address 128KiB. */
 }
 
-static void WriteAndIncrement(VDP_State* const state, const cc_u16f value, const VDP_ColourUpdatedCallback colour_updated_callback, const void* const colour_updated_callback_user_data)
+static void WriteAndIncrement(const VDP* const vdp, const cc_u16f value, const VDP_ColourUpdatedCallback colour_updated_callback, const void* const colour_updated_callback_user_data)
 {
+	VDP_State* const state = vdp->state;
+
 	switch (state->access.selected_buffer)
 	{
 		case VDP_ACCESS_VRAM:
-			WriteVRAM(state, state->access.address_register ^ 0, (cc_u8f)(value & 0xFF));
-			WriteVRAM(state, state->access.address_register ^ 1, (cc_u8f)(value >> 8));
+			WriteVRAM(vdp, state->access.address_register ^ 0, (cc_u8f)(value & 0xFF));
+			WriteVRAM(vdp, state->access.address_register ^ 1, (cc_u8f)(value >> 8));
 			break;
 
 		case VDP_ACCESS_CRAM:
@@ -522,13 +526,15 @@ static void RenderWindowPlane(const VDP* const vdp, const cc_u8f start, const cc
 		RenderTilePair(vdp, scanline, vram_address_base + ((tile_x_base + i * TILE_PAIR_COUNT) & plane_width_bitmask) * 2, base_tile_vram_address, &metapixels_pointer, blit_lookup_list);
 }
 
-static void UpdateSpriteCache(VDP_State* const state)
+static void UpdateSpriteCache(const VDP* const vdp)
 {
 	/* Caching and preprocessing some of the sprite table allows the renderer to avoid
 	   scanning the entire sprite table every time it renders a scanline. The VDP actually
 	   partially caches its sprite data too, though I don't know if it's for the same purpose. */
+	VDP_State* const state = vdp->state;
+
 	const cc_u8f tile_height_shift = GET_TILE_HEIGHT_SHIFT(state);
-	const cc_u8f max_sprites = VDP_GetScreenWidthInTiles(state) * 2;
+	const cc_u8f max_sprites = VDP_GetExtendedScreenWidthInTiles(vdp) * 2;
 
 	cc_u16f i;
 	cc_u8f sprite_index;
@@ -556,7 +562,7 @@ static void UpdateSpriteCache(VDP_State* const state)
 			struct VDP_SpriteRowCacheRow* const row = &state->sprite_row_cache.rows[i - blank_lines];
 
 			/* Don't write more sprites than are allowed to be drawn on this line */
-			if (row->total != VDP_GetScreenWidthInTilePairs(state))
+			if (row->total != VDP_GetExtendedScreenWidthInTilePairs(vdp))
 			{
 				struct VDP_SpriteRowCacheEntry* const sprite_row_cache_entry = &row->sprites[row->total++];
 
@@ -589,7 +595,7 @@ static void RenderSprites(const VDP* const vdp, cc_u8l* const sprite_metapixels,
 	const cc_u8f tile_height_mask = GET_TILE_HEIGHT_MASK(state);
 
 	cc_u8f i;
-	cc_u16f sprite_limit = VDP_GetScreenWidthInTilePairs(state);
+	cc_u16f sprite_limit = VDP_GetExtendedScreenWidthInTilePairs(vdp);
 	cc_u16f pixel_limit = sprite_limit * 16;
 	cc_bool masked = cc_false;
 
@@ -827,7 +833,7 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 
 	assert(scanline < VDP_MAX_SCANLINES);
 
-	UpdateSpriteCache(state);
+	UpdateSpriteCache(vdp);
 
 	/* Clear the scanline buffer, so that the sprite blitter
 	   knows which pixels haven't been drawn yet. */
@@ -922,7 +928,7 @@ void VDP_WriteData(const VDP* const vdp, const cc_u16f value, const VDP_ColourUp
 	else
 	{
 		/* Write the value to memory */
-		WriteAndIncrement(state, value, colour_updated_callback, colour_updated_callback_user_data);
+		WriteAndIncrement(vdp, value, colour_updated_callback, colour_updated_callback_user_data);
 
 		if (IsDMAPending(state))
 		{
@@ -934,14 +940,14 @@ void VDP_WriteData(const VDP* const vdp, const cc_u16f value, const VDP_ColourUp
 			{
 				if (state->access.selected_buffer == VDP_ACCESS_VRAM)
 				{
-					WriteVRAM(state, state->access.address_register, (cc_u8f)(value >> 8));
+					WriteVRAM(vdp, state->access.address_register, (cc_u8f)(value >> 8));
 					IncrementAccessAddressRegister(state);
 				}
 				else
 				{
 					/* On real Mega Drives, the fill value for CRAM and VSRAM is fetched from earlier in the FIFO, which appears to be a bug. */
 					/* Verified with Nemesis' 'VDPFIFOTesting' homebrew. */
-					WriteAndIncrement(state, state->previous_data_writes[0], colour_updated_callback, colour_updated_callback_user_data);
+					WriteAndIncrement(vdp, state->previous_data_writes[0], colour_updated_callback, colour_updated_callback_user_data);
 				}
 
 				/* Yes, even DMA fills do this, according to
@@ -1284,11 +1290,11 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 			{
 				const cc_u16f value = read_callback((void*)read_callback_user_data, ((cc_u32f)state->dma.source_address_high << 17) | ((cc_u32f)state->dma.source_address_low << 1));
 				UpdateFakeFIFO(state, value);
-				WriteAndIncrement(state, value, colour_updated_callback, colour_updated_callback_user_data);
+				WriteAndIncrement(vdp, value, colour_updated_callback, colour_updated_callback_user_data);
 			}
 			else /*if (state->dma.mode == VDP_DMA_MODE_COPY)*/
 			{
-				WriteVRAM(state, state->access.address_register, ReadVRAM(state, state->dma.source_address_low));
+				WriteVRAM(vdp, state->access.address_register, ReadVRAM(state, state->dma.source_address_low));
 				IncrementAccessAddressRegister(state);
 			}
 
