@@ -294,25 +294,29 @@ void VDP_Constant_Initialise(VDP_Constant* const constant)
 			if (draw_new_pixel)
 			{
 				/* Sprite goes on top of plane */
-				if (new_colour_index == 0x3E)
+				switch (new_colour_index)
 				{
-					/* Transparent highlight pixel */
-					output = old_colour_index | (old_not_shadowed ? SHADOW_HIGHLIGHT_HIGHLIGHT : SHADOW_HIGHLIGHT_NORMAL);
-				}
-				else if (new_colour_index == 0x3F)
-				{
-					/* Transparent shadow pixel */
-					output = old_colour_index | SHADOW_HIGHLIGHT_SHADOW;
-				}
-				else if (new_palette_line_index == 0xE)
-				{
-					/* Always-normal pixel */
-					output = new_colour_index | SHADOW_HIGHLIGHT_NORMAL;
-				}
-				else
-				{
-					/* Regular sprite pixel */
-					output = new_colour_index | (new_not_shadowed || old_not_shadowed ? SHADOW_HIGHLIGHT_NORMAL : SHADOW_HIGHLIGHT_SHADOW);
+					case 0x0E:
+					case 0x1E:
+					case 0x2E:
+						/* Always-normal pixel */
+						output = new_colour_index | SHADOW_HIGHLIGHT_NORMAL;
+						break;
+
+					case 0x3E:
+						/* Transparent highlight pixel */
+						output = old_colour_index | (old_not_shadowed ? SHADOW_HIGHLIGHT_HIGHLIGHT : SHADOW_HIGHLIGHT_NORMAL);
+						break;
+
+					case 0x3F:
+						/* Transparent shadow pixel */
+						output = old_colour_index | SHADOW_HIGHLIGHT_SHADOW;
+						break;
+
+					default:
+						/* Regular sprite pixel */
+						output = new_colour_index | (new_not_shadowed || old_not_shadowed ? SHADOW_HIGHLIGHT_NORMAL : SHADOW_HIGHLIGHT_SHADOW);
+						break;
 				}
 			}
 			else
