@@ -196,11 +196,16 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 				{
 					/* Cartridge */
 					const cc_u32f cartridge_address = GetBankedCartridgeAddress(clownmdemu, address);
+					const cc_u32f cartridge_address_word = cartridge_address / 2;
 
-					if (do_high_byte)
-						value |= frontend_callbacks->cartridge_read((void*)frontend_callbacks->user_data, cartridge_address + 0) << 8;
-					if (do_low_byte)
-						value |= frontend_callbacks->cartridge_read((void*)frontend_callbacks->user_data, cartridge_address + 1) << 0;
+					if (cartridge_address_word >= clownmdemu->cartridge_buffer_length)
+					{
+						LOG_MAIN_CPU_BUS_ERROR_1("MAIN-CPU attempted to read from beyond the end of the cartridge (offset 0x%" CC_PRIXFAST32 ")", cartridge_address);
+					}
+					else
+					{
+						value = clownmdemu->cartridge_buffer[cartridge_address_word];
+					}
 				}
 			}
 			else
@@ -612,13 +617,10 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 				else
 				{
 					/* Cartridge */
-					if (do_high_byte)
-						frontend_callbacks->cartridge_written((void*)frontend_callbacks->user_data, (address & 0x3FFFFF) + 0, high_byte);
-					if (do_low_byte)
-						frontend_callbacks->cartridge_written((void*)frontend_callbacks->user_data, (address & 0x3FFFFF) + 1, low_byte);
+					const cc_u32f cartridge_address = GetBankedCartridgeAddress(clownmdemu, address);
 
 					/* TODO: This is temporary, just to catch possible bugs in the 68k emulator */
-					LOG_MAIN_CPU_BUS_ERROR_1("Attempted to write to ROM address 0x%" CC_PRIXFAST32, address);
+					LOG_MAIN_CPU_BUS_ERROR_1("Attempted to write to ROM address 0x%" CC_PRIXFAST32, cartridge_address);
 				}
 			}
 			else

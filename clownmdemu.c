@@ -147,6 +147,9 @@ void ClownMDEmu_Parameters_Initialise(ClownMDEmu* const clownmdemu, const ClownM
 	clownmdemu->state = state;
 	clownmdemu->callbacks = callbacks;
 
+	clownmdemu->cartridge_buffer = NULL;
+	clownmdemu->cartridge_buffer_length = 0;
+
 	clownmdemu->m68k = &state->m68k.state;
 
 	clownmdemu->z80.constant = &constant->z80;
@@ -335,17 +338,14 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 	CDDA_UpdateFade(&state->mega_cd.cdda);
 }
 
-static cc_u8f ReadCartridgeByte(const ClownMDEmu* const clownmdemu, const cc_u32f address)
-{
-	return clownmdemu->callbacks->cartridge_read((void*)clownmdemu->callbacks->user_data, address);
-}
-
 static cc_u16f ReadCartridgeWord(const ClownMDEmu* const clownmdemu, const cc_u32f address)
 {
-	cc_u16f word;
-	word = ReadCartridgeByte(clownmdemu, address + 0) << 8;
-	word |= ReadCartridgeByte(clownmdemu, address + 1);
-	return word;
+	const auto address_word = address / 2;
+
+	if (address_word >= clownmdemu->cartridge_buffer_length)
+		return 0;
+
+	return clownmdemu->cartridge_buffer[address_word];
 }
 
 static cc_u32f ReadCartridgeLongWord(const ClownMDEmu* const clownmdemu, const cc_u32f address)
@@ -369,7 +369,7 @@ static cc_u32f NextPowerOfTwo(cc_u32f v)
 	return v;
 }
 
-static void SetUpExternalRAM(const ClownMDEmu* const clownmdemu, const cc_u32f cartridge_size)
+static void SetUpExternalRAM(const ClownMDEmu* const clownmdemu)
 {
 	ClownMDEmu_State* const state = clownmdemu->state;
 
@@ -392,7 +392,7 @@ static void SetUpExternalRAM(const ClownMDEmu* const clownmdemu, const cc_u32f c
 		state->external_ram.non_volatile = (metadata & 0x4000) != 0;
 		state->external_ram.data_size = (metadata >> 11) & 3;
 		state->external_ram.device_type = (metadata >> 5) & 7;
-		state->external_ram.mapped_in = cartridge_size <= 2 * 1024 * 1024; /* Cartridges larger than 2MiB need to map-in their external RAM explicitly. */
+		state->external_ram.mapped_in = clownmdemu->cartridge_buffer_length * sizeof(*clownmdemu->cartridge_buffer) <= 2 * 1024 * 1024; /* Cartridges larger than 2MiB need to map-in their external RAM explicitly. */
 		/* TODO: Prevent small cartridges from mapping external RAM out. */
 
 		if (metadata_junk_bits != 0xA000)
@@ -430,14 +430,20 @@ static void SetUpExternalRAM(const ClownMDEmu* const clownmdemu, const cc_u32f c
 	}
 }
 
-void ClownMDEmu_Reset(const ClownMDEmu* const clownmdemu, const cc_bool cd_boot, const cc_u32f cartridge_size)
+void ClownMDEmu_SetCartridge(ClownMDEmu* const clownmdemu, const cc_u16l* const buffer, const cc_u32f buffer_length)
+{
+	clownmdemu->cartridge_buffer = buffer;
+	clownmdemu->cartridge_buffer_length = buffer_length;
+}
+
+void ClownMDEmu_Reset(const ClownMDEmu* const clownmdemu, const cc_bool cd_boot)
 {
 	ClownMDEmu_State* const state = clownmdemu->state;
 
 	Clown68000_ReadWriteCallbacks m68k_read_write_callbacks;
 	CPUCallbackUserData callback_user_data;
 
-	SetUpExternalRAM(clownmdemu, cartridge_size);
+	SetUpExternalRAM(clownmdemu);
 
 	state->mega_cd.boot_from_cd = cd_boot;
 

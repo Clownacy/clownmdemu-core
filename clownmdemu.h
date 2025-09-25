@@ -277,8 +277,6 @@ typedef struct ClownMDEmu_Callbacks
 	const void *user_data;
 
 	/* TODO: Rename these to be less mind-numbing. */
-	cc_u8f (*cartridge_read)(void *user_data, cc_u32f address);
-	void (*cartridge_written)(void *user_data, cc_u32f address, cc_u8f value);
 	void (*colour_updated)(void *user_data, cc_u16f index, cc_u16f colour);
 	VDP_ScanlineRenderedCallback scanline_rendered;
 	cc_bool (*input_requested)(void *user_data, cc_u8f player_id, ClownMDEmu_Button button_id);
@@ -309,6 +307,9 @@ typedef struct ClownMDEmu
 	ClownMDEmu_State *state;
 	const ClownMDEmu_Callbacks *callbacks;
 
+	const cc_u16l *cartridge_buffer;
+	cc_u32l cartridge_buffer_length;
+
 	Clown68000_State *m68k;
 	Z80 z80;
 	Clown68000_State *mcd_m68k;
@@ -324,7 +325,8 @@ void ClownMDEmu_Constant_Initialise(ClownMDEmu_Constant *constant);
 void ClownMDEmu_State_Initialise(ClownMDEmu_State *state);
 void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_Configuration *configuration, const ClownMDEmu_Constant *constant, ClownMDEmu_State *state, const ClownMDEmu_Callbacks *callbacks);
 void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu);
-void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, cc_bool cd_boot, cc_u32f cartridge_size);
+void ClownMDEmu_SetCartridge(ClownMDEmu *clownmdemu, const cc_u16l *buffer, cc_u32f buffer_length);
+void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, cc_bool cd_boot);
 void ClownMDEmu_SetLogCallback(const ClownMDEmu_LogCallback log_callback, const void *user_data);
 
 #ifdef __cplusplus
