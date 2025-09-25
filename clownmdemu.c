@@ -340,7 +340,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 
 static cc_u16f ReadCartridgeWord(const ClownMDEmu* const clownmdemu, const cc_u32f address)
 {
-	const auto address_word = address / 2;
+	const cc_u32f address_word = address / 2;
 
 	if (address_word >= clownmdemu->cartridge_buffer_length)
 		return 0;
