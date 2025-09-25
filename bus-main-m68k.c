@@ -15,7 +15,7 @@
 #define LOG_MAIN_CPU_BUS_ERROR_2(MESSAGE, ARG1, ARG2)       LogMessage(LOG_MAIN_CPU_BUS_ERROR_MESSAGE_PREFIX MESSAGE, LOG_MAIN_CPU_BUS_ERROR_ARGUMENTS, ARG1, ARG2);
 #define LOG_MAIN_CPU_BUS_ERROR_3(MESSAGE, ARG1, ARG2, ARG3) LogMessage(LOG_MAIN_CPU_BUS_ERROR_MESSAGE_PREFIX MESSAGE, LOG_MAIN_CPU_BUS_ERROR_ARGUMENTS, ARG1, ARG2, ARG3);
 
-/* https://github.com/devon-artmeier/clownmdemu-mcd-boot */
+/* https://github.com/Clownacy/clownmdemu-mcd-boot */
 static const cc_u16l megacd_boot_rom[] = {
 #include "mega-cd-boot-rom.c"
 };
