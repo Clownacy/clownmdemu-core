@@ -30,6 +30,10 @@ extern "C" {
 		(STATE), \
 		(CALLBACKS), \
 \
+		NULL, \
+		0, \
+		{NULL}, \
+\
 		&(STATE)->m68k.state, \
 \
 		{ \
