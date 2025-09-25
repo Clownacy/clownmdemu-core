@@ -157,7 +157,12 @@ static void IOPortToController_WriteCallback(void* const user_data, const cc_u8f
 	Controller_Write(parameters->controller, value, cycles);
 }
 
-cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u32f address_word, const cc_bool do_high_byte, const cc_bool do_low_byte, const CycleMegaDrive target_cycle, const cc_bool is_vdp_dma)
+static void UpdateBusCache(ClownMDEmu* const clownmdemu, const cc_u32f address_word, cc_u16l* const buffer, const cc_u32f buffer_index)
+{
+	clownmdemu->bus_cache[address_word % CLOWNMDEMU_BUS_CACHE_RANGE / CLOWNMDEMU_BUS_CACHE_PAGE_SIZE] = &buffer[buffer_index / CLOWNMDEMU_BUS_CACHE_PAGE_SIZE * CLOWNMDEMU_BUS_CACHE_PAGE_SIZE];
+}
+
+cc_u16f M68kReadCallbackWithCycleWithDMA_Internal(const void* const user_data, const cc_u32f address_word, const cc_bool do_high_byte, const cc_bool do_low_byte, const CycleMegaDrive target_cycle, const cc_bool is_vdp_dma)
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 	const ClownMDEmu* const clownmdemu = callback_user_data->clownmdemu;
@@ -205,6 +210,8 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 					else
 					{
 						value = clownmdemu->cartridge_buffer[cartridge_address_word];
+
+						UpdateBusCache(clownmdemu, address_word, clownmdemu->cartridge_buffer, cartridge_address_word);
 					}
 				}
 			}
@@ -532,12 +539,31 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 			break;
 
 		case 0xE00000 / 0x200000:
+		{
 			/* WORK-RAM. */
-			value = clownmdemu->state->m68k.ram[address_word % CC_COUNT_OF(clownmdemu->state->m68k.ram)];
+			const cc_u32f index = address_word % CC_COUNT_OF(clownmdemu->state->m68k.ram);
+			value = clownmdemu->state->m68k.ram[index];
+			UpdateBusCache(clownmdemu, address_word, clownmdemu->state->m68k.ram, index);
 			break;
+		}
 	}
 
 	return value;
+}
+
+cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u32f address_word, const cc_bool do_high_byte, const cc_bool do_low_byte, const CycleMegaDrive target_cycle, const cc_bool is_vdp_dma)
+{
+	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
+	const ClownMDEmu* const clownmdemu = callback_user_data->clownmdemu;
+	const ClownMDEmu_Callbacks* const frontend_callbacks = clownmdemu->callbacks;
+	const cc_u32f address = address_word * 2;
+
+	const cc_u16l* const buffer = clownmdemu->bus_cache[address_word % CLOWNMDEMU_BUS_CACHE_RANGE / CLOWNMDEMU_BUS_CACHE_PAGE_SIZE];
+
+	if (buffer != NULL)
+		return buffer[address_word % CLOWNMDEMU_BUS_CACHE_PAGE_SIZE];
+
+	return M68kReadCallbackWithCycleWithDMA_Internal(user_data, address_word, do_high_byte, do_low_byte, target_cycle, is_vdp_dma);
 }
 
 cc_u16f M68kReadCallbackWithCycle(const void* const user_data, const cc_u32f address, const cc_bool do_high_byte, const cc_bool do_low_byte, const CycleMegaDrive target_cycle)

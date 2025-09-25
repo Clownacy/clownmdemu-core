@@ -140,6 +140,11 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State* const state)
 	LowPassFilter_SecondOrder_Initialise(state->low_pass_filters.pcm, CC_COUNT_OF(state->low_pass_filters.pcm));
 }
 
+static void ResetBusCache(ClownMDEmu* const clownmdemu)
+{
+	memset(clownmdemu->bus_cache, 0, sizeof(clownmdemu->bus_cache));
+}
+
 void ClownMDEmu_Parameters_Initialise(ClownMDEmu* const clownmdemu, const ClownMDEmu_Configuration* const configuration, const ClownMDEmu_Constant* const constant, ClownMDEmu_State* const state, const ClownMDEmu_Callbacks* const callbacks)
 {
 	clownmdemu->configuration = configuration;
@@ -147,8 +152,7 @@ void ClownMDEmu_Parameters_Initialise(ClownMDEmu* const clownmdemu, const ClownM
 	clownmdemu->state = state;
 	clownmdemu->callbacks = callbacks;
 
-	clownmdemu->cartridge_buffer = NULL;
-	clownmdemu->cartridge_buffer_length = 0;
+	ClownMDEmu_SetCartridge(clownmdemu, NULL, 0);
 
 	clownmdemu->m68k = &state->m68k.state;
 
@@ -434,6 +438,7 @@ void ClownMDEmu_SetCartridge(ClownMDEmu* const clownmdemu, const cc_u16l* const 
 {
 	clownmdemu->cartridge_buffer = buffer;
 	clownmdemu->cartridge_buffer_length = buffer_length;
+	ResetBusCache(clownmdemu);
 }
 
 void ClownMDEmu_Reset(const ClownMDEmu* const clownmdemu, const cc_bool cd_boot)

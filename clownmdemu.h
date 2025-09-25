@@ -300,6 +300,9 @@ typedef struct ClownMDEmu_Callbacks
 	cc_bool (*save_file_size_obtained)(void *user_data, const char *filename, size_t *size);
 } ClownMDEmu_Callbacks;
 
+#define CLOWNMDEMU_BUS_CACHE_RANGE 0x800000
+#define CLOWNMDEMU_BUS_CACHE_PAGE_SIZE 0x8000
+
 typedef struct ClownMDEmu
 {
 	const ClownMDEmu_Configuration *configuration;
@@ -309,6 +312,8 @@ typedef struct ClownMDEmu
 
 	const cc_u16l *cartridge_buffer;
 	cc_u32l cartridge_buffer_length;
+	/* Translation lookaside buffer. */
+	cc_u16l *bus_cache[CLOWNMDEMU_BUS_CACHE_RANGE / CLOWNMDEMU_BUS_CACHE_PAGE_SIZE];
 
 	Clown68000_State *m68k;
 	Z80 z80;
