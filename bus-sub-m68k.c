@@ -1094,7 +1094,7 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 	else if (address == 0xFF8004)
 	{
 		/* CDC mode / device destination */
-		CDC_SetDeviceDestination(&clownmdemu->state->mega_cd.cdc, high_byte & 7);
+		CDC_SetDeviceDestination(&clownmdemu->state->mega_cd.cdc, (CDC_DeviceDestination)(high_byte & 7));
 	}
 	else if (address == 0xFF8006)
 	{
