@@ -284,7 +284,7 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 
 		case 0xA00000 / 0x200000:
 			/* IO region. */
-			if ((address >= 0xA00000 && address <= 0xA01FFF) || address == 0xA04000 || address == 0xA04002)
+			if (address >= 0xA00000 && address <= 0xA0FFFF)
 			{
 				/* Z80 RAM and YM2612 */
 				if (!clownmdemu->state->z80.bus_requested)
@@ -305,7 +305,7 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 					if (do_high_byte && do_low_byte)
 						LOG_MAIN_CPU_BUS_ERROR_0("68k attempted to perform word-sized read of Z80 memory/YM2612 ports; the read word will only contain the first byte repeated");
 
-					value = Z80ReadCallbackWithCycle(user_data, (address + (do_high_byte ? 0 : 1)) & 0xFFFF, target_cycle);
+					value = Z80ReadCallbackWithCycle(user_data, (address + (do_high_byte ? 0 : 1)) & 0x7FFF, target_cycle);
 					value = value << 8 | value;
 
 					/* TODO: This should delay the 68k by a cycle. */
@@ -689,7 +689,7 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 
 		case 0xA00000 / 0x200000:
 			/* IO region. */
-			if ((address >= 0xA00000 && address <= 0xA01FFF) || address == 0xA04000 || address == 0xA04002)
+			if (address >= 0xA00000 && address <= 0xA0FFFF)
 			{
 				/* Z80 RAM and YM2612 */
 				if (!clownmdemu->state->z80.bus_requested)
@@ -711,9 +711,9 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 						LOG_MAIN_CPU_BUS_ERROR_0("68k attempted to perform word-sized write of Z80 memory/YM2612 ports; only the top byte will be written");
 
 					if (do_high_byte)
-						Z80WriteCallbackWithCycle(user_data, (address + 0) & 0xFFFF, high_byte, target_cycle);
+						Z80WriteCallbackWithCycle(user_data, (address + 0) & 0x7FFF, high_byte, target_cycle);
 					else /*if (do_low_byte)*/
-						Z80WriteCallbackWithCycle(user_data, (address + 1) & 0xFFFF, low_byte, target_cycle);
+						Z80WriteCallbackWithCycle(user_data, (address + 1) & 0x7FFF, low_byte, target_cycle);
 
 					/* TODO: This should delay the 68k by a cycle. */
 					/* https://gendev.spritesmind.net/forum/viewtopic.php?p=29929&sid=7c86823ea17db0dca9238bb3fe32c93f#p29929 */
