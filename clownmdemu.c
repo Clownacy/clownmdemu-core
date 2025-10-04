@@ -58,7 +58,6 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State* const state)
 	   Failing to clear RAM causes issues with Sonic games and ROM-hacks,
 	   which skip initialisation when a certain magic number is found in RAM. */
 	memset(state->m68k.ram, 0, sizeof(state->m68k.ram));
-	state->m68k.cycle_countdown = 1;
 	state->m68k.h_int_pending = state->m68k.v_int_pending = cc_false;
 
 	/* Z80 */
@@ -90,7 +89,6 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State* const state)
 		state->cartridge_bankswitch[i] = i;
 
 	/* Mega CD */
-	state->mega_cd.m68k.cycle_countdown = 1;
 	state->mega_cd.m68k.bus_requested = cc_true;
 	state->mega_cd.m68k.reset_held = cc_true;
 
@@ -233,12 +231,12 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 
 	cpu_callback_user_data.clownmdemu = clownmdemu;
 	cpu_callback_user_data.sync.m68k.current_cycle = 0;
-	/* TODO: This is awful; stop doing this. */
-	cpu_callback_user_data.sync.m68k.cycle_countdown = &state->m68k.cycle_countdown;
+	cpu_callback_user_data.sync.m68k.base_cycle = 0;
 	cpu_callback_user_data.sync.z80.current_cycle = 0;
+	/* TODO: This is awful; stop doing this. */
 	cpu_callback_user_data.sync.z80.cycle_countdown = &state->z80.cycle_countdown;
 	cpu_callback_user_data.sync.mcd_m68k.current_cycle = 0;
-	cpu_callback_user_data.sync.mcd_m68k.cycle_countdown = &state->mega_cd.m68k.cycle_countdown;
+	cpu_callback_user_data.sync.mcd_m68k.base_cycle = 0;
 	cpu_callback_user_data.sync.mcd_m68k_irq3.current_cycle = 0;
 	cpu_callback_user_data.sync.mcd_m68k_irq3.cycle_countdown = &state->mega_cd.irq.irq3_countdown;
 	cpu_callback_user_data.sync.fm.current_cycle = 0;

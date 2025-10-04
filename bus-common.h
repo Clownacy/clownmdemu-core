@@ -17,14 +17,20 @@ typedef struct SyncCPUState
 	cc_u32l *cycle_countdown;
 } SyncCPUState;
 
+typedef struct SyncM68kState
+{
+	cc_u32f current_cycle;
+	cc_u32f base_cycle;
+} SyncM68kState;
+
 typedef struct CPUCallbackUserData
 {
 	const ClownMDEmu *clownmdemu;
 	struct
 	{
-		SyncCPUState m68k;
+		SyncM68kState m68k;
 		SyncCPUState z80;
-		SyncCPUState mcd_m68k;
+		SyncM68kState mcd_m68k;
 		SyncCPUState mcd_m68k_irq3;
 		SyncState fm;
 		SyncState psg;

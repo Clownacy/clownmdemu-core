@@ -41,9 +41,9 @@ static cc_bool GetHBlankBit(const ClownMDEmu* const clownmdemu, const CycleMegaD
 	return GetHCounterValue(clownmdemu, target_cycle) > 0xB2;
 }
 
-static cc_u16f VDPReadCallback(void *user_data, cc_u32f address)
+static cc_u16f VDPReadCallback(void* const user_data, const cc_u32f address, const cc_u32f target_cycle)
 {
-	return M68kReadCallbackWithDMA(user_data, address / 2, cc_true, cc_true, cc_true);
+	return M68kReadCallbackWithCycleWithDMA(user_data, address / 2, cc_true, cc_true, MakeCycleMegaDrive(target_cycle), cc_true);
 }
 
 static void VDPKDebugCallback(void* const user_data, const char* const string)
@@ -53,20 +53,25 @@ static void VDPKDebugCallback(void* const user_data, const char* const string)
 	LogMessage("KDEBUG: %s", string);
 }
 
-static cc_u16f SyncM68kCallback(const ClownMDEmu* const clownmdemu, void* const user_data)
-{
-	return CLOWNMDEMU_M68K_CLOCK_DIVIDER * Clown68000_DoCycle(clownmdemu->m68k, (const Clown68000_ReadWriteCallbacks*)user_data);
-}
-
 void SyncM68k(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* const other_state, const CycleMegaDrive target_cycle)
 {
-	Clown68000_ReadWriteCallbacks m68k_read_write_callbacks;
+	const cc_u32f current_cycle = other_state->sync.m68k.current_cycle;
 
-	m68k_read_write_callbacks.read_callback = M68kReadCallback;
-	m68k_read_write_callbacks.write_callback = M68kWriteCallback;
-	m68k_read_write_callbacks.user_data = other_state;
+	if (target_cycle.cycle > current_cycle)
+	{
+		const cc_u32f m68k_cycles_to_do = (target_cycle.cycle - current_cycle) / CLOWNMDEMU_M68K_CLOCK_DIVIDER;
 
-	SyncCPUCommon(clownmdemu, &other_state->sync.m68k, target_cycle.cycle, cc_false, SyncM68kCallback, &m68k_read_write_callbacks);
+		Clown68000_ReadWriteCallbacks m68k_read_write_callbacks;
+
+		m68k_read_write_callbacks.read_callback = M68kReadCallback;
+		m68k_read_write_callbacks.write_callback = M68kWriteCallback;
+		m68k_read_write_callbacks.user_data = other_state;
+
+		other_state->sync.m68k.base_cycle = current_cycle;
+		other_state->sync.m68k.current_cycle = current_cycle + m68k_cycles_to_do * CLOWNMDEMU_M68K_CLOCK_DIVIDER;
+
+		Clown68000_DoCycles(clownmdemu->m68k, &m68k_read_write_callbacks, m68k_cycles_to_do);
+	}
 }
 
 static cc_u32f GetBankedCartridgeAddress(const ClownMDEmu* const clownmdemu, const cc_u32f address)
@@ -291,7 +296,7 @@ static cc_u16f M68kReadCallbackWithCycleWithDMA_Internal(const void* const user_
 
 		case 0xA00000 / 0x200000:
 			/* IO region. */
-			if ((address >= 0xA00000 && address <= 0xA01FFF) || address == 0xA04000 || address == 0xA04002)
+			if (address >= 0xA00000 && address <= 0xA0FFFF)
 			{
 				/* Z80 RAM and YM2612 */
 				if (!clownmdemu->state->z80.bus_requested)
@@ -312,7 +317,7 @@ static cc_u16f M68kReadCallbackWithCycleWithDMA_Internal(const void* const user_
 					if (do_high_byte && do_low_byte)
 						LOG_MAIN_CPU_BUS_ERROR_0("68k attempted to perform word-sized read of Z80 memory/YM2612 ports; the read word will only contain the first byte repeated");
 
-					value = Z80ReadCallbackWithCycle(user_data, (address + (do_high_byte ? 0 : 1)) & 0xFFFF, target_cycle);
+					value = Z80ReadCallbackWithCycle(user_data, (address + (do_high_byte ? 0 : 1)) & 0x7FFF, target_cycle);
 					value = value << 8 | value;
 
 					/* TODO: This should delay the 68k by a cycle. */
@@ -569,16 +574,11 @@ cc_u16f M68kReadCallbackWithCycle(const void* const user_data, const cc_u32f add
 	return M68kReadCallbackWithCycleWithDMA(user_data, address, do_high_byte, do_low_byte, target_cycle, cc_false);
 }
 
-cc_u16f M68kReadCallbackWithDMA(const void* const user_data, const cc_u32f address, const cc_bool do_high_byte, const cc_bool do_low_byte, const cc_bool is_vdp_dma)
+cc_u16f M68kReadCallback(const void* const user_data, const cc_u32f address, const cc_bool do_high_byte, const cc_bool do_low_byte, const cc_u32f current_cycle)
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 
-	return M68kReadCallbackWithCycleWithDMA(user_data, address, do_high_byte, do_low_byte, MakeCycleMegaDrive(callback_user_data->sync.m68k.current_cycle), is_vdp_dma);
-}
-
-cc_u16f M68kReadCallback(const void* const user_data, const cc_u32f address, const cc_bool do_high_byte, const cc_bool do_low_byte)
-{
-	return M68kReadCallbackWithDMA(user_data, address, do_high_byte, do_low_byte, cc_false);
+	return M68kReadCallbackWithCycleWithDMA(user_data, address, do_high_byte, do_low_byte, MakeCycleMegaDrive(callback_user_data->sync.m68k.base_cycle + current_cycle * CLOWNMDEMU_M68K_CLOCK_DIVIDER), cc_false);
 }
 
 static void M68kWriteCallbackWithCycle_Internal(const void* const user_data, const cc_u32f address_word, const cc_bool do_high_byte, const cc_bool do_low_byte, const cc_u16f value, const CycleMegaDrive target_cycle)
@@ -713,7 +713,7 @@ static void M68kWriteCallbackWithCycle_Internal(const void* const user_data, con
 
 		case 0xA00000 / 0x200000:
 			/* IO region. */
-			if ((address >= 0xA00000 && address <= 0xA01FFF) || address == 0xA04000 || address == 0xA04002)
+			if (address >= 0xA00000 && address <= 0xA0FFFF)
 			{
 				/* Z80 RAM and YM2612 */
 				if (!clownmdemu->state->z80.bus_requested)
@@ -735,9 +735,9 @@ static void M68kWriteCallbackWithCycle_Internal(const void* const user_data, con
 						LOG_MAIN_CPU_BUS_ERROR_0("68k attempted to perform word-sized write of Z80 memory/YM2612 ports; only the top byte will be written");
 
 					if (do_high_byte)
-						Z80WriteCallbackWithCycle(user_data, (address + 0) & 0xFFFF, high_byte, target_cycle);
+						Z80WriteCallbackWithCycle(user_data, (address + 0) & 0x7FFF, high_byte, target_cycle);
 					else /*if (do_low_byte)*/
-						Z80WriteCallbackWithCycle(user_data, (address + 1) & 0xFFFF, low_byte, target_cycle);
+						Z80WriteCallbackWithCycle(user_data, (address + 1) & 0x7FFF, low_byte, target_cycle);
 
 					/* TODO: This should delay the 68k by a cycle. */
 					/* https://gendev.spritesmind.net/forum/viewtopic.php?p=29929&sid=7c86823ea17db0dca9238bb3fe32c93f#p29929 */
@@ -966,7 +966,7 @@ static void M68kWriteCallbackWithCycle_Internal(const void* const user_data, con
 				case 4 / 2:
 				case 6 / 2:
 					/* VDP control port */
-					VDP_WriteControl(&clownmdemu->vdp, value, frontend_callbacks->colour_updated, frontend_callbacks->user_data, VDPReadCallback, callback_user_data, VDPKDebugCallback, NULL);
+					VDP_WriteControl(&clownmdemu->vdp, value, frontend_callbacks->colour_updated, frontend_callbacks->user_data, VDPReadCallback, callback_user_data, VDPKDebugCallback, NULL, target_cycle.cycle);
 
 					/* TODO: This should be done more faithfully once the CPU interpreters are bus-event-oriented. */
 					RaiseHorizontalInterruptIfNeeded(clownmdemu);
@@ -1045,9 +1045,9 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 	}
 }
 
-void M68kWriteCallback(const void* const user_data, const cc_u32f address, const cc_bool do_high_byte, const cc_bool do_low_byte, const cc_u16f value)
+void M68kWriteCallback(const void* const user_data, const cc_u32f address, const cc_bool do_high_byte, const cc_bool do_low_byte, const cc_u32f current_cycle, const cc_u16f value)
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 
-	M68kWriteCallbackWithCycle(user_data, address, do_high_byte, do_low_byte, value, MakeCycleMegaDrive(callback_user_data->sync.m68k.current_cycle));
+	M68kWriteCallbackWithCycle(user_data, address, do_high_byte, do_low_byte, value, MakeCycleMegaDrive(callback_user_data->sync.m68k.base_cycle + current_cycle * CLOWNMDEMU_M68K_CLOCK_DIVIDER));
 }
