@@ -986,8 +986,8 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 
 		case 0xE00000 / 0x200000:
 			/* WORK-RAM. */
-			clownmdemu->state->m68k.ram[address_word & 0x7FFF] &= ~mask;
-			clownmdemu->state->m68k.ram[address_word & 0x7FFF] |= value & mask;
+			clownmdemu->state->m68k.ram[address_word % CC_COUNT_OF(clownmdemu->state->m68k.ram)] &= ~mask;
+			clownmdemu->state->m68k.ram[address_word % CC_COUNT_OF(clownmdemu->state->m68k.ram)] |= value & mask;
 			break;
 	}
 }
