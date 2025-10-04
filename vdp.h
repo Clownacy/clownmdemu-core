@@ -225,7 +225,7 @@ typedef struct VDP
 
 typedef void (*VDP_ScanlineRenderedCallback)(void *user_data, cc_u16f scanline, const cc_u8l *pixels, cc_u16f left_boundary, cc_u16f right_boundary, cc_u16f screen_width, cc_u16f screen_height);
 typedef void (*VDP_ColourUpdatedCallback)(void *user_data, cc_u16f index, cc_u16f colour);
-typedef cc_u16f (*VDP_ReadCallback)(void *user_data, cc_u32f address);
+typedef cc_u16f (*VDP_ReadCallback)(void *user_data, cc_u32f address, cc_u32f target_cycle);
 typedef void (*VDP_KDebugCallback)(void *user_data, const char *string);
 
 void VDP_Constant_Initialise(VDP_Constant *constant);
@@ -235,7 +235,7 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, VDP_ScanlineRenderedCa
 cc_u16f VDP_ReadData(const VDP *vdp);
 cc_u16f VDP_ReadControl(const VDP *vdp);
 void VDP_WriteData(const VDP *vdp, cc_u16f value, VDP_ColourUpdatedCallback colour_updated_callback, const void *colour_updated_callback_user_data);
-void VDP_WriteControl(const VDP *vdp, cc_u16f value, VDP_ColourUpdatedCallback colour_updated_callback, const void *colour_updated_callback_user_data, VDP_ReadCallback read_callback, const void *read_callback_user_data, VDP_KDebugCallback kdebug_callback, const void *kdebug_callback_user_data);
+void VDP_WriteControl(const VDP *vdp, cc_u16f value, VDP_ColourUpdatedCallback colour_updated_callback, const void *colour_updated_callback_user_data, VDP_ReadCallback read_callback, const void *read_callback_user_data, VDP_KDebugCallback kdebug_callback, const void *kdebug_callback_user_data, cc_u32f target_cycle);
 void VDP_WriteDebugData(const VDP *vdp, cc_u16f value);
 void VDP_WriteDebugControl(const VDP *vdp, cc_u16f value);
 

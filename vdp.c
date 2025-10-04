@@ -964,7 +964,7 @@ void VDP_WriteData(const VDP* const vdp, const cc_u16f value, const VDP_ColourUp
 }
 
 /* TODO: Retention of partial commands. */
-void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_ColourUpdatedCallback colour_updated_callback, const void* const colour_updated_callback_user_data, const VDP_ReadCallback read_callback, const void* const read_callback_user_data, const VDP_KDebugCallback kdebug_callback, const void* const kdebug_callback_user_data)
+void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_ColourUpdatedCallback colour_updated_callback, const void* const colour_updated_callback_user_data, const VDP_ReadCallback read_callback, const void* const read_callback_user_data, const VDP_KDebugCallback kdebug_callback, const void* const kdebug_callback_user_data, const cc_u32f target_cycle)
 {
 	VDP_State* const state = vdp->state;
 
@@ -1292,7 +1292,7 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 		{
 			if (state->dma.mode == VDP_DMA_MODE_MEMORY_TO_VRAM)
 			{
-				const cc_u16f value = read_callback((void*)read_callback_user_data, ((cc_u32f)state->dma.source_address_high << 17) | ((cc_u32f)state->dma.source_address_low << 1));
+				const cc_u16f value = read_callback((void*)read_callback_user_data, ((cc_u32f)state->dma.source_address_high << 17) | ((cc_u32f)state->dma.source_address_low << 1), target_cycle);
 				UpdateFakeFIFO(state, value);
 				WriteAndIncrement(vdp, value, colour_updated_callback, colour_updated_callback_user_data);
 			}
