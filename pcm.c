@@ -131,7 +131,7 @@ cc_u8f PCM_ReadRegister(const PCM* const pcm, const cc_u16f reg)
 			break;
 			
 		case 0x01:
-			value = (current_channel->panning[0] << 0) | (current_channel->panning[1] << 8);
+			value = (current_channel->panning[0] << 0) | (current_channel->panning[1] << 4);
 			break;
 			
 		case 0x02:
