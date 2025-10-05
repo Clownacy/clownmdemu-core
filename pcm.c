@@ -14,14 +14,18 @@ void PCM_State_Initialise(PCM_State* const state)
 
 	for (i = 0; i < CC_COUNT_OF(state->channels); ++i)
 	{
-		state->channels[i].disabled = cc_true;
-		state->channels[i].volume = 0;
-		state->channels[i].panning[0] = 0;
-		state->channels[i].panning[1] = 0;
-		state->channels[i].frequency = 0;
-		state->channels[i].loop_address = 0;
-		state->channels[i].start_address = 0;
-		state->channels[i].address = 0;
+		PCM_ChannelState* const channel = &state->channels[i];
+
+		cc_u8f j;
+
+		channel->disabled = cc_true;
+		channel->volume = 0;
+		for (j = 0; j < CC_COUNT_OF(channel->panning); ++j)
+			channel->panning[j] = 0;
+		channel->frequency = 0;
+		channel->loop_address = 0;
+		channel->start_address = 0;
+		channel->address = 0;
 	}
 
 	state->sounding = cc_false;
@@ -131,7 +135,7 @@ cc_u8f PCM_ReadRegister(const PCM* const pcm, const cc_u16f reg)
 			break;
 			
 		case 0x02:
-			value = current_channel->frequency & 0xFF;
+			value = (current_channel->frequency >> 0) & 0xFF;
 			break;
 			
 		case 0x03:
@@ -139,7 +143,7 @@ cc_u8f PCM_ReadRegister(const PCM* const pcm, const cc_u16f reg)
 			break;
 			
 		case 0x04:
-			value = current_channel->loop_address & 0xFF;
+			value = (current_channel->loop_address >> 0) & 0xFF;
 			break;
 			
 		case 0x05:
