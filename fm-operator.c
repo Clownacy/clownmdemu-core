@@ -210,7 +210,7 @@ static cc_u16f GetEnvelopeDelta(FM_Operator_State* const state)
 
 		state->countdown = 3;
 
-		if ((state->cycle_counter++ & (1 << FM_SATURATION_SUBTRACT(11, rate / 4)) - 1) == 0)
+		if ((state->cycle_counter++ & ((1 << FM_SATURATION_SUBTRACT(11, rate / 4)) - 1)) == 0)
 		{
 			static const cc_u16f deltas[0x40][8] = {
 				{0, 0, 0, 0, 0, 0, 0, 0},

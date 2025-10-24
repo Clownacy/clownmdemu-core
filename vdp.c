@@ -675,7 +675,7 @@ static void RenderSprites(const VDP* const vdp, cc_u8l* const sprite_metapixels,
 
 				for (k = 0; k < TILE_WIDTH / 2; ++k)
 				{
-					const cc_u8f byte = ReadVRAM(state, tile_row_vram_address + k ^ byte_index_xor);
+					const cc_u8f byte = ReadVRAM(state, (tile_row_vram_address + k) ^ byte_index_xor);
 
 					cc_u8f l;
 
