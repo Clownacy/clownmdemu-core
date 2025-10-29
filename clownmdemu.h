@@ -48,11 +48,10 @@ extern "C" {
 			&(STATE)->vdp \
 		}, \
 \
-		FM_PARAMETERS_INITIALISE( \
+		{ \
 			&(CONFIGURATION)->fm, \
-			&(CONSTANT)->fm, \
 			&(STATE)->fm \
-		), \
+		}, \
 \
 		{ \
 			&(CONFIGURATION)->psg, \
@@ -166,7 +165,6 @@ typedef struct ClownMDEmu_Constant
 {
 	Z80_Constant z80;
 	VDP_Constant vdp;
-	FM_Constant fm;
 	PSG_Constant psg;
 } ClownMDEmu_Constant;
 

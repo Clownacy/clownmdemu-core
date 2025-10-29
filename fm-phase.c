@@ -4,7 +4,7 @@
 
 #include "clowncommon/clowncommon.h"
 
-static cc_u32f RecalculatePhaseStep(const FM_Phase_State* const phase, const cc_u8f modulation, const cc_u8f modulation_sensitivity)
+static cc_u32f RecalculatePhaseStep(const FM_Phase* const phase, const cc_u8f modulation, const cc_u8f modulation_sensitivity)
 {
 	/* First, obtain some values. */
 
@@ -153,14 +153,14 @@ static cc_u32f RecalculatePhaseStep(const FM_Phase_State* const phase, const cc_
 	return step;
 }
 
-void FM_Phase_State_Initialise(FM_Phase_State* const phase)
+void FM_Phase_Initialise(FM_Phase* const phase)
 {
 	FM_Phase_SetFrequency(phase, 0, 0, 0);
 	FM_Phase_SetDetuneAndMultiplier(phase, 0, 0, 0, 0);
 	FM_Phase_Reset(phase);
 }
 
-void FM_Phase_SetFrequency(FM_Phase_State* const phase, const cc_u8f modulation, const cc_u8f sensitivity, const cc_u16f f_number_and_block)
+void FM_Phase_SetFrequency(FM_Phase* const phase, const cc_u8f modulation, const cc_u8f sensitivity, const cc_u16f f_number_and_block)
 {
 	phase->f_number_and_block = f_number_and_block;
 	phase->key_code = f_number_and_block >> 9;
@@ -168,7 +168,7 @@ void FM_Phase_SetFrequency(FM_Phase_State* const phase, const cc_u8f modulation,
 	phase->step = RecalculatePhaseStep(phase, modulation, sensitivity);
 }
 
-void FM_Phase_SetDetuneAndMultiplier(FM_Phase_State* const phase, const cc_u8f modulation, const cc_u8f sensitivity, const cc_u16f detune, const cc_u16f multiplier)
+void FM_Phase_SetDetuneAndMultiplier(FM_Phase* const phase, const cc_u8f modulation, const cc_u8f sensitivity, const cc_u16f detune, const cc_u16f multiplier)
 {
 	phase->detune = detune;
 	phase->multiplier = multiplier == 0 ? 1 : multiplier * 2;
@@ -176,7 +176,7 @@ void FM_Phase_SetDetuneAndMultiplier(FM_Phase_State* const phase, const cc_u8f m
 	phase->step = RecalculatePhaseStep(phase, modulation, sensitivity);
 }
 
-void FM_Phase_SetModulationAndSensitivity(FM_Phase_State* const phase, const cc_u8f modulation, const cc_u8f sensitivity)
+void FM_Phase_SetModulationAndSensitivity(FM_Phase* const phase, const cc_u8f modulation, const cc_u8f sensitivity)
 {
 	phase->step = RecalculatePhaseStep(phase, modulation, sensitivity);
 }

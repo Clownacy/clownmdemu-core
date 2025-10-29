@@ -10,17 +10,17 @@ static cc_u8f ComputeFeedbackDivisor(const cc_u8f value)
 	return 9 - value;
 }
 
-static void SetAmplitudeModulation(FM_Channel_State* const state, const cc_u8f amplitude_modulation)
+static void SetAmplitudeModulation(FM_Channel* const state, const cc_u8f amplitude_modulation)
 {
 	state->amplitude_modulation_shift = 7 >> amplitude_modulation;
 }
 
-void FM_Channel_State_Initialise(FM_Channel_State* const state)
+void FM_Channel_Initialise(FM_Channel* const state)
 {
 	cc_u16f i;
 
 	for (i = 0; i < CC_COUNT_OF(state->operators); ++i)
-		FM_Operator_State_Initialise(&state->operators[i]);
+		FM_Operator_Initialise(&state->operators[i]);
 
 	state->feedback_divisor = ComputeFeedbackDivisor(0);
 	state->algorithm = 0;
@@ -32,53 +32,39 @@ void FM_Channel_State_Initialise(FM_Channel_State* const state)
 	state->phase_modulation_sensitivity = 0;
 }
 
-void FM_Channel_Parameters_Initialise(FM_Channel* const channel, const FM_Channel_Constant* const constant, FM_Channel_State* const state)
+void FM_Channel_SetFrequencies(FM_Channel* const channel, const cc_u8f modulation, const cc_u16f f_number_and_block)
 {
 	cc_u16f i;
-
-	channel->constant = constant;
-	channel->state = state;
 
 	for (i = 0; i < CC_COUNT_OF(channel->operators); ++i)
-	{
-		channel->operators[i].constant = &constant->operators;
-		channel->operators[i].state = &state->operators[i];
-	}
+		FM_Operator_SetFrequency(&channel->operators[i], modulation, channel->phase_modulation_sensitivity, f_number_and_block);
 }
 
-void FM_Channel_SetFrequencies(const FM_Channel* const channel, const cc_u8f modulation, const cc_u16f f_number_and_block)
+void FM_Channel_SetFeedbackAndAlgorithm(FM_Channel* const channel, const cc_u8f feedback, const cc_u8f algorithm)
+{
+	channel->feedback_divisor = ComputeFeedbackDivisor(feedback);
+	channel->algorithm = algorithm;
+}
+
+static void FM_Channel_SetPhaseModulationAndSensitivity(FM_Channel* const channel, const cc_u8f phase_modulation, const cc_u8f phase_modulation_sensitivity)
 {
 	cc_u16f i;
 
-	for (i = 0; i < CC_COUNT_OF(channel->state->operators); ++i)
-		FM_Operator_SetFrequency(channel->operators[i].state, modulation, channel->state->phase_modulation_sensitivity, f_number_and_block);
+	for (i = 0; i < CC_COUNT_OF(channel->operators); ++i)
+		FM_Operator_SetPhaseModulationAndSensitivity(&channel->operators[i], phase_modulation, phase_modulation_sensitivity);
 }
 
-void FM_Channel_SetFeedbackAndAlgorithm(const FM_Channel* const channel, const cc_u8f feedback, const cc_u8f algorithm)
+void FM_Channel_SetModulationSensitivity(FM_Channel* const channel, const cc_u8f phase_modulation, const cc_u8f amplitude, const cc_u8f phase)
 {
-	channel->state->feedback_divisor = ComputeFeedbackDivisor(feedback);
-	channel->state->algorithm = algorithm;
-}
-
-static void FM_Channel_SetPhaseModulationAndSensitivity(const FM_Channel* const channel, const cc_u8f phase_modulation, const cc_u8f phase_modulation_sensitivity)
-{
-	cc_u16f i;
-
-	for (i = 0; i < CC_COUNT_OF(channel->state->operators); ++i)
-		FM_Operator_SetPhaseModulationAndSensitivity(channel->operators[i].state, phase_modulation, phase_modulation_sensitivity);
-}
-
-void FM_Channel_SetModulationSensitivity(const FM_Channel* const channel, const cc_u8f phase_modulation, const cc_u8f amplitude, const cc_u8f phase)
-{
-	SetAmplitudeModulation(channel->state, amplitude);
-	channel->state->phase_modulation_sensitivity = phase;
+	SetAmplitudeModulation(channel, amplitude);
+	channel->phase_modulation_sensitivity = phase;
 
 	FM_Channel_SetPhaseModulationAndSensitivity(channel, phase_modulation, phase);
 }
 
-void FM_Channel_SetPhaseModulation(const FM_Channel* const channel, const cc_u8f phase_modulation)
+void FM_Channel_SetPhaseModulation(FM_Channel* const channel, const cc_u8f phase_modulation)
 {
-	FM_Channel_SetPhaseModulationAndSensitivity(channel, phase_modulation, channel->state->phase_modulation_sensitivity);
+	FM_Channel_SetPhaseModulationAndSensitivity(channel, phase_modulation, channel->phase_modulation_sensitivity);
 }
 
 static cc_u16f FM_Channel_Signed14BitToUnsigned9Bit(const cc_u16f value)
@@ -95,15 +81,14 @@ static cc_u16f FM_Channel_MixSamples(const cc_u16f a, const cc_u16f b)
 	return FM_CLAMP_SIGNED_ON_UNSIGNED(9 + 1, -0x100, 0xFF, a + b);
 }
 
-cc_u16f FM_Channel_GetSample(const FM_Channel* const channel, const cc_u8f amplitude_modulation)
+cc_u16f FM_Channel_GetSample(FM_Channel* const channel, const cc_u8f amplitude_modulation)
 {
-	FM_Channel_State* const state = channel->state;
-	const cc_u8f amplitude_modulation_shift = state->amplitude_modulation_shift;
+	const cc_u8f amplitude_modulation_shift = channel->amplitude_modulation_shift;
 
-	const FM_Operator* const operator1 = &channel->operators[0];
-	const FM_Operator* const operator2 = &channel->operators[1];
-	const FM_Operator* const operator3 = &channel->operators[2];
-	const FM_Operator* const operator4 = &channel->operators[3];
+	FM_Operator* const operator1 = &channel->operators[0];
+	FM_Operator* const operator2 = &channel->operators[1];
+	FM_Operator* const operator3 = &channel->operators[2];
+	FM_Operator* const operator4 = &channel->operators[3];
 
 	cc_u16f feedback_modulation;
 	cc_u16f operator_1_sample;
@@ -113,21 +98,21 @@ cc_u16f FM_Channel_GetSample(const FM_Channel* const channel, const cc_u8f ampli
 	cc_u16f sample;
 
 	/* Compute operator 1's self-feedback modulation. */
-	if (state->feedback_divisor == ComputeFeedbackDivisor(0))
+	if (channel->feedback_divisor == ComputeFeedbackDivisor(0))
 	{
 		feedback_modulation = 0;
 	}
 	else
 	{
-		feedback_modulation = (state->operator_1_previous_samples[0] + state->operator_1_previous_samples[1]) >> state->feedback_divisor;
-		feedback_modulation = CC_SIGN_EXTEND(cc_u16f, 15 - state->feedback_divisor, feedback_modulation);
+		feedback_modulation = (channel->operator_1_previous_samples[0] + channel->operator_1_previous_samples[1]) >> channel->feedback_divisor;
+		feedback_modulation = CC_SIGN_EXTEND(cc_u16f, 15 - channel->feedback_divisor, feedback_modulation);
 	}
 
 	/* Feed the operators into each other to produce the final sample. */
 	/* Note that the operators output a 14-bit sample, meaning that, if all four are summed, then the result is a 16-bit sample,
 	   so there is no possibility of overflow. */
 	/* http://gendev.spritesmind.net/forum/viewtopic.php?p=5958#p5958 */
-	switch (state->algorithm)
+	switch (channel->algorithm)
 	{
 		default:
 			/* Should not happen. */
@@ -243,8 +228,8 @@ cc_u16f FM_Channel_GetSample(const FM_Channel* const channel, const cc_u8f ampli
 	}
 
 	/* Update the feedback values. */
-	state->operator_1_previous_samples[1] = state->operator_1_previous_samples[0];
-	state->operator_1_previous_samples[0] = operator_1_sample;
+	channel->operator_1_previous_samples[1] = channel->operator_1_previous_samples[0];
+	channel->operator_1_previous_samples[0] = operator_1_sample;
 
 	return sample;
 }

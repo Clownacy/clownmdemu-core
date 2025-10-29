@@ -17,47 +17,14 @@
 
 #define FM_SAMPLE_RATE_DIVIDER (FM_PRESCALER * FM_TOTAL_CHANNELS * FM_TOTAL_OPERATORS)
 
-#define FM_PARAMETERS_INITIALISE(CONFIGURATION, CONSTANT, STATE) { \
+#define FM_PARAMETERS_INITIALISE(CONFIGURATION, STATE) { \
 		(CONFIGURATION), \
-		(CONSTANT), \
 		(STATE), \
-\
-		{ \
-			FM_CHANNEL_PARAMETERS_INITIALISE( \
-				&(CONSTANT)->channels, \
-				&(STATE)->channels[0].state \
-			), \
-\
-			FM_CHANNEL_PARAMETERS_INITIALISE( \
-				&(CONSTANT)->channels, \
-				&(STATE)->channels[1].state \
-			), \
-\
-			FM_CHANNEL_PARAMETERS_INITIALISE( \
-				&(CONSTANT)->channels, \
-				&(STATE)->channels[2].state \
-			), \
-\
-			FM_CHANNEL_PARAMETERS_INITIALISE( \
-				&(CONSTANT)->channels, \
-				&(STATE)->channels[3].state \
-			), \
-\
-			FM_CHANNEL_PARAMETERS_INITIALISE( \
-				&(CONSTANT)->channels, \
-				&(STATE)->channels[4].state \
-			), \
-\
-			FM_CHANNEL_PARAMETERS_INITIALISE( \
-				&(CONSTANT)->channels, \
-				&(STATE)->channels[5].state \
-			) \
-		} \
 	}
 
 typedef struct FM_ChannelMetadata
 {
-	FM_Channel_State state;
+	FM_Channel state;
 	cc_bool pan_left;
 	cc_bool pan_right;
 } FM_ChannelMetadata;
@@ -68,11 +35,6 @@ typedef struct FM_Configuration
 	cc_bool dac_channel_disabled;
 	cc_bool ladder_effect_disabled;
 } FM_Configuration;
-
-typedef struct FM_Constant
-{
-	FM_Channel_Constant channels;
-} FM_Constant;
 
 typedef struct FM_Timer
 {
@@ -107,15 +69,10 @@ typedef struct FM_State
 typedef struct FM
 {
 	const FM_Configuration *configuration;
-	const FM_Constant *constant;
 	FM_State *state;
-
-	FM_Channel channels[FM_TOTAL_CHANNELS];
 } FM;
 
-void FM_Constant_Initialise(FM_Constant *constant);
 void FM_State_Initialise(FM_State *state);
-void FM_Parameters_Initialise(FM *fm, const FM_Configuration *configuration, const FM_Constant *constant, FM_State *state);
 
 void FM_DoAddress(const FM *fm, cc_u8f port, cc_u8f address);
 void FM_DoData(const FM *fm, cc_u8f data);

@@ -125,11 +125,6 @@ static cc_u16f FM_ConvertTimerBValue(const cc_u16f value)
 	return 0x10 * (0x100 - value);
 }
 
-void FM_Constant_Initialise(FM_Constant* const constant)
-{
-	FM_Channel_Constant_Initialise(&constant->channels);
-}
-
 void FM_State_Initialise(FM_State* const state)
 {
 	FM_ChannelMetadata *channel;
@@ -137,7 +132,7 @@ void FM_State_Initialise(FM_State* const state)
 
 	for (channel = &state->channels[0]; channel < &state->channels[CC_COUNT_OF(state->channels)]; ++channel)
 	{
-		FM_Channel_State_Initialise(&channel->state);
+		FM_Channel_Initialise(&channel->state);
 
 		/* Panning must be enabled by default. Without this, Sonic 1's 'Sega' chant doesn't play. */
 		channel->pan_left = cc_true;
@@ -176,18 +171,6 @@ void FM_State_Initialise(FM_State* const state)
 	FM_LFO_Initialise(&state->lfo);
 }
 
-void FM_Parameters_Initialise(FM* const fm, const FM_Configuration* const configuration, const FM_Constant* const constant, FM_State* const state)
-{
-	cc_u16f i;
-
-	fm->configuration = configuration;
-	fm->constant = constant;
-	fm->state = state;
-
-	for (i = 0; i < CC_COUNT_OF(fm->channels); ++i)
-		FM_Channel_Parameters_Initialise(&fm->channels[i], &constant->channels, &state->channels[i].state);
-}
-
 void FM_DoAddress(const FM* const fm, const cc_u8f port, const cc_u8f address)
 {
 	fm->state->port = port * 3;
@@ -216,10 +199,10 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 				case 0x22:
 					if (FM_LFO_SetEnabled(&state->lfo, (data & 8) != 0))
 					{
-						const FM_Channel *channel;
+						FM_ChannelMetadata *channel;
 
-						for (channel = &fm->channels[0]; channel < &fm->channels[CC_COUNT_OF(fm->channels)]; ++channel)
-							FM_Channel_SetPhaseModulation(channel, state->lfo.phase_modulation);
+						for (channel = &state->channels[0]; channel < &state->channels[CC_COUNT_OF(state->channels)]; ++channel)
+							FM_Channel_SetPhaseModulation(&channel->state, state->lfo.phase_modulation);
 					}
 
 					state->lfo.frequency = data & 7;
@@ -271,8 +254,8 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 
 						state->channel_3_metadata.per_operator_frequencies_enabled = fm3_per_operator_frequencies_enabled;
 
-						for (i = 0; i < CC_COUNT_OF(fm->channels[2].operators); ++i)
-							FM_Channel_SetFrequency(&fm->channels[2], i, state->lfo.phase_modulation, state->channel_3_metadata.frequencies[fm3_per_operator_frequencies_enabled ? i : 3]);
+						for (i = 0; i < CC_COUNT_OF(state->channels[2].state.operators); ++i)
+							FM_Channel_SetFrequency(&state->channels[2].state, i, state->lfo.phase_modulation, state->channel_3_metadata.frequencies[fm3_per_operator_frequencies_enabled ? i : 3]);
 					}
 
 					state->channel_3_metadata.csm_mode_enabled = (data & 0xC0) == 0x80;
@@ -290,7 +273,7 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 
 					if (channel_index != 0xFF)
 					{
-						const FM_Channel* const channel = &fm->channels[channel_index];
+						FM_Channel* const channel = &state->channels[channel_index].state;
 
 						cc_u8f i;
 
@@ -326,7 +309,7 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 		const cc_u16f slot_index = state->address & 3;
 		const cc_u16f channel_index = state->port + slot_index;
 		FM_ChannelMetadata* const channel_metadata = &state->channels[channel_index];
-		const FM_Channel* const channel = &fm->channels[channel_index];
+		FM_Channel* const channel = &state->channels[channel_index].state;
 
 		/* There is no fourth channel per slot. */
 		/* TODO: See how real hardware handles this. */
@@ -401,7 +384,7 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 
 							if (state->channel_3_metadata.per_operator_frequencies_enabled)
 							{
-								FM_Channel_SetFrequency(&fm->channels[2], 3, state->lfo.phase_modulation, frequency);
+								FM_Channel_SetFrequency(&state->channels[2].state, 3, state->lfo.phase_modulation, frequency);
 								break;
 							}
 						}
@@ -427,7 +410,7 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 							state->channel_3_metadata.frequencies[operator_index] = frequency;
 
 							if (state->channel_3_metadata.per_operator_frequencies_enabled)
-								FM_Channel_SetFrequency(&fm->channels[2], operator_index, state->lfo.phase_modulation, frequency);
+								FM_Channel_SetFrequency(&state->channels[2].state, operator_index, state->lfo.phase_modulation, frequency);
 						}
 
 						break;
@@ -516,16 +499,16 @@ void FM_OutputSamples(const FM* const fm, cc_s16l* const sample_buffer, const cc
 
 		if (FM_LFO_Advance(&state->lfo))
 		{
-			const FM_Channel *channel;
+			FM_ChannelMetadata *channel;
 
-			for (channel = &fm->channels[0]; channel < &fm->channels[CC_COUNT_OF(fm->channels)]; ++channel)
-				FM_Channel_SetPhaseModulation(channel, state->lfo.phase_modulation);
+			for (channel = &state->channels[0]; channel < &state->channels[CC_COUNT_OF(state->channels)]; ++channel)
+				FM_Channel_SetPhaseModulation(&channel->state, state->lfo.phase_modulation);
 		}
 
 		for (channel_index = 0; channel_index < CC_COUNT_OF(state->channels); ++channel_index)
 		{
-			const FM_ChannelMetadata* const channel_metadata = &state->channels[channel_index];
-			const FM_Channel* const channel = &fm->channels[channel_index];
+			FM_ChannelMetadata* const channel_metadata = &state->channels[channel_index];
+			FM_Channel* const channel = &state->channels[channel_index].state;
 			const cc_bool pan_left = channel_metadata->pan_left;
 			const cc_bool pan_right = channel_metadata->pan_right;
 
@@ -559,10 +542,10 @@ void FM_OutputSamples(const FM* const fm, cc_s16l* const sample_buffer, const cc
 				{
 					cc_u8f operator_index;
 
-					for (operator_index = 0; operator_index < CC_COUNT_OF(fm->channels[2].operators); ++operator_index)
+					for (operator_index = 0; operator_index < CC_COUNT_OF(state->channels[2].state.operators); ++operator_index)
 					{
-						FM_Channel_SetKeyOn(&fm->channels[2], operator_index, cc_true);
-						FM_Channel_SetKeyOn(&fm->channels[2], operator_index, cc_false);
+						FM_Channel_SetKeyOn(&state->channels[2].state, operator_index, cc_true);
+						FM_Channel_SetKeyOn(&state->channels[2].state, operator_index, cc_false);
 					}
 				}
 			}
