@@ -40,9 +40,9 @@ static void CDSectorsTo68kRAM(const ClownMDEmu_Callbacks* const callbacks, cc_u1
 		CDSectorTo68kRAM(callbacks, &ram[i * CDC_SECTOR_SIZE / 2]);
 }
 
-void ClownMDEmu_Constant_Initialise(ClownMDEmu_Constant* const constant)
+void ClownMDEmu_Constant_Initialise(void)
 {
-	Z80_Constant_Initialise(&constant->z80);
+	Z80_Constant_Initialise();
 }
 
 void ClownMDEmu_State_Initialise(ClownMDEmu_State* const state)
@@ -135,10 +135,9 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State* const state)
 	LowPassFilter_SecondOrder_Initialise(state->low_pass_filters.pcm, CC_COUNT_OF(state->low_pass_filters.pcm));
 }
 
-void ClownMDEmu_Parameters_Initialise(ClownMDEmu* const clownmdemu, const ClownMDEmu_Configuration* const configuration, const ClownMDEmu_Constant* const constant, ClownMDEmu_State* const state, const ClownMDEmu_Callbacks* const callbacks)
+void ClownMDEmu_Parameters_Initialise(ClownMDEmu* const clownmdemu, const ClownMDEmu_Configuration* const configuration, ClownMDEmu_State* const state, const ClownMDEmu_Callbacks* const callbacks)
 {
 	clownmdemu->configuration = configuration;
-	clownmdemu->constant = constant;
 	clownmdemu->state = state;
 	clownmdemu->callbacks = callbacks;
 
@@ -146,10 +145,7 @@ void ClownMDEmu_Parameters_Initialise(ClownMDEmu* const clownmdemu, const ClownM
 	clownmdemu->cartridge_buffer_length = 0;
 
 	clownmdemu->m68k = &state->m68k.state;
-
-	clownmdemu->z80.constant = &constant->z80;
-	clownmdemu->z80.state = &state->z80.state;
-
+	clownmdemu->z80 = &state->z80.state;
 	clownmdemu->mcd_m68k = &state->mega_cd.m68k.state;
 
 	clownmdemu->vdp.configuration = &configuration->vdp;
@@ -297,7 +293,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 
 			/* According to Charles MacDonald's gen-hw.txt, this occurs regardless of the 'v_int_enabled' setting. */
 			SyncZ80(clownmdemu, &cpu_callback_user_data, current_cycle);
-			Z80_Interrupt(&clownmdemu->z80, cc_true);
+			Z80_Interrupt(clownmdemu->z80, cc_true);
 
 			/* Flag that we have entered the V-blank region */
 			state->vdp.currently_in_vblank = cc_true;
@@ -307,7 +303,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 			/* Assert the Z80 interrupt for a whole scanline. This has the side-effect of causing a second interrupt to occur if the handler exits quickly. */
 			/* TODO: According to Vladikcomper, this interrupt should be asserted for roughly 171 Z80 cycles. */
 			SyncZ80(clownmdemu, &cpu_callback_user_data, current_cycle);
-			Z80_Interrupt(&clownmdemu->z80, cc_false);
+			Z80_Interrupt(clownmdemu->z80, cc_false);
 		}
 	}
 

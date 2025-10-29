@@ -9,7 +9,7 @@
 
 static cc_u16f SyncZ80Callback(const ClownMDEmu* const clownmdemu, void* const user_data)
 {
-	return CLOWNMDEMU_Z80_CLOCK_DIVIDER * Z80_DoCycle(&clownmdemu->z80, (const Z80_ReadAndWriteCallbacks*)user_data);
+	return CLOWNMDEMU_Z80_CLOCK_DIVIDER * Z80_DoCycle(clownmdemu->z80, (const Z80_ReadAndWriteCallbacks*)user_data);
 }
 
 void SyncZ80(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* const other_state, const CycleMegaDrive target_cycle)

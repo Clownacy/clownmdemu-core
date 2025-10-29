@@ -165,15 +165,6 @@ typedef struct Z80_InstructionMetadata
 	cc_bool has_displacement;
 } Z80_InstructionMetadata;
 
-typedef struct Z80_Constant
-{
-#ifdef Z80_PRECOMPUTE_INSTRUCTION_METADATA
-	Z80_InstructionMetadata instruction_metadata_lookup_normal[3][0x100];
-	Z80_InstructionMetadata instruction_metadata_lookup_bits[3][0x100];
-	Z80_InstructionMetadata instruction_metadata_lookup_misc[0x100];
-#endif
-} Z80_Constant;
-
 typedef struct Z80_State
 {
 	cc_u8l register_mode; /* Z80_RegisterMode */
@@ -195,16 +186,10 @@ typedef struct Z80_ReadAndWriteCallbacks
 	const void *user_data;
 } Z80_ReadAndWriteCallbacks;
 
-typedef struct Z80
-{
-	const Z80_Constant *constant;
-	Z80_State *state;
-} Z80;
-
-void Z80_Constant_Initialise(Z80_Constant *constant);
+void Z80_Constant_Initialise(void);
 void Z80_State_Initialise(Z80_State *state);
-void Z80_Reset(const Z80 *z80);
-void Z80_Interrupt(const Z80 *z80, cc_bool assert_interrupt);
-cc_u16f Z80_DoCycle(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks);
+void Z80_Reset(Z80_State *state);
+void Z80_Interrupt(Z80_State *state, cc_bool assert_interrupt);
+cc_u16f Z80_DoCycle(Z80_State *state, const Z80_ReadAndWriteCallbacks *callbacks);
 
 #endif /* Z80_H */

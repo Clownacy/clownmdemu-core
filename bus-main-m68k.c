@@ -785,7 +785,7 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 					if (clownmdemu->state->z80.reset_held && !new_reset_held)
 					{
 						SyncZ80(clownmdemu, callback_user_data, target_cycle);
-						Z80_Reset(&clownmdemu->z80);
+						Z80_Reset(clownmdemu->z80);
 						FM_State_Initialise(&clownmdemu->state->fm);
 					}
 

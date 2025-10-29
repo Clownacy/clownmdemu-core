@@ -49,6 +49,12 @@ typedef struct Z80Instruction
 	cc_bool double_prefix_mode;
 } Z80Instruction;
 
+#ifdef Z80_PRECOMPUTE_INSTRUCTION_METADATA
+static Z80_InstructionMetadata instruction_metadata_lookup_normal[3][0x100];
+static Z80_InstructionMetadata instruction_metadata_lookup_bits[3][0x100];
+static Z80_InstructionMetadata instruction_metadata_lookup_misc[0x100];
+#endif
+
 static cc_bool EvaluateCondition(const cc_u8l flags, const Z80_Condition condition)
 {
 	switch (condition)
@@ -889,10 +895,8 @@ static void DecodeInstructionMetadata(Z80_InstructionMetadata* const metadata, c
 	}
 }
 
-static void DecodeInstruction(const Z80* const z80, const Z80_ReadAndWriteCallbacks* const callbacks, Z80Instruction* const instruction)
+static void DecodeInstruction(Z80_State* const state, const Z80_ReadAndWriteCallbacks* const callbacks, Z80Instruction* const instruction)
 {
-	Z80_State* const state = z80->state;
-
 	cc_u16f opcode;
 	cc_u16f displacement;
 	cc_u16f i;
@@ -903,7 +907,7 @@ static void DecodeInstruction(const Z80* const z80, const Z80_ReadAndWriteCallba
 	displacement = 0;
 
 #ifdef Z80_PRECOMPUTE_INSTRUCTION_METADATA
-	instruction->metadata = &z80->constant->instruction_metadata_lookup_normal[state->register_mode][opcode];
+	instruction->metadata = &instruction_metadata_lookup_normal[state->register_mode][opcode];
 #else
 	DecodeInstructionMetadata(instruction->metadata, INSTRUCTION_MODE_NORMAL, (Z80_RegisterMode)state->register_mode, opcode);
 #endif
@@ -934,7 +938,7 @@ static void DecodeInstruction(const Z80* const z80, const Z80_ReadAndWriteCallba
 				opcode = OpcodeFetch(state, callbacks);
 
 			#ifdef Z80_PRECOMPUTE_INSTRUCTION_METADATA
-				instruction->metadata = &z80->constant->instruction_metadata_lookup_bits[state->register_mode][opcode];
+				instruction->metadata = &instruction_metadata_lookup_bits[state->register_mode][opcode];
 			#else
 				DecodeInstructionMetadata(instruction->metadata, INSTRUCTION_MODE_BITS, (Z80_RegisterMode)state->register_mode, opcode);
 			#endif
@@ -957,14 +961,14 @@ static void DecodeInstruction(const Z80* const z80, const Z80_ReadAndWriteCallba
 
 				/* TODO: Use a separate lookup for double-prefix mode? */
 			#ifdef Z80_PRECOMPUTE_INSTRUCTION_METADATA
-				instruction->metadata = &z80->constant->instruction_metadata_lookup_bits[Z80_REGISTER_MODE_HL][opcode];
+				instruction->metadata = &instruction_metadata_lookup_bits[Z80_REGISTER_MODE_HL][opcode];
 			#else
 				DecodeInstructionMetadata(instruction->metadata, INSTRUCTION_MODE_BITS, Z80_REGISTER_MODE_HL, opcode);
 			#endif
 
 				if (instruction->metadata->operands[1] == Z80_OPERAND_HL_INDIRECT)
 				#ifdef Z80_PRECOMPUTE_INSTRUCTION_METADATA
-					instruction->metadata = &z80->constant->instruction_metadata_lookup_bits[state->register_mode][opcode];
+					instruction->metadata = &instruction_metadata_lookup_bits[state->register_mode][opcode];
 				#else
 					DecodeInstructionMetadata(instruction->metadata, INSTRUCTION_MODE_BITS, (Z80_RegisterMode)state->register_mode, opcode);
 				#endif
@@ -976,7 +980,7 @@ static void DecodeInstruction(const Z80* const z80, const Z80_ReadAndWriteCallba
 			opcode = OpcodeFetch(state, callbacks);
 
 		#ifdef Z80_PRECOMPUTE_INSTRUCTION_METADATA
-			instruction->metadata = &z80->constant->instruction_metadata_lookup_misc[opcode];
+			instruction->metadata = &instruction_metadata_lookup_misc[opcode];
 		#else
 			DecodeInstructionMetadata(instruction->metadata, INSTRUCTION_MODE_MISC, Z80_REGISTER_MODE_HL, opcode);
 		#endif
@@ -2463,7 +2467,7 @@ static void ExecuteInstruction(Z80_State* const state, const Z80_ReadAndWriteCal
 	}
 }
 
-void Z80_Constant_Initialise(Z80_Constant* const constant)
+void Z80_Constant_Initialise(void)
 {
 #ifdef Z80_PRECOMPUTE_INSTRUCTION_METADATA
 	cc_u16f i;
@@ -2471,36 +2475,29 @@ void Z80_Constant_Initialise(Z80_Constant* const constant)
 	/* Pre-compute instruction metadata, to speed up opcode decoding. */
 	for (i = 0; i < 0x100; ++i)
 	{
-		DecodeInstructionMetadata(&constant->instruction_metadata_lookup_normal[Z80_REGISTER_MODE_HL][i], INSTRUCTION_MODE_NORMAL, Z80_REGISTER_MODE_HL, i);
-		DecodeInstructionMetadata(&constant->instruction_metadata_lookup_normal[Z80_REGISTER_MODE_IX][i], INSTRUCTION_MODE_NORMAL, Z80_REGISTER_MODE_IX, i);
-		DecodeInstructionMetadata(&constant->instruction_metadata_lookup_normal[Z80_REGISTER_MODE_IY][i], INSTRUCTION_MODE_NORMAL, Z80_REGISTER_MODE_IY, i);
+		DecodeInstructionMetadata(&instruction_metadata_lookup_normal[Z80_REGISTER_MODE_HL][i], INSTRUCTION_MODE_NORMAL, Z80_REGISTER_MODE_HL, i);
+		DecodeInstructionMetadata(&instruction_metadata_lookup_normal[Z80_REGISTER_MODE_IX][i], INSTRUCTION_MODE_NORMAL, Z80_REGISTER_MODE_IX, i);
+		DecodeInstructionMetadata(&instruction_metadata_lookup_normal[Z80_REGISTER_MODE_IY][i], INSTRUCTION_MODE_NORMAL, Z80_REGISTER_MODE_IY, i);
 
-		DecodeInstructionMetadata(&constant->instruction_metadata_lookup_bits[Z80_REGISTER_MODE_HL][i], INSTRUCTION_MODE_BITS, Z80_REGISTER_MODE_HL, i);
-		DecodeInstructionMetadata(&constant->instruction_metadata_lookup_bits[Z80_REGISTER_MODE_IX][i], INSTRUCTION_MODE_BITS, Z80_REGISTER_MODE_IX, i);
-		DecodeInstructionMetadata(&constant->instruction_metadata_lookup_bits[Z80_REGISTER_MODE_IY][i], INSTRUCTION_MODE_BITS, Z80_REGISTER_MODE_IY, i);
+		DecodeInstructionMetadata(&instruction_metadata_lookup_bits[Z80_REGISTER_MODE_HL][i], INSTRUCTION_MODE_BITS, Z80_REGISTER_MODE_HL, i);
+		DecodeInstructionMetadata(&instruction_metadata_lookup_bits[Z80_REGISTER_MODE_IX][i], INSTRUCTION_MODE_BITS, Z80_REGISTER_MODE_IX, i);
+		DecodeInstructionMetadata(&instruction_metadata_lookup_bits[Z80_REGISTER_MODE_IY][i], INSTRUCTION_MODE_BITS, Z80_REGISTER_MODE_IY, i);
 
-		DecodeInstructionMetadata(&constant->instruction_metadata_lookup_misc[i], INSTRUCTION_MODE_MISC, Z80_REGISTER_MODE_HL, i);
+		DecodeInstructionMetadata(&instruction_metadata_lookup_misc[i], INSTRUCTION_MODE_MISC, Z80_REGISTER_MODE_HL, i);
 	}
 #endif
 }
 
 void Z80_State_Initialise(Z80_State* const state)
 {
-	Z80 z80;
-
-	/* A disgusting hack. */
-	z80.state = state;
-
-	Z80_Reset(&z80);
+	Z80_Reset(state);
 
 	/* Update on the next cycle. */
 	state->cycles = 1;
 }
 
-void Z80_Reset(const Z80* const z80)
+void Z80_Reset(Z80_State* const state)
 {
-	Z80_State* const state = z80->state;
-
 	/* Revert back to a prefix-free mode. */
 	state->register_mode = Z80_REGISTER_MODE_HL;
 
@@ -2512,15 +2509,13 @@ void Z80_Reset(const Z80* const z80)
 	state->interrupt_pending = cc_false;
 }
 
-void Z80_Interrupt(const Z80* const z80, const cc_bool assert_interrupt)
+void Z80_Interrupt(Z80_State* const state, const cc_bool assert_interrupt)
 {
-	z80->state->interrupt_pending = assert_interrupt;
+	state->interrupt_pending = assert_interrupt;
 }
 
-cc_u16f Z80_DoCycle(const Z80* const z80, const Z80_ReadAndWriteCallbacks* const callbacks)
+cc_u16f Z80_DoCycle(Z80_State* const state, const Z80_ReadAndWriteCallbacks* const callbacks)
 {
-	Z80_State* const state = z80->state;
-
 	/* Process new instruction. */
 	Z80Instruction instruction;
 
@@ -2531,7 +2526,7 @@ cc_u16f Z80_DoCycle(const Z80* const z80, const Z80_ReadAndWriteCallbacks* const
 
 	state->cycles = 0;
 
-	DecodeInstruction(z80, callbacks, &instruction);
+	DecodeInstruction(state, callbacks, &instruction);
 
 	ExecuteInstruction(state, callbacks, &instruction);
 

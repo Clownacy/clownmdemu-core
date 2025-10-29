@@ -24,9 +24,8 @@ extern "C" {
 
 /* TODO: Documentation. */
 
-#define CLOWNMDEMU_PARAMETERS_INITIALISE(CONFIGURATION, CONSTANT, STATE, CALLBACKS) { \
+#define CLOWNMDEMU_PARAMETERS_INITIALISE(CONFIGURATION, STATE, CALLBACKS) { \
 		(CONFIGURATION), \
-		(CONSTANT), \
 		(STATE), \
 		(CALLBACKS), \
 \
@@ -34,12 +33,7 @@ extern "C" {
 		0, \
 \
 		&(STATE)->m68k.state, \
-\
-		{ \
-			&(CONSTANT)->z80, \
-			&(STATE)->z80.state \
-		}, \
-\
+		&(STATE)->z80.state \
 		&(STATE)->mega_cd.m68k.state, \
 \
 		{ \
@@ -158,11 +152,6 @@ typedef struct ClownMDEmu_Configuration
 	PSG_Configuration psg;
 	PCM_Configuration pcm;
 } ClownMDEmu_Configuration;
-
-typedef struct ClownMDEmu_Constant
-{
-	Z80_Constant z80;
-} ClownMDEmu_Constant;
 
 typedef struct ClownMDEmu_State
 {
@@ -298,7 +287,6 @@ typedef struct ClownMDEmu_Callbacks
 typedef struct ClownMDEmu
 {
 	const ClownMDEmu_Configuration *configuration;
-	const ClownMDEmu_Constant *constant;
 	ClownMDEmu_State *state;
 	const ClownMDEmu_Callbacks *callbacks;
 
@@ -306,7 +294,7 @@ typedef struct ClownMDEmu
 	cc_u32l cartridge_buffer_length;
 
 	Clown68000_State *m68k;
-	Z80 z80;
+	Z80_State *z80;
 	Clown68000_State *mcd_m68k;
 	VDP vdp;
 	FM fm;
@@ -316,9 +304,9 @@ typedef struct ClownMDEmu
 
 typedef void (*ClownMDEmu_LogCallback)(void *user_data, const char *format, va_list arg);
 
-void ClownMDEmu_Constant_Initialise(ClownMDEmu_Constant *constant);
+void ClownMDEmu_Constant_Initialise(void);
 void ClownMDEmu_State_Initialise(ClownMDEmu_State *state);
-void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_Configuration *configuration, const ClownMDEmu_Constant *constant, ClownMDEmu_State *state, const ClownMDEmu_Callbacks *callbacks);
+void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_Configuration *configuration, ClownMDEmu_State *state, const ClownMDEmu_Callbacks *callbacks);
 void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu);
 void ClownMDEmu_SetCartridge(ClownMDEmu *clownmdemu, const cc_u16l *buffer, cc_u32f buffer_length);
 void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, cc_bool cd_boot);
