@@ -55,7 +55,6 @@ extern "C" {
 \
 		{ \
 			&(CONFIGURATION)->psg, \
-			&(CONSTANT)->psg, \
 			&(STATE)->psg \
 		}, \
 \
@@ -165,7 +164,6 @@ typedef struct ClownMDEmu_Constant
 {
 	Z80_Constant z80;
 	VDP_Constant vdp;
-	PSG_Constant psg;
 } ClownMDEmu_Constant;
 
 typedef struct ClownMDEmu_State

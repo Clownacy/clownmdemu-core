@@ -11,25 +11,46 @@ https://www.smspower.org/Development/SN76489
 
 #include "clowncommon/clowncommon.h"
 
-void PSG_Constant_Initialise(PSG_Constant* const constant)
+static const cc_s16l psg_volumes[0x10][2] = {
+	{0x1FFF, -0x1FFF},
+	{0x196A, -0x196A},
+	{0x1430, -0x1430},
+	{0x1009, -0x1009},
+	{0x0CBD, -0x0CBD},
+	{0x0A1E, -0x0A1E},
+	{0x0809, -0x0809},
+	{0x0662, -0x0662},
+	{0x0512, -0x0512},
+	{0x0407, -0x0407},
+	{0x0333, -0x0333},
+	{0x028A, -0x028A},
+	{0x0204, -0x0204},
+	{0x019A, -0x019A},
+	{0x0146, -0x0146},
+	{0x0000, -0x0000}
+};
+
+#if 0
+void PSG_Constant_Initialise(void)
 {
 	cc_u8f i;
 
 	/* Generate the volume lookup table. */
-	for (i = 0; i < 0xF; ++i)
+	for (i = 0; i < CC_COUNT_OF(psg_volumes) - 1; ++i)
 	{
 		/* Each volume level is 2 decibels lower than the last. */
 		/* The division by 4 is because there are 4 channels, so we want to prevent audio clipping. */
 		const cc_s16l volume = (cc_s16l)(((double)0x7FFF / 4.0) * pow(10.0, -2.0 * (double)i / 20.0));
 
-		constant->volumes[i][0] = volume; /* Positive phase. */
-		constant->volumes[i][1] = -volume; /* Negative phase. */
+		psg_volumes[i][0] = volume; /* Positive phase. */
+		psg_volumes[i][1] = -volume; /* Negative phase. */
 	}
 
 	/* The lowest volume is always 0. */
-	constant->volumes[0xF][0] = 0;
-	constant->volumes[0xF][1] = 0;
+	psg_volumes[CC_COUNT_OF(psg_volumes) - 1][0] = 0;
+	psg_volumes[CC_COUNT_OF(psg_volumes) - 1][1] = 0;
 }
+#endif
 
 void PSG_State_Initialise(PSG_State* const state)
 {
@@ -159,7 +180,7 @@ void PSG_Update(const PSG* const psg, cc_s16l* const sample_buffer, const size_t
 				}
 
 				/* Output a sample. */
-				*sample_buffer_pointer++ += psg->constant->volumes[tone->attenuation][tone->output_bit];
+				*sample_buffer_pointer++ += psg_volumes[tone->attenuation][tone->output_bit];
 			}
 		}
 	}
@@ -217,7 +238,7 @@ void PSG_Update(const PSG* const psg, cc_s16l* const sample_buffer, const size_t
 			}
 
 			/* Output a sample. */
-			*sample_buffer_pointer++ += psg->constant->volumes[psg->state->noise.attenuation][psg->state->noise.real_output_bit];
+			*sample_buffer_pointer++ += psg_volumes[psg->state->noise.attenuation][psg->state->noise.real_output_bit];
 		}
 	}
 }

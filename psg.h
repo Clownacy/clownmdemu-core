@@ -67,11 +67,6 @@ typedef struct PSG_Configuration
 	cc_bool noise_disabled;
 } PSG_Configuration;
 
-typedef struct PSG_Constant
-{
-	cc_s16l volumes[0x10][2];
-} PSG_Constant;
-
 typedef struct PSG_State
 {
 	/* The tone channels */
@@ -87,11 +82,8 @@ typedef struct PSG_State
 typedef struct PSG
 {
 	const PSG_Configuration *configuration;
-	const PSG_Constant *constant;
 	PSG_State *state;
 } PSG;
-
-void PSG_Constant_Initialise(PSG_Constant *constant);
 
 /* Initialises the PSG_State struct with sane default values. */
 /* All channels will be muted. */

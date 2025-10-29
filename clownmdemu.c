@@ -44,7 +44,6 @@ void ClownMDEmu_Constant_Initialise(ClownMDEmu_Constant* const constant)
 {
 	Z80_Constant_Initialise(&constant->z80);
 	VDP_Constant_Initialise(&constant->vdp);
-	PSG_Constant_Initialise(&constant->psg);
 }
 
 void ClownMDEmu_State_Initialise(ClownMDEmu_State* const state)
@@ -162,7 +161,6 @@ void ClownMDEmu_Parameters_Initialise(ClownMDEmu* const clownmdemu, const ClownM
 	clownmdemu->fm.state = &state->fm;
 
 	clownmdemu->psg.configuration = &configuration->psg;
-	clownmdemu->psg.constant = &constant->psg;
 	clownmdemu->psg.state = &state->psg;
 
 	clownmdemu->pcm.configuration = &configuration->pcm;
