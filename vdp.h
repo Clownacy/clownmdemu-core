@@ -54,16 +54,6 @@ typedef struct VDP_Configuration
 typedef cc_u8l VDP_BlitLookupLower[1 << (1 + 1 + 2 + 4)];
 typedef VDP_BlitLookupLower VDP_BlitLookup[1 << (1 + 2 + 4)];
 
-typedef struct VDP_Constant
-{
-	struct
-	{
-		VDP_BlitLookup normal;
-		VDP_BlitLookup shadow_highlight;
-		VDP_BlitLookup forced_layer;
-	} blit_lookup;
-} VDP_Constant;
-
 typedef enum VDP_Access
 {
 	VDP_ACCESS_VRAM,
@@ -219,7 +209,6 @@ typedef struct VDP_State
 typedef struct VDP
 {
 	const VDP_Configuration *configuration;
-	const VDP_Constant *constant;
 	VDP_State *state;
 } VDP;
 
@@ -228,7 +217,6 @@ typedef void (*VDP_ColourUpdatedCallback)(void *user_data, cc_u16f index, cc_u16
 typedef cc_u16f (*VDP_ReadCallback)(void *user_data, cc_u32f address, cc_u32f target_cycle);
 typedef void (*VDP_KDebugCallback)(void *user_data, const char *string);
 
-void VDP_Constant_Initialise(VDP_Constant *constant);
 void VDP_State_Initialise(VDP_State *state);
 void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, VDP_ScanlineRenderedCallback scanline_rendered_callback, const void *scanline_rendered_callback_user_data);
 

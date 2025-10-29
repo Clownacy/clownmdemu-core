@@ -43,7 +43,6 @@ static void CDSectorsTo68kRAM(const ClownMDEmu_Callbacks* const callbacks, cc_u1
 void ClownMDEmu_Constant_Initialise(ClownMDEmu_Constant* const constant)
 {
 	Z80_Constant_Initialise(&constant->z80);
-	VDP_Constant_Initialise(&constant->vdp);
 }
 
 void ClownMDEmu_State_Initialise(ClownMDEmu_State* const state)
@@ -154,7 +153,6 @@ void ClownMDEmu_Parameters_Initialise(ClownMDEmu* const clownmdemu, const ClownM
 	clownmdemu->mcd_m68k = &state->mega_cd.m68k.state;
 
 	clownmdemu->vdp.configuration = &configuration->vdp;
-	clownmdemu->vdp.constant = &constant->vdp;
 	clownmdemu->vdp.state = &state->vdp;
 
 	clownmdemu->fm.configuration = &configuration->fm;
