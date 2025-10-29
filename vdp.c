@@ -47,98 +47,12 @@ enum
 	SHADOW_HIGHLIGHT_HIGHLIGHT = 2 << 6
 };
 
-static const struct
+static struct
 {
 	VDP_BlitLookup normal;
 	VDP_BlitLookup shadow_highlight;
 	VDP_BlitLookup forced_layer;
-} blit_lookup = {
-	#include "vdp-tables.c"
-};
-
-#if 0
-void VDP_Constant_Initialise(void)
-{
-	/* This essentially pre-computes the VDP's depth-test and alpha-test,
-	   generating a lookup table to eliminate the need to perform these
-	   every time a pixel is blitted. This provides a *massive* speed boost. */
-	cc_u16f new_pixel;
-
-	for (new_pixel = 0; new_pixel < CC_COUNT_OF(blit_lookup.normal); ++new_pixel)
-	{
-		cc_u16f old_pixel;
-
-		for (old_pixel = 0; old_pixel < CC_COUNT_OF(blit_lookup.normal[0]); ++old_pixel)
-		{
-			const cc_u16f palette_line_index_mask = 0xF;
-			const cc_u16f colour_index_mask = 0x3F;
-			const cc_u16f priority_mask = 0x40;
-			const cc_u16f not_shadowed_mask = 0x80;
-
-			const cc_u16f old_palette_line_index = old_pixel & palette_line_index_mask;
-			const cc_u16f old_colour_index = old_pixel & colour_index_mask;
-			const cc_bool old_priority = (old_pixel & priority_mask) != 0;
-			const cc_bool old_not_shadowed = (old_pixel & not_shadowed_mask) != 0;
-
-			const cc_u16f new_palette_line_index = new_pixel & palette_line_index_mask;
-			const cc_u16f new_colour_index = new_pixel & colour_index_mask;
-			const cc_bool new_priority = (new_pixel & priority_mask) != 0;
-			const cc_bool new_not_shadowed = new_priority;
-
-			const cc_bool draw_new_pixel = new_palette_line_index != 0 && (old_palette_line_index == 0 || !old_priority || new_priority);
-
-			cc_u16f output;
-
-			/* First, generate the table for regular blitting */
-			output = draw_new_pixel ? new_pixel : old_pixel;
-
-			output |= old_not_shadowed || new_not_shadowed ? not_shadowed_mask : 0;
-
-			blit_lookup.normal[new_pixel][old_pixel] = (cc_u8l)output;
-
-			/* Now, generate the table for shadow/highlight blitting */
-			if (draw_new_pixel)
-			{
-				/* Sprite goes on top of plane */
-				switch (new_colour_index)
-				{
-					case 0x0E:
-					case 0x1E:
-					case 0x2E:
-						/* Always-normal pixel */
-						output = new_colour_index | SHADOW_HIGHLIGHT_NORMAL;
-						break;
-
-					case 0x3E:
-						/* Transparent highlight pixel */
-						output = old_colour_index | (old_not_shadowed ? SHADOW_HIGHLIGHT_HIGHLIGHT : SHADOW_HIGHLIGHT_NORMAL);
-						break;
-
-					case 0x3F:
-						/* Transparent shadow pixel */
-						output = old_colour_index | SHADOW_HIGHLIGHT_SHADOW;
-						break;
-
-					default:
-						/* Regular sprite pixel */
-						output = new_colour_index | (new_not_shadowed || old_not_shadowed ? SHADOW_HIGHLIGHT_NORMAL : SHADOW_HIGHLIGHT_SHADOW);
-						break;
-				}
-			}
-			else
-			{
-				/* Plane goes on top of sprite */
-				output = old_colour_index | (old_not_shadowed ? SHADOW_HIGHLIGHT_NORMAL : SHADOW_HIGHLIGHT_SHADOW);
-			}
-
-			blit_lookup.shadow_highlight[new_pixel][old_pixel] = (cc_u8l)output;
-
-			/* Finally, generate AND lookup table, for the debug register. */
-			blit_lookup.forced_layer[new_pixel][old_pixel] = (cc_u8l)(old_pixel & (new_colour_index | ~colour_index_mask));
-		}
-	}
-}
-#endif
+} blit_lookup;
 
 static cc_bool IsDMAPending(const VDP_State* const state)
 {
@@ -342,6 +256,88 @@ static cc_u16f ReadAndIncrement(VDP_State* const state)
 	IncrementAccessAddressRegister(state);
 
 	return value;
+}
+
+void VDP_Constant_Initialise(void)
+{
+	/* This essentially pre-computes the VDP's depth-test and alpha-test,
+	   generating a lookup table to eliminate the need to perform these
+	   every time a pixel is blitted. This provides a *massive* speed boost. */
+	cc_u16f new_pixel;
+
+	for (new_pixel = 0; new_pixel < CC_COUNT_OF(blit_lookup.normal); ++new_pixel)
+	{
+		cc_u16f old_pixel;
+
+		for (old_pixel = 0; old_pixel < CC_COUNT_OF(blit_lookup.normal[0]); ++old_pixel)
+		{
+			const cc_u16f palette_line_index_mask = 0xF;
+			const cc_u16f colour_index_mask = 0x3F;
+			const cc_u16f priority_mask = 0x40;
+			const cc_u16f not_shadowed_mask = 0x80;
+
+			const cc_u16f old_palette_line_index = old_pixel & palette_line_index_mask;
+			const cc_u16f old_colour_index = old_pixel & colour_index_mask;
+			const cc_bool old_priority = (old_pixel & priority_mask) != 0;
+			const cc_bool old_not_shadowed = (old_pixel & not_shadowed_mask) != 0;
+
+			const cc_u16f new_palette_line_index = new_pixel & palette_line_index_mask;
+			const cc_u16f new_colour_index = new_pixel & colour_index_mask;
+			const cc_bool new_priority = (new_pixel & priority_mask) != 0;
+			const cc_bool new_not_shadowed = new_priority;
+
+			const cc_bool draw_new_pixel = new_palette_line_index != 0 && (old_palette_line_index == 0 || !old_priority || new_priority);
+
+			cc_u16f output;
+
+			/* First, generate the table for regular blitting */
+			output = draw_new_pixel ? new_pixel : old_pixel;
+
+			output |= old_not_shadowed || new_not_shadowed ? not_shadowed_mask : 0;
+
+			blit_lookup.normal[new_pixel][old_pixel] = (cc_u8l)output;
+
+			/* Now, generate the table for shadow/highlight blitting */
+			if (draw_new_pixel)
+			{
+				/* Sprite goes on top of plane */
+				switch (new_colour_index)
+				{
+					case 0x0E:
+					case 0x1E:
+					case 0x2E:
+						/* Always-normal pixel */
+						output = new_colour_index | SHADOW_HIGHLIGHT_NORMAL;
+						break;
+
+					case 0x3E:
+						/* Transparent highlight pixel */
+						output = old_colour_index | (old_not_shadowed ? SHADOW_HIGHLIGHT_HIGHLIGHT : SHADOW_HIGHLIGHT_NORMAL);
+						break;
+
+					case 0x3F:
+						/* Transparent shadow pixel */
+						output = old_colour_index | SHADOW_HIGHLIGHT_SHADOW;
+						break;
+
+					default:
+						/* Regular sprite pixel */
+						output = new_colour_index | (new_not_shadowed || old_not_shadowed ? SHADOW_HIGHLIGHT_NORMAL : SHADOW_HIGHLIGHT_SHADOW);
+						break;
+				}
+			}
+			else
+			{
+				/* Plane goes on top of sprite */
+				output = old_colour_index | (old_not_shadowed ? SHADOW_HIGHLIGHT_NORMAL : SHADOW_HIGHLIGHT_SHADOW);
+			}
+
+			blit_lookup.shadow_highlight[new_pixel][old_pixel] = (cc_u8l)output;
+
+			/* Finally, generate AND lookup table, for the debug register. */
+			blit_lookup.forced_layer[new_pixel][old_pixel] = (cc_u8l)(old_pixel & (new_colour_index | ~colour_index_mask));
+		}
+	}
 }
 
 void VDP_State_Initialise(VDP_State* const state)
