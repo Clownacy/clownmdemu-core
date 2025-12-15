@@ -12,7 +12,7 @@ static cc_u16f SyncZ80Callback(const ClownMDEmu* const clownmdemu, void* const u
 	return CLOWNMDEMU_Z80_CLOCK_DIVIDER * ClownZ80_DoCycle(clownmdemu->z80, (const ClownZ80_ReadAndWriteCallbacks*)user_data);
 }
 
-static void Z80LogCallback(const void* const user_data, const char* const format, ...)
+static void Z80LogCallback(void* const user_data, const char* const format, ...)
 {
 	va_list args;
 
@@ -99,7 +99,7 @@ cc_u16f Z80ReadCallbackWithCycle(const void* const user_data, const cc_u16f addr
 	return value;
 }
 
-cc_u16f Z80ReadCallback(const void* const user_data, const cc_u16f address)
+cc_u16f Z80ReadCallback(void* const user_data, const cc_u16f address)
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 
@@ -180,7 +180,7 @@ void Z80WriteCallbackWithCycle(const void* const user_data, const cc_u16f addres
 	}
 }
 
-void Z80WriteCallback(const void* const user_data, const cc_u16f address, const cc_u16f value)
+void Z80WriteCallback(void* const user_data, const cc_u16f address, const cc_u16f value)
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 
