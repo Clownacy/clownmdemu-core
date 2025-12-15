@@ -836,6 +836,8 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 							break;
 					}
 
+					break;
+
 				case 0xA11000 / 0x1000:
 					if (address == 0xA11000)
 					{
