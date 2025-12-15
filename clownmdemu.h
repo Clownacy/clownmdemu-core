@@ -33,7 +33,7 @@ extern "C" {
 		0, \
 \
 		&(STATE)->m68k.state, \
-		&(STATE)->z80.state \
+		&(STATE)->z80.state, \
 		&(STATE)->mega_cd.m68k.state, \
 \
 		{ \
