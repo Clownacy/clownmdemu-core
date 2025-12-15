@@ -190,6 +190,7 @@ typedef struct ClownMDEmu_State
 	} external_ram;
 
 	cc_u8l cartridge_bankswitch[8];
+	cc_bool cartridge_inserted;
 
 	cc_u16l current_scanline;
 
@@ -242,7 +243,7 @@ typedef struct ClownMDEmu_State
 		CDDA cdda;
 		PCM_State pcm;
 
-		cc_bool boot_from_cd;
+		cc_bool cd_inserted;
 		cc_u16l hblank_address;
 		cc_u16l delayed_dma_word;
 	} mega_cd;
@@ -310,7 +311,7 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state);
 void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_Configuration *configuration, ClownMDEmu_State *state, const ClownMDEmu_Callbacks *callbacks);
 void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu);
 void ClownMDEmu_SetCartridge(ClownMDEmu *clownmdemu, const cc_u16l *buffer, cc_u32f buffer_length);
-void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, cc_bool cd_boot);
+void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, cc_bool cartridge_inserted, cc_bool cd_inserted);
 void ClownMDEmu_SetLogCallback(const ClownMDEmu_LogCallback log_callback, const void *user_data);
 
 #ifdef __cplusplus

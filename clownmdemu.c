@@ -86,6 +86,8 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State* const state)
 	for (i = 0; i < CC_COUNT_OF(state->cartridge_bankswitch); ++i)
 		state->cartridge_bankswitch[i] = i;
 
+	state->cartridge_inserted = cc_false;
+
 	/* Mega CD */
 	state->mega_cd.m68k.bus_requested = cc_true;
 	state->mega_cd.m68k.reset_held = cc_true;
@@ -126,7 +128,7 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State* const state)
 	CDDA_Initialise(&state->mega_cd.cdda);
 	PCM_State_Initialise(&state->mega_cd.pcm);
 
-	state->mega_cd.boot_from_cd = cc_false;
+	state->mega_cd.cd_inserted = cc_false;
 	state->mega_cd.hblank_address = 0xFFFF;
 	state->mega_cd.delayed_dma_word = 0;
 
@@ -427,7 +429,7 @@ void ClownMDEmu_SetCartridge(ClownMDEmu* const clownmdemu, const cc_u16l* const 
 	clownmdemu->cartridge_buffer_length = buffer_length;
 }
 
-void ClownMDEmu_Reset(const ClownMDEmu* const clownmdemu, const cc_bool cd_boot)
+void ClownMDEmu_Reset(const ClownMDEmu* const clownmdemu, const cc_bool cartridge_inserted, const cc_bool cd_inserted)
 {
 	ClownMDEmu_State* const state = clownmdemu->state;
 
@@ -436,9 +438,10 @@ void ClownMDEmu_Reset(const ClownMDEmu* const clownmdemu, const cc_bool cd_boot)
 
 	SetUpExternalRAM(clownmdemu);
 
-	state->mega_cd.boot_from_cd = cd_boot;
+	state->cartridge_inserted = cartridge_inserted;
+	state->mega_cd.cd_inserted = cd_inserted;
 
-	if (cd_boot)
+	if (!cartridge_inserted)
 	{
 		/* Boot from CD ("Mode 2"). */
 		cc_u32f ip_start, ip_length, sp_start, sp_length;

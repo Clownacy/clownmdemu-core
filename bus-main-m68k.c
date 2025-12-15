@@ -43,7 +43,7 @@ static cc_bool GetHBlankBit(const ClownMDEmu* const clownmdemu, const CycleMegaD
 
 static cc_bool MegaCDEnabled(const ClownMDEmu* const clownmdemu)
 {
-	return clownmdemu->state->mega_cd.boot_from_cd || clownmdemu->configuration->general.cd_add_on_enabled;
+	return clownmdemu->state->mega_cd.cd_inserted || clownmdemu->configuration->general.cd_add_on_enabled;
 }
 
 static cc_u16f VDPReadCallback(void* const user_data, const cc_u32f address, const cc_u32f target_cycle)
@@ -184,7 +184,7 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 		case 0x400000 / 0x200000:
 		case 0x600000 / 0x200000:
 			/* Cartridge, Mega CD. */
-			if (((address & 0x400000) == 0) != clownmdemu->state->mega_cd.boot_from_cd)
+			if (((address & 0x400000) != 0) != clownmdemu->state->cartridge_inserted)
 			{
 				if ((address & 0x200000) != 0 && clownmdemu->state->external_ram.mapped_in)
 				{
@@ -639,7 +639,7 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 		case 0x400000 / 0x200000:
 		case 0x600000 / 0x200000:
 			/* Cartridge, Mega CD. */
-			if (((address & 0x400000) == 0) != clownmdemu->state->mega_cd.boot_from_cd)
+			if (((address & 0x400000) != 0) != clownmdemu->state->cartridge_inserted)
 			{
 				if ((address & 0x200000) != 0 && clownmdemu->state->external_ram.mapped_in)
 				{
