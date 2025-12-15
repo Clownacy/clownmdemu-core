@@ -16,7 +16,7 @@
 #include "pcm.h"
 #include "psg.h"
 #include "vdp.h"
-#include "z80.h"
+#include "clownz80/z80.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -165,7 +165,7 @@ typedef struct ClownMDEmu_State
 
 	struct
 	{
-		Z80_State state;
+		ClownZ80_State state;
 		cc_u8l ram[0x2000];
 		cc_u32l cycle_countdown;
 		cc_u16l bank;
@@ -296,7 +296,7 @@ typedef struct ClownMDEmu
 	cc_u32l cartridge_buffer_length;
 
 	Clown68000_State *m68k;
-	Z80_State *z80;
+	ClownZ80_State *z80;
 	Clown68000_State *mcd_m68k;
 	VDP vdp;
 	FM fm;

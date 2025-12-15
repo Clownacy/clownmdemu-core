@@ -14,11 +14,14 @@ void SetLogCallback(void (* const error_callback_)(void *user_data, const char *
 
 void LogMessage(const char* const format, ...)
 {
+	va_list args;
+	va_start(args, format);
+	LogMessageV(log_callback_user_data, format, args);
+	va_end(args);
+}
+
+void LogMessageV(const char* const format, va_list args)
+{
 	if (log_callback != NULL)
-	{
-		va_list args;
-		va_start(args, format);
 		log_callback(log_callback_user_data, format, args);
-		va_end(args);
-	}
 }

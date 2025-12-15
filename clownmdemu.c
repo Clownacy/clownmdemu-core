@@ -15,7 +15,7 @@
 #include "low-pass-filter.h"
 #include "psg.h"
 #include "vdp.h"
-#include "z80.h"
+#include "clownz80/z80.h"
 
 #define MAX_ROM_SIZE (1024 * 1024 * 4) /* 4MiB */
 
@@ -42,7 +42,7 @@ static void CDSectorsTo68kRAM(const ClownMDEmu_Callbacks* const callbacks, cc_u1
 
 void ClownMDEmu_Constant_Initialise(void)
 {
-	Z80_Constant_Initialise();
+	ClownZ80_Constant_Initialise();
 	VDP_Constant_Initialise();
 }
 
@@ -59,7 +59,7 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State* const state)
 	state->m68k.h_int_pending = state->m68k.v_int_pending = cc_false;
 
 	/* Z80 */
-	Z80_State_Initialise(&state->z80.state);
+	ClownZ80_State_Initialise(&state->z80.state);
 	memset(state->z80.ram, 0, sizeof(state->z80.ram));
 	state->z80.cycle_countdown = 1;
 	state->z80.bank = 0;
@@ -296,7 +296,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 
 			/* According to Charles MacDonald's gen-hw.txt, this occurs regardless of the 'v_int_enabled' setting. */
 			SyncZ80(clownmdemu, &cpu_callback_user_data, current_cycle);
-			Z80_Interrupt(clownmdemu->z80, cc_true);
+			ClownZ80_Interrupt(clownmdemu->z80, cc_true);
 
 			/* Flag that we have entered the V-blank region */
 			state->vdp.currently_in_vblank = cc_true;
@@ -306,7 +306,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 			/* Assert the Z80 interrupt for a whole scanline. This has the side-effect of causing a second interrupt to occur if the handler exits quickly. */
 			/* TODO: According to Vladikcomper, this interrupt should be asserted for roughly 171 Z80 cycles. */
 			SyncZ80(clownmdemu, &cpu_callback_user_data, current_cycle);
-			Z80_Interrupt(clownmdemu->z80, cc_false);
+			ClownZ80_Interrupt(clownmdemu->z80, cc_false);
 		}
 	}
 

@@ -9,17 +9,29 @@
 
 static cc_u16f SyncZ80Callback(const ClownMDEmu* const clownmdemu, void* const user_data)
 {
-	return CLOWNMDEMU_Z80_CLOCK_DIVIDER * Z80_DoCycle(clownmdemu->z80, (const Z80_ReadAndWriteCallbacks*)user_data);
+	return CLOWNMDEMU_Z80_CLOCK_DIVIDER * ClownZ80_DoCycle(clownmdemu->z80, (const ClownZ80_ReadAndWriteCallbacks*)user_data);
+}
+
+static void Z80LogCallback(const void* const user_data, const char* const format, ...)
+{
+	va_list args;
+
+	(void)user_data;
+
+	va_start(args, format);
+	LogMessageV(format, args);
+	va_end(args);
 }
 
 void SyncZ80(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* const other_state, const CycleMegaDrive target_cycle)
 {
 	const cc_bool z80_not_running = clownmdemu->state->z80.bus_requested || clownmdemu->state->z80.reset_held;
 
-	Z80_ReadAndWriteCallbacks z80_read_write_callbacks;
+	ClownZ80_ReadAndWriteCallbacks z80_read_write_callbacks;
 
 	z80_read_write_callbacks.read = Z80ReadCallback;
 	z80_read_write_callbacks.write = Z80WriteCallback;
+	z80_read_write_callbacks.log = Z80LogCallback;
 	z80_read_write_callbacks.user_data = other_state;
 
 	SyncCPUCommon(clownmdemu, &other_state->sync.z80, target_cycle.cycle, z80_not_running, SyncZ80Callback, &z80_read_write_callbacks);

@@ -11,6 +11,7 @@ extern "C" {
 
 void SetLogCallback(void (*log_callback)(void *user_data, const char *format, va_list arg), const void *user_data);
 CC_ATTRIBUTE_PRINTF(1, 2) void LogMessage(const char *format, ...);
+void LogMessageV(const char* const format, va_list args);
 
 #ifdef __cplusplus
 }

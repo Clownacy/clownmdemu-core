@@ -44,8 +44,6 @@ add_library(clownmdemu-core STATIC
 	"psg.h"
 	"vdp.c"
 	"vdp.h"
-	"z80.c"
-	"z80.h"
 )
 
 set_target_properties(clownmdemu-core PROPERTIES
@@ -55,8 +53,10 @@ set_target_properties(clownmdemu-core PROPERTIES
 )
 
 add_subdirectory("clown68000" EXCLUDE_FROM_ALL)
-
 target_link_libraries(clownmdemu-core PRIVATE clown68000-interpreter)
+
+add_subdirectory("clownz80" EXCLUDE_FROM_ALL)
+target_link_libraries(clownmdemu-core PRIVATE clownz80)
 
 if(CC_USE_C99_INTEGERS)
 	target_compile_definitions(clownmdemu-core PUBLIC CC_USE_C99_INTEGERS)

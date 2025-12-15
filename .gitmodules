@@ -4,3 +4,6 @@
 [submodule "clown68000"]
 	path = clown68000
 	url = https://github.com/Clownacy/clown68000
+[submodule "clownz80"]
+	path = clownz80
+	url = https://github.com/Clownacy/clownz80
