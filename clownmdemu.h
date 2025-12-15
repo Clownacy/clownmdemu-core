@@ -145,6 +145,7 @@ typedef struct ClownMDEmu_Configuration
 		ClownMDEmu_Region region;
 		ClownMDEmu_TVStandard tv_standard;
 		cc_bool low_pass_filter_disabled;
+		cc_bool cd_add_on_enabled;
 	} general;
 
 	VDP_Configuration vdp;

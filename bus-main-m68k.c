@@ -41,6 +41,11 @@ static cc_bool GetHBlankBit(const ClownMDEmu* const clownmdemu, const CycleMegaD
 	return GetHCounterValue(clownmdemu, target_cycle) > 0xB2;
 }
 
+static cc_bool MegaCDEnabled(const ClownMDEmu* const clownmdemu)
+{
+	return clownmdemu->state->mega_cd.boot_from_cd || clownmdemu->configuration->general.cd_add_on_enabled;
+}
+
 static cc_u16f VDPReadCallback(void* const user_data, const cc_u32f address, const cc_u32f target_cycle)
 {
 	return M68kReadCallbackWithCycleWithDMA(user_data, address / 2, cc_true, cc_true, MakeCycleMegaDrive(target_cycle), cc_true);
@@ -213,7 +218,7 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 					}
 				}
 			}
-			else
+			else if (MegaCDEnabled(clownmdemu))
 			{
 				if ((address & 0x200000) != 0)
 				{
@@ -344,7 +349,7 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 					{
 						case 0xA10000:
 							if (do_low_byte)
-								value |= ((clownmdemu->configuration->general.region == CLOWNMDEMU_REGION_OVERSEAS) << 7) | ((clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL) << 6) | (0 << 5);	/* Bit 5 clear = Mega CD attached */
+								value |= ((clownmdemu->configuration->general.region == CLOWNMDEMU_REGION_OVERSEAS) << 7) | ((clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL) << 6) | (!MegaCDEnabled(clownmdemu) << 5);
 
 							break;
 
@@ -427,6 +432,9 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 
 				case 0xA12000 / 0x1000:
 					/* Mega CD registers. */
+					if (!MegaCDEnabled(clownmdemu))
+						break;
+
 					if (address == 0xA12000)
 					{
 						/* RESET, HALT */
@@ -672,7 +680,7 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 					LOG_MAIN_CPU_BUS_ERROR_1("Attempted to write to ROM address 0x%" CC_PRIXFAST32, cartridge_address);
 				}
 			}
-			else
+			else if (MegaCDEnabled(clownmdemu))
 			{
 				if ((address & 0x200000) != 0)
 				{
@@ -872,6 +880,9 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 
 				case 0xA12000 / 0x1000:
 					/* Mega CD registers. */
+					if (!MegaCDEnabled(clownmdemu))
+						break;
+
 					if (address == 0xA12000)
 					{
 						/* RESET, HALT */
