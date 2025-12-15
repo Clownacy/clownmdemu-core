@@ -174,6 +174,7 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 	const ClownMDEmu_Callbacks* const frontend_callbacks = clownmdemu->callbacks;
 	const cc_u32f address = address_word * 2;
 
+	/* TODO: Check if this is the correct value. */
 	cc_u16f value = 0;
 
 	switch (address / 0x200000)
