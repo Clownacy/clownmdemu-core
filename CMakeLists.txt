@@ -56,7 +56,7 @@ add_subdirectory("clown68000" EXCLUDE_FROM_ALL)
 target_link_libraries(clownmdemu-core PRIVATE clown68000-interpreter)
 
 add_subdirectory("clownz80" EXCLUDE_FROM_ALL)
-target_link_libraries(clownmdemu-core PRIVATE clownz80)
+target_link_libraries(clownmdemu-core PRIVATE clownz80-interpreter)
 
 if(CC_USE_C99_INTEGERS)
 	target_compile_definitions(clownmdemu-core PUBLIC CC_USE_C99_INTEGERS)

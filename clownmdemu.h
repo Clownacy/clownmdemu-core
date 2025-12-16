@@ -16,7 +16,7 @@
 #include "pcm.h"
 #include "psg.h"
 #include "vdp.h"
-#include "clownz80/z80.h"
+#include "clownz80/interpreter.h"
 
 #ifdef __cplusplus
 extern "C" {

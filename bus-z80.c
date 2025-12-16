@@ -9,7 +9,7 @@
 
 static cc_u16f SyncZ80Callback(const ClownMDEmu* const clownmdemu, void* const user_data)
 {
-	return CLOWNMDEMU_Z80_CLOCK_DIVIDER * ClownZ80_DoCycle(clownmdemu->z80, (const ClownZ80_ReadAndWriteCallbacks*)user_data);
+	return CLOWNMDEMU_Z80_CLOCK_DIVIDER * ClownZ80_DoInstruction(clownmdemu->z80, (const ClownZ80_ReadAndWriteCallbacks*)user_data);
 }
 
 static void Z80LogCallback(void* const user_data, const char* const format, ...)

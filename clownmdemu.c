@@ -15,7 +15,7 @@
 #include "low-pass-filter.h"
 #include "psg.h"
 #include "vdp.h"
-#include "clownz80/z80.h"
+#include "clownz80/interpreter.h"
 
 #define MAX_ROM_SIZE (1024 * 1024 * 4) /* 4MiB */
 
