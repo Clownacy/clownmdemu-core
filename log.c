@@ -16,7 +16,7 @@ void LogMessage(const char* const format, ...)
 {
 	va_list args;
 	va_start(args, format);
-	LogMessageV(log_callback_user_data, format, args);
+	LogMessageV(format, args);
 	va_end(args);
 }
 
