@@ -51,9 +51,6 @@ typedef struct VDP_Configuration
 	cc_bool widescreen_enabled;
 } VDP_Configuration;
 
-typedef cc_u8l VDP_BlitLookupLower[1 << (1 + 1 + 2 + 4)];
-typedef VDP_BlitLookupLower VDP_BlitLookup[1 << (1 + 2 + 4)];
-
 typedef enum VDP_Access
 {
 	VDP_ACCESS_VRAM,

@@ -47,11 +47,21 @@ enum
 	SHADOW_HIGHLIGHT_HIGHLIGHT = 2 << 6
 };
 
+typedef struct BlitLookupLower
+{
+		cc_u8l pixels[1 << (1 + 1 + 2 + 4)];
+} BlitLookupLower;
+
+typedef struct BlitLookup
+{
+		BlitLookupLower lower[1 << (1 + 2 + 4)];
+} BlitLookup;
+
 static struct
 {
-	VDP_BlitLookup normal;
-	VDP_BlitLookup shadow_highlight;
-	VDP_BlitLookup forced_layer;
+	BlitLookup normal;
+	BlitLookup shadow_highlight;
+	BlitLookup forced_layer;
 } blit_lookup;
 
 static cc_bool IsDMAPending(const VDP_State* const state)
@@ -265,11 +275,11 @@ void VDP_Constant_Initialise(void)
 	   every time a pixel is blitted. This provides a *massive* speed boost. */
 	cc_u16f new_pixel;
 
-	for (new_pixel = 0; new_pixel < CC_COUNT_OF(blit_lookup.normal); ++new_pixel)
+	for (new_pixel = 0; new_pixel < CC_COUNT_OF(blit_lookup.normal.lower); ++new_pixel)
 	{
 		cc_u16f old_pixel;
 
-		for (old_pixel = 0; old_pixel < CC_COUNT_OF(blit_lookup.normal[0]); ++old_pixel)
+		for (old_pixel = 0; old_pixel < CC_COUNT_OF(blit_lookup.normal.lower[0].pixels); ++old_pixel)
 		{
 			const cc_u16f palette_line_index_mask = 0xF;
 			const cc_u16f colour_index_mask = 0x3F;
@@ -295,7 +305,7 @@ void VDP_Constant_Initialise(void)
 
 			output |= old_not_shadowed || new_not_shadowed ? not_shadowed_mask : 0;
 
-			blit_lookup.normal[new_pixel][old_pixel] = (cc_u8l)output;
+			blit_lookup.normal.lower[new_pixel].pixels[old_pixel] = (cc_u8l)output;
 
 			/* Now, generate the table for shadow/highlight blitting */
 			if (draw_new_pixel)
@@ -332,10 +342,10 @@ void VDP_Constant_Initialise(void)
 				output = old_colour_index | (old_not_shadowed ? SHADOW_HIGHLIGHT_NORMAL : SHADOW_HIGHLIGHT_SHADOW);
 			}
 
-			blit_lookup.shadow_highlight[new_pixel][old_pixel] = (cc_u8l)output;
+			blit_lookup.shadow_highlight.lower[new_pixel].pixels[old_pixel] = (cc_u8l)output;
 
 			/* Finally, generate AND lookup table, for the debug register. */
-			blit_lookup.forced_layer[new_pixel][old_pixel] = (cc_u8l)(old_pixel & (new_colour_index | ~colour_index_mask));
+			blit_lookup.forced_layer.lower[new_pixel].pixels[old_pixel] = (cc_u8l)(old_pixel & (new_colour_index | ~colour_index_mask));
 		}
 	}
 }
@@ -431,7 +441,7 @@ static cc_u16f GetVScrollTableOffset(const VDP* const vdp, const cc_u8f tile_pai
 	}
 }
 
-static void RenderTilePair(const VDP* const vdp, const cc_u16f pixel_y_in_plane, const cc_u32f vram_address, const cc_u32f base_tile_vram_address, cc_u8l** const metapixels_pointer_pointer, const VDP_BlitLookupLower* const blit_lookup_list)
+static void RenderTilePair(const VDP* const vdp, const cc_u16f pixel_y_in_plane, const cc_u32f vram_address, const cc_u32f base_tile_vram_address, cc_u8l** const metapixels_pointer_pointer, const BlitLookup* const blit_lookup_list)
 {
 	const VDP_State* const state = vdp->state;
 
@@ -459,7 +469,7 @@ static void RenderTilePair(const VDP* const vdp, const cc_u16f pixel_y_in_plane,
 		const cc_u8f nybble_shift_2 = 4 & x_flip;
 		const cc_u8f nybble_shift_1 = 4 ^ nybble_shift_2;
 
-		const VDP_BlitLookupLower* const blit_lookup = &blit_lookup_list[(word >> 9) & 0x70];
+		const BlitLookupLower* const blit_lookup = &blit_lookup_list->lower[(word >> 9) & 0x70];
 
 		cc_u8f j;
 
@@ -467,9 +477,9 @@ static void RenderTilePair(const VDP* const vdp, const cc_u16f pixel_y_in_plane,
 		{
 			const cc_u8f byte = ReadVRAM(state, (tile_row_vram_address + j) ^ byte_index_xor);
 
-			*metapixels_pointer = blit_lookup[(byte >> nybble_shift_1) & 0xF][*metapixels_pointer];
+			*metapixels_pointer = blit_lookup[(byte >> nybble_shift_1) & 0xF].pixels[*metapixels_pointer];
 			++metapixels_pointer;
-			*metapixels_pointer = blit_lookup[(byte >> nybble_shift_2) & 0xF][*metapixels_pointer];
+			*metapixels_pointer = blit_lookup[(byte >> nybble_shift_2) & 0xF].pixels[*metapixels_pointer];
 			++metapixels_pointer;
 		}
 	}
@@ -477,7 +487,7 @@ static void RenderTilePair(const VDP* const vdp, const cc_u16f pixel_y_in_plane,
 	*metapixels_pointer_pointer = metapixels_pointer;
 }
 
-static void RenderScrollingPlane(const VDP* const vdp, const cc_u8f start, const cc_u8f end, const cc_u16f scanline, const cc_u8f plane_index, const cc_u16f plane_x_offset, cc_u8l* const metapixels, const VDP_BlitLookupLower* const blit_lookup_list)
+static void RenderScrollingPlane(const VDP* const vdp, const cc_u8f start, const cc_u8f end, const cc_u16f scanline, const cc_u8f plane_index, const cc_u16f plane_x_offset, cc_u8l* const metapixels, const BlitLookup* const blit_lookup_list)
 {
 	const VDP_State* const state = vdp->state;
 
@@ -516,7 +526,7 @@ static void RenderScrollingPlane(const VDP* const vdp, const cc_u8f start, const
 	}
 }
 
-static void RenderWindowPlane(const VDP* const vdp, const cc_u8f start, const cc_u8f end, const cc_u16f scanline, cc_u8l* const metapixels, const VDP_BlitLookupLower* const blit_lookup_list)
+static void RenderWindowPlane(const VDP* const vdp, const cc_u8f start, const cc_u8f end, const cc_u16f scanline, cc_u8l* const metapixels, const BlitLookup* const blit_lookup_list)
 {
 	const VDP_State* const state = vdp->state;
 
@@ -711,7 +721,7 @@ static void RenderSprites(const VDP* const vdp, cc_u8l* const sprite_metapixels,
 	state->allow_sprite_masking = cc_false;
 }
 
-static void RenderScrollPlane(const VDP* const vdp, const cc_u8f left_boundary, const cc_u8f right_boundary, const cc_u16f scanline, cc_u8l* const plane_metapixels, const VDP_BlitLookupLower* const blit_lookup_list, const cc_u8f plane_index)
+static void RenderScrollPlane(const VDP* const vdp, const cc_u8f left_boundary, const cc_u8f right_boundary, const cc_u16f scanline, cc_u8l* const plane_metapixels, const BlitLookup* const blit_lookup_list, const cc_u8f plane_index)
 {
 	const VDP_State* const state = vdp->state;
 
@@ -730,7 +740,7 @@ static void RenderScrollPlane(const VDP* const vdp, const cc_u8f left_boundary, 
 	}
 }
 
-static void RenderForegroundPlane(const VDP* const vdp, const cc_u8f left_boundary, const cc_u8f right_boundary, const cc_u16f scanline, cc_u8l* const plane_metapixels, const VDP_BlitLookupLower* const blit_lookup_list, const cc_bool window_plane)
+static void RenderForegroundPlane(const VDP* const vdp, const cc_u8f left_boundary, const cc_u8f right_boundary, const cc_u16f scanline, cc_u8l* const plane_metapixels, const BlitLookup* const blit_lookup_list, const cc_bool window_plane)
 {
 	/* Notably, we allow Plane A to render in the Window Plane's place when the latter is disabled. */
 	if (window_plane && !vdp->configuration->window_disabled)
@@ -745,7 +755,7 @@ static void RenderForegroundPlane(const VDP* const vdp, const cc_u8f left_bounda
 	}
 }
 
-static void RenderSpritePlane(cc_u8l* const plane_metapixels, cc_u8l* const sprite_metapixels, const VDP_BlitLookupLower* const blit_lookup_list, const unsigned int mask, const cc_u16f left_boundary_pixels, const cc_u16f right_boundary_pixels)
+static void RenderSpritePlane(cc_u8l* const plane_metapixels, cc_u8l* const sprite_metapixels, const BlitLookup* const blit_lookup_list, const unsigned int mask, const cc_u16f left_boundary_pixels, const cc_u16f right_boundary_pixels)
 {
 	const cc_u8l *sprite_metapixels_pointer = &sprite_metapixels[left_boundary_pixels];
 	cc_u8l *plane_metapixels_pointer = &plane_metapixels[left_boundary_pixels];
@@ -754,7 +764,7 @@ static void RenderSpritePlane(cc_u8l* const plane_metapixels, cc_u8l* const spri
 
 	for (i = left_boundary_pixels; i < right_boundary_pixels; ++i)
 	{
-		*plane_metapixels_pointer = blit_lookup_list[*sprite_metapixels_pointer][*plane_metapixels_pointer] & mask;
+		*plane_metapixels_pointer = blit_lookup_list->lower[*sprite_metapixels_pointer].pixels[*plane_metapixels_pointer] & mask;
 		++plane_metapixels_pointer;
 		++sprite_metapixels_pointer;
 	}
@@ -781,26 +791,26 @@ static void RenderForegroundAndSpritePlanes(const VDP* const vdp, const cc_u16f 
 	{
 		if (!state->debug.hide_layers)
 		{
-			RenderForegroundPlane(vdp, left_boundary, right_boundary, scanline, plane_metapixels, blit_lookup.normal, window_plane);
+			RenderForegroundPlane(vdp, left_boundary, right_boundary, scanline, plane_metapixels, &blit_lookup.normal, window_plane);
 
 			if (state->shadow_highlight_enabled)
-				RenderSpritePlane(plane_metapixels, sprite_metapixels, blit_lookup.shadow_highlight, 0xFF, left_boundary_pixels, right_boundary_pixels);
+				RenderSpritePlane(plane_metapixels, sprite_metapixels, &blit_lookup.shadow_highlight, 0xFF, left_boundary_pixels, right_boundary_pixels);
 			else
-				RenderSpritePlane(plane_metapixels, sprite_metapixels, blit_lookup.normal, 0x3F, left_boundary_pixels, right_boundary_pixels);
+				RenderSpritePlane(plane_metapixels, sprite_metapixels, &blit_lookup.normal, 0x3F, left_boundary_pixels, right_boundary_pixels);
 		}
 
 		switch (state->debug.forced_layer)
 		{
 			case 1:
-				RenderSpritePlane(plane_metapixels, sprite_metapixels, blit_lookup.forced_layer, 0xFF, left_boundary_pixels, right_boundary_pixels);
+				RenderSpritePlane(plane_metapixels, sprite_metapixels, &blit_lookup.forced_layer, 0xFF, left_boundary_pixels, right_boundary_pixels);
 				break;
 
 			case 2:
-				RenderScrollPlane(vdp, left_boundary, right_boundary, scanline, plane_metapixels, blit_lookup.forced_layer, 0);
+				RenderScrollPlane(vdp, left_boundary, right_boundary, scanline, plane_metapixels, &blit_lookup.forced_layer, 0);
 				break;
 
 			case 3:
-				RenderScrollPlane(vdp, left_boundary, right_boundary, scanline, plane_metapixels, blit_lookup.forced_layer, 1);
+				RenderScrollPlane(vdp, left_boundary, right_boundary, scanline, plane_metapixels, &blit_lookup.forced_layer, 1);
 				break;
 		}
 	}
@@ -858,7 +868,7 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 	if (state->display_enabled && !state->debug.hide_layers)
 	{
 		/* Draw Plane B. */
-		RenderScrollPlane(vdp, 0, VDP_GetExtendedScreenWidthInTilePairs(vdp), scanline, plane_metapixels, blit_lookup.normal, 1);
+		RenderScrollPlane(vdp, 0, VDP_GetExtendedScreenWidthInTilePairs(vdp), scanline, plane_metapixels, &blit_lookup.normal, 1);
 	}
 
 	/* Draw Window Plane (and sprites). */
