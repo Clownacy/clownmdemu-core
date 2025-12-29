@@ -36,7 +36,7 @@
 
 #define VRAM_ADDRESS_BASE_OFFSET(OPTION) ((OPTION) ? 0x10000 : 0)
 
-#define WIDESCREEN_X_OFFSET_TILE_PAIRS(VDP) ((VDP)->configuration->widescreen_enabled ? VDP_WIDESCREEN_MARGIN_TILE_PAIRS : 0)
+#define WIDESCREEN_X_OFFSET_TILE_PAIRS(VDP) (VDP)->configuration->widescreen_tile_pairs
 #define WIDESCREEN_X_OFFSET_TILES(VDP) (WIDESCREEN_X_OFFSET_TILE_PAIRS(VDP) * TILE_PAIR_COUNT)
 #define WIDESCREEN_X_OFFSET_PIXELS(VDP) (WIDESCREEN_X_OFFSET_TILES(VDP) * TILE_WIDTH)
 
@@ -816,24 +816,7 @@ static void RenderForegroundAndSpritePlanes(const VDP* const vdp, const cc_u16f 
 	}
 
 	/* Send pixels to the frontend to be displayed */
-	{
-		/* We want to output at 400 pixels, but cannot render at that internally because 200 is not a multiple of 16. */
-		const cc_u16f input_extra_tile_pairs = vdp->configuration->widescreen_enabled ? VDP_WIDESCREEN_MARGIN_TILE_PAIRS * 2 : 0;
-		const cc_u16f input_extra_tile_pairs_in_pixels = input_extra_tile_pairs * TILE_PAIR_WIDTH;
-
-		const cc_u16f output_extra_tile_pairs = vdp->configuration->widescreen_enabled ? 5 : 0;
-		const cc_u16f output_extra_tile_pairs_in_pixels = output_extra_tile_pairs * TILE_PAIR_WIDTH;
-
-		const cc_u16f x_offset = (input_extra_tile_pairs_in_pixels - output_extra_tile_pairs_in_pixels) / 2;
-
-		const cc_u16f output_width = VDP_GetScreenWidthInPixels(state) + output_extra_tile_pairs_in_pixels;
-		const cc_u16f output_height = MULTIPLY_BY_TILE_HEIGHT(state, VDP_GetScreenHeightInTiles(state));
-
-		const cc_u16f clamped_left_boundary_pixels = CC_CLAMP(x_offset, x_offset + output_width, left_boundary_pixels) - x_offset;
-		const cc_u16f clamped_right_boundary_pixels = CC_CLAMP(x_offset, x_offset + output_width, right_boundary_pixels) - x_offset;
-
-		scanline_rendered_callback((void*)scanline_rendered_callback_user_data, scanline, plane_metapixels + x_offset, clamped_left_boundary_pixels, clamped_right_boundary_pixels, output_width, output_height);
-	}
+	scanline_rendered_callback((void*)scanline_rendered_callback_user_data, scanline, plane_metapixels, left_boundary_pixels, right_boundary_pixels, VDP_GetExtendedScreenWidthInPixels(vdp), MULTIPLY_BY_TILE_HEIGHT(state, VDP_GetScreenHeightInTiles(state)));
 }
 
 void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_ScanlineRenderedCallback scanline_rendered_callback, const void* const scanline_rendered_callback_user_data)

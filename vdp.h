@@ -20,10 +20,7 @@ extern "C" {
 #define VDP_MAX_TILE_HEIGHT 16
 #define VDP_MAX_TILE_PAIR_HEIGHT (VDP_MAX_TILE_HEIGHT * VDP_TILE_PAIR_COUNT)
 
-#define VDP_WIDESCREEN_MARGIN_TILE_PAIRS 3
-#define VDP_WIDESCREEN_MARGIN_PIXELS (VDP_WIDESCREEN_MARGIN_TILE_PAIRS * TILE_PAIR_WIDTH)
-
-#define VDP_PAD_TILE_PAIRS_TO_WIDESCREEN(WIDTH) (VDP_WIDESCREEN_MARGIN_TILE_PAIRS + (WIDTH) + VDP_WIDESCREEN_MARGIN_TILE_PAIRS)
+#define VDP_MAX_WIDESCREEN_TILE_PAIRS ((32 - VDP_MAX_SCREEN_WIDTH_IN_TILE_PAIRS) / 2)
 
 #define VDP_H40_SCREEN_WIDTH_IN_TILE_PAIRS 20
 #define VDP_H32_SCREEN_WIDTH_IN_TILE_PAIRS 16
@@ -31,7 +28,7 @@ extern "C" {
 #define VDP_MAX_SCREEN_WIDTH_IN_TILES (VDP_MAX_SCREEN_WIDTH_IN_TILE_PAIRS * VDP_TILE_PAIR_COUNT)
 #define VDP_MAX_SCREEN_WIDTH_IN_PIXELS (VDP_MAX_SCREEN_WIDTH_IN_TILES * VDP_TILE_WIDTH)
 
-#define VDP_MAX_SCANLINE_WIDTH_IN_TILE_PAIRS VDP_PAD_TILE_PAIRS_TO_WIDESCREEN(VDP_MAX_SCREEN_WIDTH_IN_TILE_PAIRS)
+#define VDP_MAX_SCANLINE_WIDTH_IN_TILE_PAIRS (VDP_MAX_WIDESCREEN_TILE_PAIRS + VDP_MAX_SCREEN_WIDTH_IN_TILE_PAIRS + VDP_MAX_WIDESCREEN_TILE_PAIRS)
 #define VDP_MAX_SCANLINE_WIDTH_IN_TILES (VDP_MAX_SCANLINE_WIDTH_IN_TILE_PAIRS * VDP_TILE_PAIR_COUNT)
 #define VDP_MAX_SCANLINES_IN_TILE_PAIRS 15
 
@@ -48,7 +45,7 @@ typedef struct VDP_Configuration
 	cc_bool sprites_disabled;
 	cc_bool window_disabled;
 	cc_bool planes_disabled[2];
-	cc_bool widescreen_enabled;
+	cc_u8l widescreen_tile_pairs;
 } VDP_Configuration;
 
 typedef enum VDP_Access
@@ -241,7 +238,7 @@ VDP_CachedSprite VDP_GetCachedSprite(const VDP_State *state, cc_u16f sprite_inde
 #define VDP_GetScreenHeightInTilePairs(state) ((state)->v30_enabled ? VDP_MAX_SCANLINES_IN_TILE_PAIRS : 14)
 #define VDP_GetScreenHeightInTiles(state) (VDP_GetScreenHeightInTilePairs(state) * VDP_TILE_PAIR_COUNT)
 
-#define VDP_GetExtendedScreenWidthInTilePairs(vdp) ((vdp)->configuration->widescreen_enabled ? VDP_PAD_TILE_PAIRS_TO_WIDESCREEN(VDP_GetScreenWidthInTilePairs((vdp)->state)) : VDP_GetScreenWidthInTilePairs((vdp)->state))
+#define VDP_GetExtendedScreenWidthInTilePairs(vdp) (VDP_GetScreenWidthInTilePairs((vdp)->state) + (vdp)->configuration->widescreen_tile_pairs * 2)
 #define VDP_GetExtendedScreenWidthInTiles(vdp) (VDP_GetExtendedScreenWidthInTilePairs(vdp) * VDP_TILE_PAIR_COUNT)
 #define VDP_GetExtendedScreenWidthInPixels(vdp) (VDP_GetExtendedScreenWidthInTiles(vdp) * VDP_TILE_WIDTH)
 
