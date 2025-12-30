@@ -198,7 +198,7 @@ void RaiseHorizontalInterruptIfNeeded(const ClownMDEmu* const clownmdemu)
 	{
 		clownmdemu->state->m68k.h_int_pending = cc_false;
 
-		Clown68000_Interrupt(clownmdemu->m68k, 4);
+		Clown68000_Interrupt(&clownmdemu->state->m68k.state, 4);
 	}
 }
 
@@ -208,6 +208,6 @@ void RaiseVerticalInterruptIfNeeded(const ClownMDEmu* const clownmdemu)
 	{
 		clownmdemu->state->m68k.v_int_pending = cc_false;
 
-		Clown68000_Interrupt(clownmdemu->m68k, 6);
+		Clown68000_Interrupt(&clownmdemu->state->m68k.state, 6);
 	}
 }

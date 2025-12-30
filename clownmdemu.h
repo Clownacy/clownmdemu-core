@@ -30,11 +30,7 @@ extern "C" {
 		(CALLBACKS), \
 \
 		NULL, \
-		0, \
-\
-		&(STATE)->m68k.state, \
-		&(STATE)->z80.state, \
-		&(STATE)->mega_cd.m68k.state \
+		0 \
 	}
 
 /* Mega Drive */
@@ -274,10 +270,6 @@ typedef struct ClownMDEmu
 
 	const cc_u16l *cartridge_buffer;
 	cc_u32l cartridge_buffer_length;
-
-	Clown68000_State *m68k;
-	ClownZ80_State *z80;
-	Clown68000_State *mcd_m68k;
 } ClownMDEmu;
 
 typedef void (*ClownMDEmu_LogCallback)(void *user_data, const char *format, va_list arg);

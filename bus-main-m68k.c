@@ -75,7 +75,7 @@ void SyncM68k(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* const oth
 		other_state->sync.m68k.base_cycle = current_cycle;
 		other_state->sync.m68k.current_cycle = current_cycle + m68k_cycles_to_do * CLOWNMDEMU_M68K_CLOCK_DIVIDER;
 
-		Clown68000_DoCycles(clownmdemu->m68k, &m68k_read_write_callbacks, m68k_cycles_to_do);
+		Clown68000_DoCycles(&clownmdemu->state->m68k.state, &m68k_read_write_callbacks, m68k_cycles_to_do);
 	}
 }
 
@@ -867,7 +867,7 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 							if (clownmdemu->state->z80.reset_held && !new_reset_held)
 							{
 								SyncZ80(clownmdemu, callback_user_data, target_cycle);
-								ClownZ80_Reset(clownmdemu->z80);
+								ClownZ80_Reset(&clownmdemu->state->z80.state);
 								/* TODO: Add a proper reset function? */
 								FM_Initialise(&clownmdemu->state->fm, &clownmdemu->configuration->fm);
 							}
@@ -906,13 +906,13 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 						if (clownmdemu->state->mega_cd.m68k.reset_held && !reset)
 						{
 							SyncMCDM68k(clownmdemu, callback_user_data, CycleMegaDriveToMegaCD(clownmdemu, target_cycle));
-							Clown68000_Reset(clownmdemu->mcd_m68k, &m68k_read_write_callbacks);
+							Clown68000_Reset(&clownmdemu->state->mega_cd.m68k.state, &m68k_read_write_callbacks);
 						}
 
 						if (interrupt && clownmdemu->state->mega_cd.irq.enabled[1])
 						{
 							SyncMCDM68k(clownmdemu, callback_user_data, CycleMegaDriveToMegaCD(clownmdemu, target_cycle));
-							Clown68000_Interrupt(clownmdemu->mcd_m68k, 2);
+							Clown68000_Interrupt(&clownmdemu->state->mega_cd.m68k.state, 2);
 						}
 
 						clownmdemu->state->mega_cd.m68k.bus_requested = bus_request;

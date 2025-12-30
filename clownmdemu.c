@@ -148,10 +148,6 @@ void ClownMDEmu_Parameters_Initialise(ClownMDEmu* const clownmdemu, const ClownM
 
 	clownmdemu->cartridge_buffer = NULL;
 	clownmdemu->cartridge_buffer_length = 0;
-
-	clownmdemu->m68k = &state->m68k.state;
-	clownmdemu->z80 = &state->z80.state;
-	clownmdemu->mcd_m68k = &state->mega_cd.m68k.state;
 }
 
 /* Very useful H-Counter/V-Counter information:
@@ -286,7 +282,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 
 			/* According to Charles MacDonald's gen-hw.txt, this occurs regardless of the 'v_int_enabled' setting. */
 			SyncZ80(clownmdemu, &cpu_callback_user_data, current_cycle);
-			ClownZ80_Interrupt(clownmdemu->z80, cc_true);
+			ClownZ80_Interrupt(&clownmdemu->state->z80.state, cc_true);
 
 			/* Flag that we have entered the V-blank region */
 			state->vdp.state.currently_in_vblank = cc_true;
@@ -296,7 +292,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 			/* Assert the Z80 interrupt for a whole scanline. This has the side-effect of causing a second interrupt to occur if the handler exits quickly. */
 			/* TODO: According to Vladikcomper, this interrupt should be asserted for roughly 171 Z80 cycles. */
 			SyncZ80(clownmdemu, &cpu_callback_user_data, current_cycle);
-			ClownZ80_Interrupt(clownmdemu->z80, cc_false);
+			ClownZ80_Interrupt(&clownmdemu->state->z80.state, cc_false);
 		}
 	}
 
@@ -314,7 +310,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 	if (state->mega_cd.irq.irq1_pending)
 	{
 		state->mega_cd.irq.irq1_pending = cc_false;
-		Clown68000_Interrupt(clownmdemu->mcd_m68k, 1);
+		Clown68000_Interrupt(&clownmdemu->state->mega_cd.m68k.state, 1);
 	}
 
 	/* TODO: This should be done 75 times a second (in sync with the CDD interrupt), not 60! */
@@ -477,11 +473,11 @@ void ClownMDEmu_Reset(const ClownMDEmu* const clownmdemu, const cc_bool cartridg
 
 	m68k_read_write_callbacks.read_callback = M68kReadCallback;
 	m68k_read_write_callbacks.write_callback = M68kWriteCallback;
-	Clown68000_Reset(clownmdemu->m68k, &m68k_read_write_callbacks);
+	Clown68000_Reset(&clownmdemu->state->m68k.state, &m68k_read_write_callbacks);
 
 	m68k_read_write_callbacks.read_callback = MCDM68kReadCallback;
 	m68k_read_write_callbacks.write_callback = MCDM68kWriteCallback;
-	Clown68000_Reset(clownmdemu->mcd_m68k, &m68k_read_write_callbacks);
+	Clown68000_Reset(&clownmdemu->state->mega_cd.m68k.state, &m68k_read_write_callbacks);
 }
 
 void ClownMDEmu_SetLogCallback(const ClownMDEmu_LogCallback log_callback, const void* const user_data)
