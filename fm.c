@@ -125,12 +125,14 @@ static cc_u16f FM_ConvertTimerBValue(const cc_u16f value)
 	return 0x10 * (0x100 - value);
 }
 
-void FM_State_Initialise(FM_State* const state)
+void FM_Initialise(FM* const fm, const FM_Configuration* const configuration)
 {
 	FM_ChannelMetadata *channel;
 	cc_u8f i;
 
-	for (channel = &state->channels[0]; channel < &state->channels[CC_COUNT_OF(state->channels)]; ++channel)
+	fm->configuration = *configuration;
+
+	for (channel = &fm->state.channels[0]; channel < &fm->state.channels[CC_COUNT_OF(fm->state.channels)]; ++channel)
 	{
 		FM_Channel_Initialise(&channel->state);
 
@@ -139,47 +141,47 @@ void FM_State_Initialise(FM_State* const state)
 		channel->pan_right = cc_true;
 	}
 
-	for (i = 0; i < CC_COUNT_OF(state->channel_3_metadata.frequencies); ++i)
-		state->channel_3_metadata.frequencies[i] = 0;
+	for (i = 0; i < CC_COUNT_OF(fm->state.channel_3_metadata.frequencies); ++i)
+		fm->state.channel_3_metadata.frequencies[i] = 0;
 
-	state->channel_3_metadata.per_operator_frequencies_enabled = cc_false;
-	state->channel_3_metadata.csm_mode_enabled = cc_false;
+	fm->state.channel_3_metadata.per_operator_frequencies_enabled = cc_false;
+	fm->state.channel_3_metadata.csm_mode_enabled = cc_false;
 
-	state->port = 0 * 3;
-	state->address = 0;
+	fm->state.port = 0 * 3;
+	fm->state.address = 0;
 
-	state->dac_sample = 0x100; /* Silence */
-	state->dac_enabled = cc_false;
-	state->dac_test = cc_false;
+	fm->state.dac_sample = 0x100; /* Silence */
+	fm->state.dac_enabled = cc_false;
+	fm->state.dac_test = cc_false;
 
-	state->raw_timer_a_value = 0;
+	fm->state.raw_timer_a_value = 0;
 
-	state->timers[0].value = FM_ConvertTimerAValue(0);
-	state->timers[0].counter = FM_ConvertTimerAValue(0);
-	state->timers[0].enabled = cc_false;
+	fm->state.timers[0].value = FM_ConvertTimerAValue(0);
+	fm->state.timers[0].counter = FM_ConvertTimerAValue(0);
+	fm->state.timers[0].enabled = cc_false;
 
-	state->timers[1].value = FM_ConvertTimerBValue(0);
-	state->timers[1].counter = FM_ConvertTimerBValue(0);
-	state->timers[1].enabled = cc_false;
+	fm->state.timers[1].value = FM_ConvertTimerBValue(0);
+	fm->state.timers[1].counter = FM_ConvertTimerBValue(0);
+	fm->state.timers[1].enabled = cc_false;
 
-	state->cached_address_27 = 0;
-	state->cached_upper_frequency_bits = state->cached_upper_frequency_bits_fm3_multi_frequency = 0;
-	state->leftover_cycles = 0;
-	state->status = 0;
-	state->busy_flag_counter = 0;
+	fm->state.cached_address_27 = 0;
+	fm->state.cached_upper_frequency_bits = fm->state.cached_upper_frequency_bits_fm3_multi_frequency = 0;
+	fm->state.leftover_cycles = 0;
+	fm->state.status = 0;
+	fm->state.busy_flag_counter = 0;
 
-	FM_LFO_Initialise(&state->lfo);
+	FM_LFO_Initialise(&fm->state.lfo);
 }
 
-void FM_DoAddress(const FM* const fm, const cc_u8f port, const cc_u8f address)
+void FM_DoAddress(FM* const fm, const cc_u8f port, const cc_u8f address)
 {
-	fm->state->port = port * 3;
-	fm->state->address = address;
+	fm->state.port = port * 3;
+	fm->state.address = address;
 }
 
-void FM_DoData(const FM* const fm, const cc_u8f data)
+void FM_DoData(FM* const fm, const cc_u8f data)
 {
-	FM_State* const state = fm->state;
+	FM_State* const state = &fm->state;
 
 	/* Set BUSY flag. */
 	state->status |= 0x80;
@@ -445,7 +447,7 @@ static cc_s16f GetFinalSample(const FM* const fm, cc_s16f sample, const cc_bool 
 	/* Approximate the 'ladder effect' bug. */
 	/* Modelled after Nuked OPN2's implementation. */
 	/* https://github.com/nukeykt/Nuked-OPN2/blob/335747d78cb0abbc3b55b004e62dad9763140115/ym3438.c#L987 */
-	if (fm->configuration->ladder_effect_disabled)
+	if (fm->configuration.ladder_effect_disabled)
 	{
 		offset = 0;
 	}
@@ -465,7 +467,7 @@ static cc_s16f GetFinalSample(const FM* const fm, cc_s16f sample, const cc_bool 
 	if (!enabled)
 		sample = 0;
 
-	if (fm->state->dac_test)
+	if (fm->state.dac_test)
 	{
 		/* Sample is output for all four slots. */
 		sample *= 4;
@@ -484,9 +486,9 @@ static cc_s16f GetFinalSample(const FM* const fm, cc_s16f sample, const cc_bool 
 
 #define FM_Unsigned9BitToSigned9Bit(value) ((cc_s16f)(value) - 0x100)
 
-void FM_OutputSamples(const FM* const fm, cc_s16l* const sample_buffer, const cc_u32f total_frames)
+void FM_OutputSamples(FM* const fm, cc_s16l* const sample_buffer, const cc_u32f total_frames)
 {
-	FM_State* const state = fm->state;
+	FM_State* const state = &fm->state;
 	const cc_s16f dac_sample = FM_Unsigned9BitToSigned9Bit(state->dac_sample);
 
 	const cc_s16l* const sample_buffer_end = &sample_buffer[total_frames * 2];
@@ -513,7 +515,7 @@ void FM_OutputSamples(const FM* const fm, cc_s16l* const sample_buffer, const cc
 			const cc_bool pan_right = channel_metadata->pan_right;
 
 			const cc_bool is_dac = (channel_index == 5 && state->dac_enabled) || state->dac_test;
-			const cc_bool channel_disabled = is_dac ? fm->configuration->dac_channel_disabled : fm->configuration->fm_channels_disabled[channel_index];
+			const cc_bool channel_disabled = is_dac ? fm->configuration.dac_channel_disabled : fm->configuration.fm_channels_disabled[channel_index];
 
 			const cc_s16f fm_sample = FM_Unsigned9BitToSigned9Bit(FM_Channel_GetSample(channel, state->lfo.amplitude_modulation));
 			const cc_s16f sample = is_dac ? dac_sample : fm_sample;
@@ -553,9 +555,9 @@ void FM_OutputSamples(const FM* const fm, cc_s16l* const sample_buffer, const cc
 	}
 }
 
-cc_u8f FM_Update(const FM* const fm, const cc_u32f cycles_to_do, void (* const fm_audio_to_be_generated)(const void *user_data, cc_u32f total_frames), const void* const user_data)
+cc_u8f FM_Update(FM* const fm, const cc_u32f cycles_to_do, void (* const fm_audio_to_be_generated)(const void *user_data, cc_u32f total_frames), const void* const user_data)
 {
-	FM_State* const state = fm->state;
+	FM_State* const state = &fm->state;
 	const cc_u32f total_frames = (state->leftover_cycles + cycles_to_do) / FM_SAMPLE_RATE_DIVIDER;
 
 	state->leftover_cycles = (state->leftover_cycles + cycles_to_do) % FM_SAMPLE_RATE_DIVIDER;

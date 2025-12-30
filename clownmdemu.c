@@ -66,8 +66,8 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State* const state, const ClownMDEmu
 	state->z80.bus_requested = cc_false; /* This should be false, according to Charles MacDonald's gen-hw.txt. */
 	state->z80.reset_held = cc_true;
 
-	VDP_State_Initialise(&state->vdp);
-	FM_State_Initialise(&state->fm);
+	VDP_Initialise(&state->vdp, &configuration->vdp);
+	FM_Initialise(&state->fm, &configuration->fm);
 	PSG_Initialise(&state->psg, &configuration->psg);
 
 	/* The standard Sega SDK bootcode uses this to detect soft-resets. */
@@ -152,12 +152,6 @@ void ClownMDEmu_Parameters_Initialise(ClownMDEmu* const clownmdemu, const ClownM
 	clownmdemu->m68k = &state->m68k.state;
 	clownmdemu->z80 = &state->z80.state;
 	clownmdemu->mcd_m68k = &state->mega_cd.m68k.state;
-
-	clownmdemu->vdp.configuration = &configuration->vdp;
-	clownmdemu->vdp.state = &state->vdp;
-
-	clownmdemu->fm.configuration = &configuration->fm;
-	clownmdemu->fm.state = &state->fm;
 }
 
 /* Very useful H-Counter/V-Counter information:
@@ -168,7 +162,7 @@ static cc_u16f CyclesUntilHorizontalSync(const ClownMDEmu* const clownmdemu)
 {
 	const cc_u16f h32_divider = 5;
 
-	if (clownmdemu->state->vdp.h40_enabled)
+	if (clownmdemu->state->vdp.state.h40_enabled)
 	{
 		const cc_u16f h40_divider = 4;
 	
@@ -206,7 +200,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 	ClownMDEmu_State* const state = clownmdemu->state;
 
 	const cc_u16f television_vertical_resolution = GetTelevisionVerticalResolution(clownmdemu);
-	const cc_u16f console_vertical_resolution = VDP_GetScreenHeightInTilePairs(&state->vdp) * VDP_STANDARD_TILE_PAIR_HEIGHT;
+	const cc_u16f console_vertical_resolution = VDP_GetScreenHeightInTilePairs(&state->vdp.state) * VDP_STANDARD_TILE_PAIR_HEIGHT;
 	const CycleMegaDrive cycles_per_frame_mega_drive = GetMegaDriveCyclesPerFrame(clownmdemu);
 	const cc_u16f cycles_per_scanline = cycles_per_frame_mega_drive.cycle / television_vertical_resolution;
 	const cc_u16f cycles_until_horizontal_sync = CyclesUntilHorizontalSync(clownmdemu);
@@ -233,9 +227,9 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 		cpu_callback_user_data.sync.io_ports[i].current_cycle = 0;
 
 	/* Reload H-Int counter at the top of the screen, just like real hardware does */
-	h_int_counter = state->vdp.h_int_interval;
+	h_int_counter = state->vdp.state.h_int_interval;
 
-	state->vdp.currently_in_vblank = cc_false;
+	state->vdp.state.currently_in_vblank = cc_false;
 
 	for (state->current_scanline = 0; state->current_scanline < television_vertical_resolution; ++state->current_scanline)
 	{
@@ -261,7 +255,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 			/* http://gendev.spritesmind.net/forum/viewtopic.php?t=519 */
 			if (h_int_counter-- == 0)
 			{
-				h_int_counter = state->vdp.h_int_interval;
+				h_int_counter = state->vdp.state.h_int_interval;
 
 				/* Do H-Int */
 				state->m68k.h_int_pending = cc_true;
@@ -274,14 +268,14 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 		/* Only render scanlines and generate H-Ints for scanlines that the console outputs to */
 		if (scanline < console_vertical_resolution)
 		{
-			if (state->vdp.double_resolution_enabled)
+			if (state->vdp.state.double_resolution_enabled)
 			{
-				VDP_RenderScanline(&clownmdemu->vdp, scanline * 2 + 0, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
-				VDP_RenderScanline(&clownmdemu->vdp, scanline * 2 + 1, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
+				VDP_RenderScanline(&clownmdemu->state->vdp, scanline * 2 + 0, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
+				VDP_RenderScanline(&clownmdemu->state->vdp, scanline * 2 + 1, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
 			}
 			else
 			{
-				VDP_RenderScanline(&clownmdemu->vdp, scanline, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
+				VDP_RenderScanline(&clownmdemu->state->vdp, scanline, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
 			}
 		}
 		else if (scanline == console_vertical_resolution) /* Check if we have reached the end of the console-output scanlines */
@@ -295,7 +289,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 			ClownZ80_Interrupt(clownmdemu->z80, cc_true);
 
 			/* Flag that we have entered the V-blank region */
-			state->vdp.currently_in_vblank = cc_true;
+			state->vdp.state.currently_in_vblank = cc_true;
 		}
 		else if (scanline == console_vertical_resolution + 1)
 		{

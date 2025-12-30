@@ -36,7 +36,7 @@
 
 #define VRAM_ADDRESS_BASE_OFFSET(OPTION) ((OPTION) ? 0x10000 : 0)
 
-#define WIDESCREEN_X_OFFSET_TILE_PAIRS(VDP) (VDP)->configuration->widescreen_tile_pairs
+#define WIDESCREEN_X_OFFSET_TILE_PAIRS(VDP) (VDP)->configuration.widescreen_tile_pairs
 #define WIDESCREEN_X_OFFSET_TILES(VDP) (WIDESCREEN_X_OFFSET_TILE_PAIRS(VDP) * TILE_PAIR_COUNT)
 #define WIDESCREEN_X_OFFSET_PIXELS(VDP) (WIDESCREEN_X_OFFSET_TILES(VDP) * TILE_WIDTH)
 
@@ -117,9 +117,9 @@ static cc_u8f ReadVRAM(const VDP_State* const state, const cc_u32f address)
 	return state->vram[DecodeVRAMAddress(state, address) % CC_COUNT_OF(state->vram)];
 }
 
-static void WriteVRAM(const VDP* const vdp, const cc_u32f address, const cc_u8f value)
+static void WriteVRAM(VDP* const vdp, const cc_u32f address, const cc_u8f value)
 {
-	VDP_State* const state = vdp->state;
+	VDP_State* const state = &vdp->state;
 
 	const cc_u32f decoded_address = DecodeVRAMAddress(state, address);
 
@@ -147,9 +147,9 @@ static void IncrementAccessAddressRegister(VDP_State* const state)
 	state->access.address_register &= 0x1FFFF; /* Needs to be able to address 128KiB. */
 }
 
-static void WriteAndIncrement(const VDP* const vdp, const cc_u16f value, const VDP_ColourUpdatedCallback colour_updated_callback, const void* const colour_updated_callback_user_data)
+static void WriteAndIncrement(VDP* const vdp, const cc_u16f value, const VDP_ColourUpdatedCallback colour_updated_callback, const void* const colour_updated_callback_user_data)
 {
-	VDP_State* const state = vdp->state;
+	VDP_State* const state = &vdp->state;
 
 	switch (state->access.selected_buffer)
 	{
@@ -350,72 +350,74 @@ void VDP_Constant_Initialise(void)
 	}
 }
 
-void VDP_State_Initialise(VDP_State* const state)
+void VDP_Initialise(VDP* const vdp, const VDP_Configuration* const configuration)
 {
-	state->access.write_pending = cc_false;
-	state->access.address_register = 0;
-	state->access.code_register = 0;
-	state->access.selected_buffer = VDP_ACCESS_VRAM;
-	state->access.increment = 0;
+	vdp->configuration = *configuration;
 
-	state->dma.enabled = cc_false;
-	state->dma.mode = VDP_DMA_MODE_MEMORY_TO_VRAM;
-	state->dma.source_address_high = 0;
-	state->dma.source_address_low = 0;
-	state->dma.length = 0;
+	vdp->state.access.write_pending = cc_false;
+	vdp->state.access.address_register = 0;
+	vdp->state.access.code_register = 0;
+	vdp->state.access.selected_buffer = VDP_ACCESS_VRAM;
+	vdp->state.access.increment = 0;
 
-	state->plane_a_address = 0;
-	state->plane_b_address = 0;
-	state->window_address = 0;
-	state->sprite_table_address = 0;
-	state->hscroll_address = 0;
+	vdp->state.dma.enabled = cc_false;
+	vdp->state.dma.mode = VDP_DMA_MODE_MEMORY_TO_VRAM;
+	vdp->state.dma.source_address_high = 0;
+	vdp->state.dma.source_address_low = 0;
+	vdp->state.dma.length = 0;
 
-	state->window.aligned_right = cc_false;
-	state->window.aligned_bottom = cc_false;
-	state->window.horizontal_boundary = 0;
-	state->window.vertical_boundary = 0;
+	vdp->state.plane_a_address = 0;
+	vdp->state.plane_b_address = 0;
+	vdp->state.window_address = 0;
+	vdp->state.sprite_table_address = 0;
+	vdp->state.hscroll_address = 0;
 
-	state->plane_width_shift = 5;
-	state->plane_height_bitmask = 0x1F;
+	vdp->state.window.aligned_right = cc_false;
+	vdp->state.window.aligned_bottom = cc_false;
+	vdp->state.window.horizontal_boundary = 0;
+	vdp->state.window.vertical_boundary = 0;
 
-	state->extended_vram_enabled = cc_false;
-	state->display_enabled = cc_false;
-	state->v_int_enabled = cc_false;
-	state->h_int_enabled = cc_false;
-	state->h40_enabled = cc_false;
-	state->v30_enabled = cc_false;
-	state->mega_drive_mode_enabled = cc_false;
-	state->shadow_highlight_enabled = cc_false;
-	state->double_resolution_enabled = cc_false;
-	state->sprite_tile_index_rebase = cc_false;
-	state->plane_a_tile_index_rebase = cc_false;
-	state->plane_b_tile_index_rebase = cc_false;
+	vdp->state.plane_width_shift = 5;
+	vdp->state.plane_height_bitmask = 0x1F;
 
-	state->background_colour = 0;
-	state->h_int_interval = 0;
-	state->currently_in_vblank = cc_false;
-	state->allow_sprite_masking = cc_false;
+	vdp->state.extended_vram_enabled = cc_false;
+	vdp->state.display_enabled = cc_false;
+	vdp->state.v_int_enabled = cc_false;
+	vdp->state.h_int_enabled = cc_false;
+	vdp->state.h40_enabled = cc_false;
+	vdp->state.v30_enabled = cc_false;
+	vdp->state.mega_drive_mode_enabled = cc_false;
+	vdp->state.shadow_highlight_enabled = cc_false;
+	vdp->state.double_resolution_enabled = cc_false;
+	vdp->state.sprite_tile_index_rebase = cc_false;
+	vdp->state.plane_a_tile_index_rebase = cc_false;
+	vdp->state.plane_b_tile_index_rebase = cc_false;
 
-	SetHScrollMode(state, VDP_HSCROLL_MODE_FULL);
-	state->vscroll_mode = VDP_VSCROLL_MODE_FULL;
+	vdp->state.background_colour = 0;
+	vdp->state.h_int_interval = 0;
+	vdp->state.currently_in_vblank = cc_false;
+	vdp->state.allow_sprite_masking = cc_false;
 
-	state->debug.selected_register = 0;
-	state->debug.hide_layers = cc_false;
-	state->debug.forced_layer = 0;
+	SetHScrollMode(&vdp->state, VDP_HSCROLL_MODE_FULL);
+	vdp->state.vscroll_mode = VDP_VSCROLL_MODE_FULL;
 
-	memset(state->vram, 0, sizeof(state->vram));
-	memset(state->cram, 0, sizeof(state->cram));
-	memset(state->vsram, 0, sizeof(state->vsram));
-	memset(state->sprite_table_cache, 0, sizeof(state->sprite_table_cache));
+	vdp->state.debug.selected_register = 0;
+	vdp->state.debug.hide_layers = cc_false;
+	vdp->state.debug.forced_layer = 0;
 
-	state->sprite_row_cache.needs_updating = cc_true;
-	memset(state->sprite_row_cache.rows, 0, sizeof(state->sprite_row_cache.rows));
+	memset(vdp->state.vram, 0, sizeof(vdp->state.vram));
+	memset(vdp->state.cram, 0, sizeof(vdp->state.cram));
+	memset(vdp->state.vsram, 0, sizeof(vdp->state.vsram));
+	memset(vdp->state.sprite_table_cache, 0, sizeof(vdp->state.sprite_table_cache));
 
-	memset(state->previous_data_writes, 0, sizeof(state->previous_data_writes));
+	vdp->state.sprite_row_cache.needs_updating = cc_true;
+	memset(vdp->state.sprite_row_cache.rows, 0, sizeof(vdp->state.sprite_row_cache.rows));
 
-	state->kdebug_buffer_index = 0;
+	memset(vdp->state.previous_data_writes, 0, sizeof(vdp->state.previous_data_writes));
+
+	vdp->state.kdebug_buffer_index = 0;
 	/* This byte never gets overwritten, so we can set it ahead of time. */
-	state->kdebug_buffer[CC_COUNT_OF(state->kdebug_buffer) - 1] = '\0';
+	vdp->state.kdebug_buffer[CC_COUNT_OF(vdp->state.kdebug_buffer) - 1] = '\0';
 }
 
 static cc_u16f GetHScrollTableOffset(const VDP_State* const state, const cc_u16f scanline)
@@ -425,7 +427,7 @@ static cc_u16f GetHScrollTableOffset(const VDP_State* const state, const cc_u16f
 
 static cc_u16f GetVScrollTableOffset(const VDP* const vdp, const cc_u8f tile_pair)
 {
-	const VDP_State* const state = vdp->state;
+	const VDP_State* const state = &vdp->state;
 
 	switch (state->vscroll_mode)
 	{
@@ -443,7 +445,7 @@ static cc_u16f GetVScrollTableOffset(const VDP* const vdp, const cc_u8f tile_pai
 
 static void RenderTilePair(const VDP* const vdp, const cc_u16f pixel_y_in_plane, const cc_u32f vram_address, const cc_u32f base_tile_vram_address, cc_u8l** const metapixels_pointer_pointer, const BlitLookup* const blit_lookup_list)
 {
-	const VDP_State* const state = vdp->state;
+	const VDP_State* const state = &vdp->state;
 
 	const cc_u8f tile_height_shift = GET_TILE_HEIGHT_SHIFT(state);
 	const cc_u8f tile_height_mask = (1 << tile_height_shift) - 1;
@@ -489,7 +491,7 @@ static void RenderTilePair(const VDP* const vdp, const cc_u16f pixel_y_in_plane,
 
 static void RenderScrollingPlane(const VDP* const vdp, const cc_u8f start, const cc_u8f end, const cc_u16f scanline, const cc_u8f plane_index, const cc_u16f plane_x_offset, cc_u8l* const metapixels, const BlitLookup* const blit_lookup_list)
 {
-	const VDP_State* const state = vdp->state;
+	const VDP_State* const state = &vdp->state;
 
 	const cc_u32f base_tile_vram_address = VRAM_ADDRESS_BASE_OFFSET(plane_index == 0 ? state->plane_a_tile_index_rebase : state->plane_b_tile_index_rebase);
 	const cc_u16f plane_pitch_shift = state->plane_width_shift;
@@ -528,7 +530,7 @@ static void RenderScrollingPlane(const VDP* const vdp, const cc_u8f start, const
 
 static void RenderWindowPlane(const VDP* const vdp, const cc_u8f start, const cc_u8f end, const cc_u16f scanline, cc_u8l* const metapixels, const BlitLookup* const blit_lookup_list)
 {
-	const VDP_State* const state = vdp->state;
+	const VDP_State* const state = &vdp->state;
 
 	const cc_u32f base_tile_vram_address = VRAM_ADDRESS_BASE_OFFSET(state->plane_a_tile_index_rebase);
 	const cc_u16f tile_y = DIVIDE_BY_TILE_HEIGHT(state, scanline);
@@ -547,12 +549,12 @@ static void RenderWindowPlane(const VDP* const vdp, const cc_u8f start, const cc
 		RenderTilePair(vdp, scanline, vram_address_base + ((tile_x_base + i * TILE_PAIR_COUNT) & plane_width_bitmask) * 2, base_tile_vram_address, &metapixels_pointer, blit_lookup_list);
 }
 
-static void UpdateSpriteCache(const VDP* const vdp)
+static void UpdateSpriteCache(VDP* const vdp)
 {
 	/* Caching and preprocessing some of the sprite table allows the renderer to avoid
 	   scanning the entire sprite table every time it renders a scanline. The VDP actually
 	   partially caches its sprite data too, though I don't know if it's for the same purpose. */
-	VDP_State* const state = vdp->state;
+	VDP_State* const state = &vdp->state;
 
 	const cc_u8f tile_height_shift = GET_TILE_HEIGHT_SHIFT(state);
 	const cc_u8f max_sprites = VDP_GetExtendedScreenWidthInTiles(vdp) * 2;
@@ -607,9 +609,9 @@ static void UpdateSpriteCache(const VDP* const vdp)
 	while (sprite_index != 0 && --sprites_remaining != 0);
 }
 
-static void RenderSprites(const VDP* const vdp, cc_u8l* const sprite_metapixels, const cc_u16f scanline)
+static void RenderSprites(VDP* const vdp, cc_u8l* const sprite_metapixels, const cc_u16f scanline)
 {
-	VDP_State* const state = vdp->state;
+	VDP_State* const state = &vdp->state;
 
 	const cc_u32f base_tile_vram_address = VRAM_ADDRESS_BASE_OFFSET(state->sprite_tile_index_rebase);
 	const cc_u8f tile_height_shift = GET_TILE_HEIGHT_SHIFT(state);
@@ -723,9 +725,9 @@ static void RenderSprites(const VDP* const vdp, cc_u8l* const sprite_metapixels,
 
 static void RenderScrollPlane(const VDP* const vdp, const cc_u8f left_boundary, const cc_u8f right_boundary, const cc_u16f scanline, cc_u8l* const plane_metapixels, const BlitLookup* const blit_lookup_list, const cc_u8f plane_index)
 {
-	const VDP_State* const state = vdp->state;
+	const VDP_State* const state = &vdp->state;
 
-	if (!vdp->configuration->planes_disabled[plane_index])
+	if (!vdp->configuration.planes_disabled[plane_index])
 	{
 		const cc_u32f hscroll_vram_address = state->hscroll_address + plane_index * 2 + GetHScrollTableOffset(state, scanline);
 		const cc_u16f hscroll = READ_VRAM_WORD(state, hscroll_vram_address) + WIDESCREEN_X_OFFSET_PIXELS(vdp);
@@ -743,7 +745,7 @@ static void RenderScrollPlane(const VDP* const vdp, const cc_u8f left_boundary, 
 static void RenderForegroundPlane(const VDP* const vdp, const cc_u8f left_boundary, const cc_u8f right_boundary, const cc_u16f scanline, cc_u8l* const plane_metapixels, const BlitLookup* const blit_lookup_list, const cc_bool window_plane)
 {
 	/* Notably, we allow Plane A to render in the Window Plane's place when the latter is disabled. */
-	if (window_plane && !vdp->configuration->window_disabled)
+	if (window_plane && !vdp->configuration.window_disabled)
 	{
 		/* Left-aligned window plane. */
 		RenderWindowPlane(vdp, left_boundary, right_boundary, scanline, plane_metapixels, blit_lookup_list);
@@ -772,7 +774,7 @@ static void RenderSpritePlane(cc_u8l* const plane_metapixels, cc_u8l* const spri
 
 static void RenderForegroundAndSpritePlanes(const VDP* const vdp, const cc_u16f scanline, cc_u8l* const plane_metapixels, cc_u8l* const sprite_metapixels, const cc_bool window_plane, const VDP_ScanlineRenderedCallback scanline_rendered_callback, const void* const scanline_rendered_callback_user_data)
 {
-	const VDP_State* const state = vdp->state;
+	const VDP_State* const state = &vdp->state;
 
 	const cc_bool full_window_plane_line = (scanline < state->window.vertical_boundary) != state->window.aligned_bottom;
 	/* Prevent the window plane from always being visible on the left in widescreen. */
@@ -819,9 +821,9 @@ static void RenderForegroundAndSpritePlanes(const VDP* const vdp, const cc_u16f 
 	scanline_rendered_callback((void*)scanline_rendered_callback_user_data, scanline, plane_metapixels, left_boundary_pixels, right_boundary_pixels, VDP_GetExtendedScreenWidthInPixels(vdp), MULTIPLY_BY_TILE_HEIGHT(state, VDP_GetScreenHeightInTiles(state)));
 }
 
-void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_ScanlineRenderedCallback scanline_rendered_callback, const void* const scanline_rendered_callback_user_data)
+void VDP_RenderScanline(VDP* const vdp, const cc_u16f scanline, const VDP_ScanlineRenderedCallback scanline_rendered_callback, const void* const scanline_rendered_callback_user_data)
 {
-	VDP_State* const state = vdp->state;
+	VDP_State* const state = &vdp->state;
 
 	/* The padding bytes of the left and right are for allowing tile pairs to overdraw at the
 	   edges of the screen. */
@@ -841,7 +843,7 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 	   knows which pixels haven't been drawn yet. */
 	memset(sprite_metapixels_buffer, 0, sizeof(sprite_metapixels_buffer));
 
-	if (!vdp->configuration->sprites_disabled)
+	if (!vdp->configuration.sprites_disabled)
 		RenderSprites(vdp, sprite_metapixels_buffer, scanline);
 
 	/* Fill the scanline buffer with the background colour. */
@@ -861,9 +863,9 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 	RenderForegroundAndSpritePlanes(vdp, scanline, plane_metapixels, sprite_metapixels, cc_false, scanline_rendered_callback, scanline_rendered_callback_user_data);
 }
 
-cc_u16f VDP_ReadData(const VDP* const vdp)
+cc_u16f VDP_ReadData(VDP* const vdp)
 {
-	VDP_State* const state = vdp->state;
+	VDP_State* const state = &vdp->state;
 
 	cc_u16f value = 0;
 
@@ -884,9 +886,9 @@ cc_u16f VDP_ReadData(const VDP* const vdp)
 	return value;
 }
 
-cc_u16f VDP_ReadControl(const VDP* const vdp)
+cc_u16f VDP_ReadControl(VDP* const vdp)
 {
-	VDP_State* const state = vdp->state;
+	VDP_State* const state = &vdp->state;
 
 	const cc_bool fifo_empty = cc_true;
 
@@ -910,9 +912,9 @@ static void UpdateFakeFIFO(VDP_State* const state, const cc_u16f value)
 	state->previous_data_writes[last] = value;
 }
 
-void VDP_WriteData(const VDP* const vdp, const cc_u16f value, const VDP_ColourUpdatedCallback colour_updated_callback, const void* const colour_updated_callback_user_data)
+void VDP_WriteData(VDP* const vdp, const cc_u16f value, const VDP_ColourUpdatedCallback colour_updated_callback, const void* const colour_updated_callback_user_data)
 {
-	VDP_State* const state = vdp->state;
+	VDP_State* const state = &vdp->state;
 
 	state->access.write_pending = cc_false;
 
@@ -962,9 +964,9 @@ void VDP_WriteData(const VDP* const vdp, const cc_u16f value, const VDP_ColourUp
 }
 
 /* TODO: Retention of partial commands. */
-void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_ColourUpdatedCallback colour_updated_callback, const void* const colour_updated_callback_user_data, const VDP_ReadCallback read_callback, const void* const read_callback_user_data, const VDP_KDebugCallback kdebug_callback, const void* const kdebug_callback_user_data, const cc_u32f target_cycle)
+void VDP_WriteControl(VDP* const vdp, const cc_u16f value, const VDP_ColourUpdatedCallback colour_updated_callback, const void* const colour_updated_callback_user_data, const VDP_ReadCallback read_callback, const void* const read_callback_user_data, const VDP_KDebugCallback kdebug_callback, const void* const kdebug_callback_user_data, const cc_u32f target_cycle)
 {
-	VDP_State* const state = vdp->state;
+	VDP_State* const state = &vdp->state;
 
 	if (state->access.write_pending || (value & 0xC000) != 0x8000)
 	{
@@ -1307,20 +1309,20 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 	}
 }
 
-void VDP_WriteDebugData(const VDP* const vdp, const cc_u16f value)
+void VDP_WriteDebugData(VDP* const vdp, const cc_u16f value)
 {
-	switch (vdp->state->debug.selected_register)
+	switch (vdp->state.debug.selected_register)
 	{
 		case 0:
-			vdp->state->debug.hide_layers = (value & (1 << 6)) != 0;
-			vdp->state->debug.forced_layer = (value >> 7) & 3;
+			vdp->state.debug.hide_layers = (value & (1 << 6)) != 0;
+			vdp->state.debug.forced_layer = (value >> 7) & 3;
 			break;
 	}
 }
 
-void VDP_WriteDebugControl(const VDP* const vdp, const cc_u16f value)
+void VDP_WriteDebugControl(VDP* const vdp, const cc_u16f value)
 {
-	vdp->state->debug.selected_register = (value >> 8) & 0xF;
+	vdp->state.debug.selected_register = (value >> 8) & 0xF;
 }
 
 /* TODO: Delete this? */

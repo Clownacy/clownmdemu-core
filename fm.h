@@ -68,18 +68,18 @@ typedef struct FM_State
 
 typedef struct FM
 {
-	const FM_Configuration *configuration;
-	FM_State *state;
+	FM_Configuration configuration;
+	FM_State state;
 } FM;
 
-void FM_State_Initialise(FM_State *state);
+void FM_Initialise(FM *fm, const FM_Configuration *configuration);
 
-void FM_DoAddress(const FM *fm, cc_u8f port, cc_u8f address);
-void FM_DoData(const FM *fm, cc_u8f data);
+void FM_DoAddress(FM *fm, cc_u8f port, cc_u8f address);
+void FM_DoData(FM *fm, cc_u8f data);
 
-void FM_OutputSamples(const FM *fm, cc_s16l *sample_buffer, cc_u32f total_frames);
+void FM_OutputSamples(FM *fm, cc_s16l *sample_buffer, cc_u32f total_frames);
 /* Updates the FM's internal state and outputs samples. */
 /* The samples are stereo and in signed 16-bit PCM format. */
-cc_u8f FM_Update(const FM *fm, cc_u32f cycles_to_do, void (*fm_audio_to_be_generated)(const void *user_data, cc_u32f total_frames), const void *user_data);
+cc_u8f FM_Update( FM *fm, cc_u32f cycles_to_do, void (*fm_audio_to_be_generated)(const void *user_data, cc_u32f total_frames), const void *user_data);
 
 #endif /* FM_H */

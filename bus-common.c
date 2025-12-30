@@ -113,7 +113,7 @@ void SyncCPUCommon(const ClownMDEmu* const clownmdemu, SyncCPUState* const sync,
 
 static void FMCallbackWrapper(const ClownMDEmu* const clownmdemu, cc_s16l* const sample_buffer, const size_t total_frames)
 {
-	FM_OutputSamples(&clownmdemu->fm, sample_buffer, total_frames);
+	FM_OutputSamples(&clownmdemu->state->fm, sample_buffer, total_frames);
 
 	/* https://www.meme.net.au/butterworth.html
 	   Configured for a cut-off of 2842Hz at 53267Hz.
@@ -135,7 +135,7 @@ static void GenerateFMAudio(const void* const user_data, const cc_u32f total_fra
 
 cc_u8f SyncFM(CPUCallbackUserData* const other_state, const CycleMegaDrive target_cycle)
 {
-	return FM_Update(&other_state->clownmdemu->fm, SyncCommon(&other_state->sync.fm, target_cycle.cycle, CLOWNMDEMU_M68K_CLOCK_DIVIDER), GenerateFMAudio, other_state);
+	return FM_Update(&other_state->clownmdemu->state->fm, SyncCommon(&other_state->sync.fm, target_cycle.cycle, CLOWNMDEMU_M68K_CLOCK_DIVIDER), GenerateFMAudio, other_state);
 }
 
 static void GeneratePSGAudio(const ClownMDEmu* const clownmdemu, cc_s16l* const sample_buffer, const size_t total_frames)
@@ -194,7 +194,7 @@ void SyncCDDA(CPUCallbackUserData* const other_state, const cc_u32f total_frames
 
 void RaiseHorizontalInterruptIfNeeded(const ClownMDEmu* const clownmdemu)
 {
-	if (clownmdemu->state->m68k.h_int_pending && clownmdemu->vdp.state->h_int_enabled)
+	if (clownmdemu->state->m68k.h_int_pending && clownmdemu->state->vdp.state.h_int_enabled)
 	{
 		clownmdemu->state->m68k.h_int_pending = cc_false;
 
@@ -204,7 +204,7 @@ void RaiseHorizontalInterruptIfNeeded(const ClownMDEmu* const clownmdemu)
 
 void RaiseVerticalInterruptIfNeeded(const ClownMDEmu* const clownmdemu)
 {
-	if (clownmdemu->state->m68k.v_int_pending && clownmdemu->vdp.state->v_int_enabled)
+	if (clownmdemu->state->m68k.v_int_pending && clownmdemu->state->vdp.state.v_int_enabled)
 	{
 		clownmdemu->state->m68k.v_int_pending = cc_false;
 

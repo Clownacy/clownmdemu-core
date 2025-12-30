@@ -545,13 +545,13 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 				case 2 / 2:
 					/* VDP data port */
 					/* TODO: Reading from the data port causes real Mega Drives to crash (if the VDP isn't in read mode). */
-					value = VDP_ReadData(&clownmdemu->vdp);
+					value = VDP_ReadData(&clownmdemu->state->vdp);
 					break;
 
 				case 4 / 2:
 				case 6 / 2:
 					/* VDP control port */
-					value = VDP_ReadControl(&clownmdemu->vdp);
+					value = VDP_ReadControl(&clownmdemu->state->vdp);
 
 					/* Temporary stupid hack: shove the PAL bit in here. */
 					/* TODO: This should be moved to the VDP core once it becomes sensitive to PAL mode differences. */
@@ -569,7 +569,7 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 					/* TODO: The V counter emulation is incredibly inaccurate: the timing is likely wrong, and it should be incremented while in the blanking areas too. */
 					/* TODO: Apparently in interlace mode 1, the lowest bit of the V-counter is set to the hidden ninth bit. */
 					const cc_u8f h_counter = GetHCounterValue(clownmdemu, target_cycle);
-					const cc_u8f v_counter = clownmdemu->state->vdp.double_resolution_enabled
+					const cc_u8f v_counter = clownmdemu->state->vdp.state.double_resolution_enabled
 						? ((clownmdemu->state->current_scanline & 0x7F) << 1) | ((clownmdemu->state->current_scanline & 0x80) >> 7)
 						: (clownmdemu->state->current_scanline & 0xFF);
 					value = v_counter << 8 | h_counter;
@@ -868,7 +868,8 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 							{
 								SyncZ80(clownmdemu, callback_user_data, target_cycle);
 								ClownZ80_Reset(clownmdemu->z80);
-								FM_State_Initialise(&clownmdemu->state->fm);
+								/* TODO: Add a proper reset function? */
+								FM_Initialise(&clownmdemu->state->fm, &clownmdemu->configuration->fm);
 							}
 
 							clownmdemu->state->z80.reset_held = new_reset_held;
@@ -1046,13 +1047,13 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 				case 0 / 2:
 				case 2 / 2:
 					/* VDP data port */
-					VDP_WriteData(&clownmdemu->vdp, value, frontend_callbacks->colour_updated, frontend_callbacks->user_data);
+					VDP_WriteData(&clownmdemu->state->vdp, value, frontend_callbacks->colour_updated, frontend_callbacks->user_data);
 					break;
 
 				case 4 / 2:
 				case 6 / 2:
 					/* VDP control port */
-					VDP_WriteControl(&clownmdemu->vdp, value, frontend_callbacks->colour_updated, frontend_callbacks->user_data, VDPReadCallback, callback_user_data, VDPKDebugCallback, NULL, target_cycle.cycle);
+					VDP_WriteControl(&clownmdemu->state->vdp, value, frontend_callbacks->colour_updated, frontend_callbacks->user_data, VDPReadCallback, callback_user_data, VDPKDebugCallback, NULL, target_cycle.cycle);
 
 					/* TODO: This should be done more faithfully once the CPU interpreters are bus-event-oriented. */
 					RaiseHorizontalInterruptIfNeeded(clownmdemu);
@@ -1080,11 +1081,11 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 					break;
 
 				case 0x18 / 2:
-					VDP_WriteDebugControl(&clownmdemu->vdp, value);
+					VDP_WriteDebugControl(&clownmdemu->state->vdp, value);
 					break;
 
 				case 0x1C / 2:
-					VDP_WriteDebugData(&clownmdemu->vdp, value);
+					VDP_WriteDebugData(&clownmdemu->state->vdp, value);
 					break;
 
 				default:

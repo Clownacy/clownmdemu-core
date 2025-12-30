@@ -133,9 +133,9 @@ void Z80WriteCallbackWithCycle(const void* const user_data, const cc_u16f addres
 			SyncFM(callback_user_data, target_cycle);
 
 			if ((address & 1) == 0)
-				FM_DoAddress(&clownmdemu->fm, (address & 2) != 0 ? 1 : 0, value);
+				FM_DoAddress(&clownmdemu->state->fm, (address & 2) != 0 ? 1 : 0, value);
 			else
-				FM_DoData(&clownmdemu->fm, value);
+				FM_DoData(&clownmdemu->state->fm, value);
 
 			break;
 

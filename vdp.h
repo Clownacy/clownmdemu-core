@@ -202,8 +202,8 @@ typedef struct VDP_State
 
 typedef struct VDP
 {
-	const VDP_Configuration *configuration;
-	VDP_State *state;
+	VDP_Configuration configuration;
+	VDP_State state;
 } VDP;
 
 typedef void (*VDP_ScanlineRenderedCallback)(void *user_data, cc_u16f scanline, const cc_u8l *pixels, cc_u16f left_boundary, cc_u16f right_boundary, cc_u16f screen_width, cc_u16f screen_height);
@@ -212,15 +212,15 @@ typedef cc_u16f (*VDP_ReadCallback)(void *user_data, cc_u32f address, cc_u32f ta
 typedef void (*VDP_KDebugCallback)(void *user_data, const char *string);
 
 void VDP_Constant_Initialise(void);
-void VDP_State_Initialise(VDP_State *state);
-void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, VDP_ScanlineRenderedCallback scanline_rendered_callback, const void *scanline_rendered_callback_user_data);
+void VDP_Initialise(VDP *vdp, const VDP_Configuration *configuration);
+void VDP_RenderScanline(VDP *vdp, cc_u16f scanline, VDP_ScanlineRenderedCallback scanline_rendered_callback, const void *scanline_rendered_callback_user_data);
 
-cc_u16f VDP_ReadData(const VDP *vdp);
-cc_u16f VDP_ReadControl(const VDP *vdp);
-void VDP_WriteData(const VDP *vdp, cc_u16f value, VDP_ColourUpdatedCallback colour_updated_callback, const void *colour_updated_callback_user_data);
-void VDP_WriteControl(const VDP *vdp, cc_u16f value, VDP_ColourUpdatedCallback colour_updated_callback, const void *colour_updated_callback_user_data, VDP_ReadCallback read_callback, const void *read_callback_user_data, VDP_KDebugCallback kdebug_callback, const void *kdebug_callback_user_data, cc_u32f target_cycle);
-void VDP_WriteDebugData(const VDP *vdp, cc_u16f value);
-void VDP_WriteDebugControl(const VDP *vdp, cc_u16f value);
+cc_u16f VDP_ReadData(VDP *vdp);
+cc_u16f VDP_ReadControl(VDP *vdp);
+void VDP_WriteData(VDP *vdp, cc_u16f value, VDP_ColourUpdatedCallback colour_updated_callback, const void *colour_updated_callback_user_data);
+void VDP_WriteControl(VDP *vdp, cc_u16f value, VDP_ColourUpdatedCallback colour_updated_callback, const void *colour_updated_callback_user_data, VDP_ReadCallback read_callback, const void *read_callback_user_data, VDP_KDebugCallback kdebug_callback, const void *kdebug_callback_user_data, cc_u32f target_cycle);
+void VDP_WriteDebugData(VDP *vdp, cc_u16f value);
+void VDP_WriteDebugControl(VDP *vdp, cc_u16f value);
 
 cc_u16f VDP_ReadVRAMWord(const VDP_State *state, cc_u16f address);
 VDP_TileMetadata VDP_DecomposeTileMetadata(cc_u16f packed_tile_metadata);
@@ -238,7 +238,7 @@ VDP_CachedSprite VDP_GetCachedSprite(const VDP_State *state, cc_u16f sprite_inde
 #define VDP_GetScreenHeightInTilePairs(state) ((state)->v30_enabled ? VDP_MAX_SCANLINES_IN_TILE_PAIRS : 14)
 #define VDP_GetScreenHeightInTiles(state) (VDP_GetScreenHeightInTilePairs(state) * VDP_TILE_PAIR_COUNT)
 
-#define VDP_GetExtendedScreenWidthInTilePairs(vdp) (VDP_GetScreenWidthInTilePairs((vdp)->state) + (vdp)->configuration->widescreen_tile_pairs * 2)
+#define VDP_GetExtendedScreenWidthInTilePairs(vdp) (VDP_GetScreenWidthInTilePairs(&(vdp)->state) + (vdp)->configuration.widescreen_tile_pairs * 2)
 #define VDP_GetExtendedScreenWidthInTiles(vdp) (VDP_GetExtendedScreenWidthInTilePairs(vdp) * VDP_TILE_PAIR_COUNT)
 #define VDP_GetExtendedScreenWidthInPixels(vdp) (VDP_GetExtendedScreenWidthInTiles(vdp) * VDP_TILE_WIDTH)
 

@@ -34,17 +34,7 @@ extern "C" {
 \
 		&(STATE)->m68k.state, \
 		&(STATE)->z80.state, \
-		&(STATE)->mega_cd.m68k.state, \
-\
-		{ \
-			&(CONFIGURATION)->vdp, \
-			&(STATE)->vdp \
-		}, \
-\
-		{ \
-			&(CONFIGURATION)->fm, \
-			&(STATE)->fm \
-		} \
+		&(STATE)->mega_cd.m68k.state \
 	}
 
 /* Mega Drive */
@@ -163,8 +153,8 @@ typedef struct ClownMDEmu_State
 		cc_bool reset_held;
 	} z80;
 
-	VDP_State vdp;
-	FM_State fm;
+	VDP vdp;
+	FM fm;
 	PSG psg;
 	IOPort io_ports[3];
 	Controller controllers[2];
@@ -288,8 +278,6 @@ typedef struct ClownMDEmu
 	Clown68000_State *m68k;
 	ClownZ80_State *z80;
 	Clown68000_State *mcd_m68k;
-	VDP vdp;
-	FM fm;
 } ClownMDEmu;
 
 typedef void (*ClownMDEmu_LogCallback)(void *user_data, const char *format, va_list arg);
