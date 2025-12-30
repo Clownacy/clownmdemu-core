@@ -1075,7 +1075,7 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 						SyncPSG(callback_user_data, target_cycle);
 
 						/* Alter the PSG's state */
-						PSG_DoCommand(&clownmdemu->psg, low_byte);
+						PSG_DoCommand(&clownmdemu->state->psg, low_byte);
 					}
 					break;
 

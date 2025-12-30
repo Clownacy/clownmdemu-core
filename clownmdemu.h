@@ -47,11 +47,6 @@ extern "C" {
 		}, \
 \
 		{ \
-			&(CONFIGURATION)->psg, \
-			&(STATE)->psg \
-		}, \
-\
-		{ \
 			&(CONFIGURATION)->pcm, \
 			&(STATE)->mega_cd.pcm \
 		} \
@@ -175,7 +170,7 @@ typedef struct ClownMDEmu_State
 
 	VDP_State vdp;
 	FM_State fm;
-	PSG_State psg;
+	PSG psg;
 	IOPort io_ports[3];
 	Controller controllers[2];
 
@@ -300,14 +295,13 @@ typedef struct ClownMDEmu
 	Clown68000_State *mcd_m68k;
 	VDP vdp;
 	FM fm;
-	PSG psg;
 	PCM pcm;
 } ClownMDEmu;
 
 typedef void (*ClownMDEmu_LogCallback)(void *user_data, const char *format, va_list arg);
 
 void ClownMDEmu_Constant_Initialise(void);
-void ClownMDEmu_State_Initialise(ClownMDEmu_State *state);
+void ClownMDEmu_State_Initialise(ClownMDEmu_State *state, const ClownMDEmu_Configuration *configuration);
 void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_Configuration *configuration, ClownMDEmu_State *state, const ClownMDEmu_Callbacks *callbacks);
 void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu);
 void ClownMDEmu_SetCartridge(ClownMDEmu *clownmdemu, const cc_u16l *buffer, cc_u32f buffer_length);

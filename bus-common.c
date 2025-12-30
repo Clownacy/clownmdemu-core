@@ -140,7 +140,7 @@ cc_u8f SyncFM(CPUCallbackUserData* const other_state, const CycleMegaDrive targe
 
 static void GeneratePSGAudio(const ClownMDEmu* const clownmdemu, cc_s16l* const sample_buffer, const size_t total_frames)
 {
-	PSG_Update(&clownmdemu->psg, sample_buffer, total_frames);
+	PSG_Update(&clownmdemu->state->psg, sample_buffer, total_frames);
 
 	/* https://www.meme.net.au/butterworth.html
 	   Configured for a cut-off of 2842Hz at 223722Hz.

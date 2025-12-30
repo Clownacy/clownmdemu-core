@@ -81,21 +81,21 @@ typedef struct PSG_State
 
 typedef struct PSG
 {
-	const PSG_Configuration *configuration;
-	PSG_State *state;
+	PSG_Configuration configuration;
+	PSG_State state;
 } PSG;
 
-/* Initialises the PSG_State struct with sane default values. */
+/* Initialises the PSG struct with sane default values. */
 /* All channels will be muted. */
-void PSG_State_Initialise(PSG_State *state);
+void PSG_Initialise(PSG *psg, const PSG_Configuration *configuration);
 
 /* Processes a command. */
 /* See https://www.smspower.org/Development/SN76489 for an explanation of the various commands. */
-void PSG_DoCommand(const PSG *psg, cc_u8f command);
+void PSG_DoCommand(PSG *psg, cc_u8f command);
 
 /* Updates the PSG's internal state and outputs samples. */
 /* The samples are mono and in signed 16-bit PCM format. */
-void PSG_Update(const PSG *psg, cc_s16l *sample_buffer, size_t total_frames);
+void PSG_Update(PSG *psg, cc_s16l *sample_buffer, size_t total_frames);
 
 #ifdef __cplusplus
 }

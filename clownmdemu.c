@@ -46,7 +46,7 @@ void ClownMDEmu_Constant_Initialise(void)
 	VDP_Constant_Initialise();
 }
 
-void ClownMDEmu_State_Initialise(ClownMDEmu_State* const state)
+void ClownMDEmu_State_Initialise(ClownMDEmu_State* const state, const ClownMDEmu_Configuration* const configuration)
 {
 	cc_u16f i;
 
@@ -68,7 +68,7 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State* const state)
 
 	VDP_State_Initialise(&state->vdp);
 	FM_State_Initialise(&state->fm);
-	PSG_State_Initialise(&state->psg);
+	PSG_Initialise(&state->psg, &configuration->psg);
 
 	/* The standard Sega SDK bootcode uses this to detect soft-resets. */
 	for (i = 0; i < CC_COUNT_OF(state->io_ports); ++i)
@@ -158,9 +158,6 @@ void ClownMDEmu_Parameters_Initialise(ClownMDEmu* const clownmdemu, const ClownM
 
 	clownmdemu->fm.configuration = &configuration->fm;
 	clownmdemu->fm.state = &state->fm;
-
-	clownmdemu->psg.configuration = &configuration->psg;
-	clownmdemu->psg.state = &state->psg;
 
 	clownmdemu->pcm.configuration = &configuration->pcm;
 	clownmdemu->pcm.state = &state->mega_cd.pcm;
