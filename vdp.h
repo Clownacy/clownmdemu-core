@@ -238,7 +238,7 @@ VDP_CachedSprite VDP_GetCachedSprite(const VDP_State *state, cc_u16f sprite_inde
 #define VDP_GetScreenHeightInTilePairs(state) ((state)->v30_enabled ? VDP_MAX_SCANLINES_IN_TILE_PAIRS : 14)
 #define VDP_GetScreenHeightInTiles(state) (VDP_GetScreenHeightInTilePairs(state) * VDP_TILE_PAIR_COUNT)
 
-#define VDP_GetExtendedScreenWidthInTilePairs(vdp) (VDP_GetScreenWidthInTilePairs(&(vdp)->state) + (vdp)->configuration.widescreen_tile_pairs * 2)
+#define VDP_GetExtendedScreenWidthInTilePairs(vdp) (VDP_GetScreenWidthInTilePairs(&(vdp)->state) + (unsigned int)(vdp)->configuration.widescreen_tile_pairs * 2)
 #define VDP_GetExtendedScreenWidthInTiles(vdp) (VDP_GetExtendedScreenWidthInTilePairs(vdp) * VDP_TILE_PAIR_COUNT)
 #define VDP_GetExtendedScreenWidthInPixels(vdp) (VDP_GetExtendedScreenWidthInTiles(vdp) * VDP_TILE_WIDTH)
 
