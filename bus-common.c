@@ -113,7 +113,7 @@ void SyncCPUCommon(ClownMDEmu* const clownmdemu, SyncCPUState* const sync, const
 
 static void FMCallbackWrapper(ClownMDEmu* const clownmdemu, cc_s16l* const sample_buffer, const size_t total_frames)
 {
-	FM_OutputSamples(&clownmdemu->state.fm, sample_buffer, total_frames);
+	FM_OutputSamples(&clownmdemu->fm, sample_buffer, total_frames);
 
 	/* https://www.meme.net.au/butterworth.html
 	   Configured for a cut-off of 2842Hz at 53267Hz.
@@ -135,12 +135,12 @@ static void GenerateFMAudio(const void* const user_data, const cc_u32f total_fra
 
 cc_u8f SyncFM(CPUCallbackUserData* const other_state, const CycleMegaDrive target_cycle)
 {
-	return FM_Update(&other_state->clownmdemu->state.fm, SyncCommon(&other_state->sync.fm, target_cycle.cycle, CLOWNMDEMU_M68K_CLOCK_DIVIDER), GenerateFMAudio, other_state);
+	return FM_Update(&other_state->clownmdemu->fm, SyncCommon(&other_state->sync.fm, target_cycle.cycle, CLOWNMDEMU_M68K_CLOCK_DIVIDER), GenerateFMAudio, other_state);
 }
 
 static void GeneratePSGAudio(ClownMDEmu* const clownmdemu, cc_s16l* const sample_buffer, const size_t total_frames)
 {
-	PSG_Update(&clownmdemu->state.psg, sample_buffer, total_frames);
+	PSG_Update(&clownmdemu->psg, sample_buffer, total_frames);
 
 	/* https://www.meme.net.au/butterworth.html
 	   Configured for a cut-off of 2842Hz at 223722Hz.
@@ -164,7 +164,7 @@ void SyncPSG(CPUCallbackUserData* const other_state, const CycleMegaDrive target
 
 static void GeneratePCMAudio(ClownMDEmu* const clownmdemu, cc_s16l* const sample_buffer, const size_t total_frames)
 {
-	PCM_Update(&clownmdemu->state.mega_cd.pcm, sample_buffer, total_frames);
+	PCM_Update(&clownmdemu->mega_cd.pcm, sample_buffer, total_frames);
 
 	/* https://www.meme.net.au/butterworth.html
 	   Configured for a cut-off of 7973Hz at 32552Hz.
@@ -182,7 +182,7 @@ void SyncPCM(CPUCallbackUserData* const other_state, const CycleMegaCD target_cy
 
 static void GenerateCDDAAudio(ClownMDEmu* const clownmdemu, cc_s16l* const sample_buffer, const size_t total_frames)
 {
-	CDDA_Update(&clownmdemu->state.mega_cd.cdda, clownmdemu->callbacks->cd_audio_read, clownmdemu->callbacks->user_data, sample_buffer, total_frames);
+	CDDA_Update(&clownmdemu->mega_cd.cdda, clownmdemu->callbacks->cd_audio_read, clownmdemu->callbacks->user_data, sample_buffer, total_frames);
 }
 
 void SyncCDDA(CPUCallbackUserData* const other_state, const cc_u32f total_frames)
@@ -194,20 +194,20 @@ void SyncCDDA(CPUCallbackUserData* const other_state, const cc_u32f total_frames
 
 void RaiseHorizontalInterruptIfNeeded(ClownMDEmu* const clownmdemu)
 {
-	if (clownmdemu->state.m68k.h_int_pending && clownmdemu->state.vdp.state.h_int_enabled)
+	if (clownmdemu->state.m68k.h_int_pending && clownmdemu->vdp.state.h_int_enabled)
 	{
 		clownmdemu->state.m68k.h_int_pending = cc_false;
 
-		Clown68000_Interrupt(&clownmdemu->state.m68k.state, 4);
+		Clown68000_Interrupt(&clownmdemu->m68k, 4);
 	}
 }
 
 void RaiseVerticalInterruptIfNeeded(ClownMDEmu* const clownmdemu)
 {
-	if (clownmdemu->state.m68k.v_int_pending && clownmdemu->state.vdp.state.v_int_enabled)
+	if (clownmdemu->state.m68k.v_int_pending && clownmdemu->vdp.state.v_int_enabled)
 	{
 		clownmdemu->state.m68k.v_int_pending = cc_false;
 
-		Clown68000_Interrupt(&clownmdemu->state.m68k.state, 6);
+		Clown68000_Interrupt(&clownmdemu->m68k, 6);
 	}
 }

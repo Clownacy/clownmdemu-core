@@ -9,7 +9,7 @@
 
 /* The Z80 can trigger 68k bus errors by using the 68k address space window, so print its program counter here too. */
 #define LOG_MAIN_CPU_BUS_ERROR_MESSAGE_PREFIX "[M68K PC: 0x%06" CC_PRIXLEAST32 ", Z80 PC: 0x%04" CC_PRIXLEAST16 "] "
-#define LOG_MAIN_CPU_BUS_ERROR_ARGUMENTS clownmdemu->state.m68k.state.program_counter, clownmdemu->state.z80.state.program_counter
+#define LOG_MAIN_CPU_BUS_ERROR_ARGUMENTS clownmdemu->m68k.program_counter, clownmdemu->z80.program_counter
 #define LOG_MAIN_CPU_BUS_ERROR_0(MESSAGE)                   LogMessage(LOG_MAIN_CPU_BUS_ERROR_MESSAGE_PREFIX MESSAGE, LOG_MAIN_CPU_BUS_ERROR_ARGUMENTS);
 #define LOG_MAIN_CPU_BUS_ERROR_1(MESSAGE, ARG1)             LogMessage(LOG_MAIN_CPU_BUS_ERROR_MESSAGE_PREFIX MESSAGE, LOG_MAIN_CPU_BUS_ERROR_ARGUMENTS, ARG1);
 #define LOG_MAIN_CPU_BUS_ERROR_2(MESSAGE, ARG1, ARG2)       LogMessage(LOG_MAIN_CPU_BUS_ERROR_MESSAGE_PREFIX MESSAGE, LOG_MAIN_CPU_BUS_ERROR_ARGUMENTS, ARG1, ARG2);
@@ -75,7 +75,7 @@ void SyncM68k(ClownMDEmu* const clownmdemu, CPUCallbackUserData* const other_sta
 		other_state->sync.m68k.base_cycle = current_cycle;
 		other_state->sync.m68k.current_cycle = current_cycle + m68k_cycles_to_do * CLOWNMDEMU_M68K_CLOCK_DIVIDER;
 
-		Clown68000_DoCycles(&clownmdemu->state.m68k.state, &m68k_read_write_callbacks, m68k_cycles_to_do);
+		Clown68000_DoCycles(&clownmdemu->m68k, &m68k_read_write_callbacks, m68k_cycles_to_do);
 	}
 }
 
@@ -451,7 +451,7 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 					else if (address == 0xA12004)
 					{
 						/* CDC mode */
-						value = CDC_Mode(&clownmdemu->state.mega_cd.cdc, cc_false);
+						value = CDC_Mode(&clownmdemu->mega_cd.cdc, cc_false);
 					}
 					else if (address == 0xA12006)
 					{
@@ -461,7 +461,7 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 					else if (address == 0xA12008)
 					{
 						/* CDC host data */
-						value = CDC_HostData(&clownmdemu->state.mega_cd.cdc, cc_false);
+						value = CDC_HostData(&clownmdemu->mega_cd.cdc, cc_false);
 					}
 					else if (address == 0xA1200C)
 					{
@@ -545,13 +545,13 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 				case 2 / 2:
 					/* VDP data port */
 					/* TODO: Reading from the data port causes real Mega Drives to crash (if the VDP isn't in read mode). */
-					value = VDP_ReadData(&clownmdemu->state.vdp);
+					value = VDP_ReadData(&clownmdemu->vdp);
 					break;
 
 				case 4 / 2:
 				case 6 / 2:
 					/* VDP control port */
-					value = VDP_ReadControl(&clownmdemu->state.vdp);
+					value = VDP_ReadControl(&clownmdemu->vdp);
 
 					/* Temporary stupid hack: shove the PAL bit in here. */
 					/* TODO: This should be moved to the VDP core once it becomes sensitive to PAL mode differences. */
@@ -569,7 +569,7 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 					/* TODO: The V counter emulation is incredibly inaccurate: the timing is likely wrong, and it should be incremented while in the blanking areas too. */
 					/* TODO: Apparently in interlace mode 1, the lowest bit of the V-counter is set to the hidden ninth bit. */
 					const cc_u8f h_counter = GetHCounterValue(clownmdemu, target_cycle);
-					const cc_u8f v_counter = clownmdemu->state.vdp.state.double_resolution_enabled
+					const cc_u8f v_counter = clownmdemu->vdp.state.double_resolution_enabled
 						? ((clownmdemu->state.current_scanline & 0x7F) << 1) | ((clownmdemu->state.current_scanline & 0x80) >> 7)
 						: (clownmdemu->state.current_scanline & 0xFF);
 					value = v_counter << 8 | h_counter;
@@ -867,9 +867,9 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 							if (clownmdemu->state.z80.reset_held && !new_reset_held)
 							{
 								SyncZ80(clownmdemu, callback_user_data, target_cycle);
-								ClownZ80_Reset(&clownmdemu->state.z80.state);
+								ClownZ80_Reset(&clownmdemu->z80);
 								/* TODO: Add a proper reset function? */
-								FM_Initialise(&clownmdemu->state.fm, &clownmdemu->state.fm.configuration);
+								FM_Initialise(&clownmdemu->fm, &clownmdemu->fm.configuration);
 							}
 
 							clownmdemu->state.z80.reset_held = new_reset_held;
@@ -906,13 +906,13 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 						if (clownmdemu->state.mega_cd.m68k.reset_held && !reset)
 						{
 							SyncMCDM68k(clownmdemu, callback_user_data, CycleMegaDriveToMegaCD(clownmdemu, target_cycle));
-							Clown68000_Reset(&clownmdemu->state.mega_cd.m68k.state, &m68k_read_write_callbacks);
+							Clown68000_Reset(&clownmdemu->mega_cd.m68k, &m68k_read_write_callbacks);
 						}
 
 						if (interrupt && clownmdemu->state.mega_cd.irq.enabled[1])
 						{
 							SyncMCDM68k(clownmdemu, callback_user_data, CycleMegaDriveToMegaCD(clownmdemu, target_cycle));
-							Clown68000_Interrupt(&clownmdemu->state.mega_cd.m68k.state, 2);
+							Clown68000_Interrupt(&clownmdemu->mega_cd.m68k, 2);
 						}
 
 						clownmdemu->state.mega_cd.m68k.bus_requested = bus_request;
@@ -1047,13 +1047,13 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 				case 0 / 2:
 				case 2 / 2:
 					/* VDP data port */
-					VDP_WriteData(&clownmdemu->state.vdp, value, frontend_callbacks->colour_updated, frontend_callbacks->user_data);
+					VDP_WriteData(&clownmdemu->vdp, value, frontend_callbacks->colour_updated, frontend_callbacks->user_data);
 					break;
 
 				case 4 / 2:
 				case 6 / 2:
 					/* VDP control port */
-					VDP_WriteControl(&clownmdemu->state.vdp, value, frontend_callbacks->colour_updated, frontend_callbacks->user_data, VDPReadCallback, callback_user_data, VDPKDebugCallback, NULL, target_cycle.cycle);
+					VDP_WriteControl(&clownmdemu->vdp, value, frontend_callbacks->colour_updated, frontend_callbacks->user_data, VDPReadCallback, callback_user_data, VDPKDebugCallback, NULL, target_cycle.cycle);
 
 					/* TODO: This should be done more faithfully once the CPU interpreters are bus-event-oriented. */
 					RaiseHorizontalInterruptIfNeeded(clownmdemu);
@@ -1076,16 +1076,16 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 						SyncPSG(callback_user_data, target_cycle);
 
 						/* Alter the PSG's state */
-						PSG_DoCommand(&clownmdemu->state.psg, low_byte);
+						PSG_DoCommand(&clownmdemu->psg, low_byte);
 					}
 					break;
 
 				case 0x18 / 2:
-					VDP_WriteDebugControl(&clownmdemu->state.vdp, value);
+					VDP_WriteDebugControl(&clownmdemu->vdp, value);
 					break;
 
 				case 0x1C / 2:
-					VDP_WriteDebugData(&clownmdemu->state.vdp, value);
+					VDP_WriteDebugData(&clownmdemu->vdp, value);
 					break;
 
 				default:

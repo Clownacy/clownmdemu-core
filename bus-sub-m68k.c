@@ -49,15 +49,15 @@ static void MCDM68kWriteWord(const void* const user_data, const cc_u32f address,
 
 static void ROMSEEK(ClownMDEmu* const clownmdemu, const ClownMDEmu_Callbacks* const frontend_callbacks, const cc_u32f starting_sector, const cc_u32f total_sectors)
 {
-	CDC_Stop(&clownmdemu->state.mega_cd.cdc);
-	CDC_Seek(&clownmdemu->state.mega_cd.cdc, frontend_callbacks->cd_sector_read, frontend_callbacks->user_data, starting_sector, total_sectors);
+	CDC_Stop(&clownmdemu->mega_cd.cdc);
+	CDC_Seek(&clownmdemu->mega_cd.cdc, frontend_callbacks->cd_sector_read, frontend_callbacks->user_data, starting_sector, total_sectors);
 	frontend_callbacks->cd_seeked((void*)frontend_callbacks->user_data, starting_sector);
 }
 
 static void CDCSTART(ClownMDEmu* const clownmdemu, const ClownMDEmu_Callbacks* const frontend_callbacks)
 {
-	CDDA_SetPlaying(&clownmdemu->state.mega_cd.cdda, cc_false);
-	CDC_Start(&clownmdemu->state.mega_cd.cdc, frontend_callbacks->cd_sector_read, frontend_callbacks->user_data);
+	CDDA_SetPlaying(&clownmdemu->mega_cd.cdda, cc_false);
+	CDC_Start(&clownmdemu->mega_cd.cdc, frontend_callbacks->cd_sector_read, frontend_callbacks->user_data);
 }
 
 /* TODO: Move this to its own file? */
@@ -66,7 +66,7 @@ static void MegaCDBIOSCall(ClownMDEmu* const clownmdemu, const void* const user_
 	/* TODO: None of this shit is accurate at all. */
 	/* TODO: Devon's notes on the CDC commands:
 	   https://forums.sonicretro.org/index.php?posts/1052926/ */
-	const cc_u16f command = clownmdemu->state.mega_cd.m68k.state.data_registers[0] & 0xFFFF;
+	const cc_u16f command = clownmdemu->mega_cd.m68k.data_registers[0] & 0xFFFF;
 
 	switch (command)
 	{
@@ -76,12 +76,12 @@ static void MegaCDBIOSCall(ClownMDEmu* const clownmdemu, const void* const user_
 			/* Fallthrough */
 		case 0x03:
 			/* MSCPAUSEON */
-			CDDA_SetPaused(&clownmdemu->state.mega_cd.cdda, cc_true);
+			CDDA_SetPaused(&clownmdemu->mega_cd.cdda, cc_true);
 			break;
 
 		case 0x04:
 			/* MSCPAUSEOFF */
-			CDDA_SetPaused(&clownmdemu->state.mega_cd.cdda, cc_false);
+			CDDA_SetPaused(&clownmdemu->mega_cd.cdda, cc_false);
 			break;
 
 		case 0x11:
@@ -91,10 +91,10 @@ static void MegaCDBIOSCall(ClownMDEmu* const clownmdemu, const void* const user_
 		case 0x13:
 			/* MSCPLAYR */
 		{
-			const cc_u16f track_number = MCDM68kReadWord(user_data, clownmdemu->state.mega_cd.m68k.state.address_registers[0] + 0, target_cycle);
+			const cc_u16f track_number = MCDM68kReadWord(user_data, clownmdemu->mega_cd.m68k.address_registers[0] + 0, target_cycle);
 
-			CDDA_SetPlaying(&clownmdemu->state.mega_cd.cdda, cc_true);
-			CDDA_SetPaused(&clownmdemu->state.mega_cd.cdda, cc_false);
+			CDDA_SetPlaying(&clownmdemu->mega_cd.cdda, cc_true);
+			CDDA_SetPaused(&clownmdemu->mega_cd.cdda, cc_false);
 
 			frontend_callbacks->cd_track_seeked((void*)frontend_callbacks->user_data, track_number, command == 0x11 ? CLOWNMDEMU_CDDA_PLAY_ALL : command == 0x12 ? CLOWNMDEMU_CDDA_PLAY_ONCE : CLOWNMDEMU_CDDA_PLAY_REPEAT);
 			break;
@@ -103,7 +103,7 @@ static void MegaCDBIOSCall(ClownMDEmu* const clownmdemu, const void* const user_
 		case 0x17:
 		{
 			/* ROMREAD */
-			const cc_u32f starting_sector = MCDM68kReadLongword(user_data, clownmdemu->state.mega_cd.m68k.state.address_registers[0] + 0, target_cycle);
+			const cc_u32f starting_sector = MCDM68kReadLongword(user_data, clownmdemu->mega_cd.m68k.address_registers[0] + 0, target_cycle);
 
 			ROMSEEK(clownmdemu, frontend_callbacks, starting_sector, 0);
 			CDCSTART(clownmdemu, frontend_callbacks);
@@ -113,7 +113,7 @@ static void MegaCDBIOSCall(ClownMDEmu* const clownmdemu, const void* const user_
 		case 0x18:
 		{
 			/* ROMSEEK */
-			const cc_u32f starting_sector = MCDM68kReadLongword(user_data, clownmdemu->state.mega_cd.m68k.state.address_registers[0] + 0, target_cycle);
+			const cc_u32f starting_sector = MCDM68kReadLongword(user_data, clownmdemu->mega_cd.m68k.address_registers[0] + 0, target_cycle);
 
 			ROMSEEK(clownmdemu, frontend_callbacks, starting_sector, 0);
 			break;
@@ -122,8 +122,8 @@ static void MegaCDBIOSCall(ClownMDEmu* const clownmdemu, const void* const user_
 		case 0x20:
 		{
 			/* ROMREADN */
-			const cc_u32f starting_sector = MCDM68kReadLongword(user_data, clownmdemu->state.mega_cd.m68k.state.address_registers[0] + 0, target_cycle);
-			const cc_u32f total_sectors = MCDM68kReadLongword(user_data, clownmdemu->state.mega_cd.m68k.state.address_registers[0] + 4, target_cycle);
+			const cc_u32f starting_sector = MCDM68kReadLongword(user_data, clownmdemu->mega_cd.m68k.address_registers[0] + 0, target_cycle);
+			const cc_u32f total_sectors = MCDM68kReadLongword(user_data, clownmdemu->mega_cd.m68k.address_registers[0] + 4, target_cycle);
 
 			/* TODO: What does 0 total sectors do to a real BIOS? */
 			ROMSEEK(clownmdemu, frontend_callbacks, starting_sector, total_sectors);
@@ -134,8 +134,8 @@ static void MegaCDBIOSCall(ClownMDEmu* const clownmdemu, const void* const user_
 		case 0x21:
 		{
 			/* ROMREADE */
-			const cc_u32f starting_sector = MCDM68kReadLongword(user_data, clownmdemu->state.mega_cd.m68k.state.address_registers[0] + 0, target_cycle);
-			const cc_u32f last_sector = MCDM68kReadLongword(user_data, clownmdemu->state.mega_cd.m68k.state.address_registers[0] + 4, target_cycle);
+			const cc_u32f starting_sector = MCDM68kReadLongword(user_data, clownmdemu->mega_cd.m68k.address_registers[0] + 0, target_cycle);
+			const cc_u32f last_sector = MCDM68kReadLongword(user_data, clownmdemu->mega_cd.m68k.address_registers[0] + 4, target_cycle);
 
 			/* TODO: How does the official BIOS respond to a negative sector count? */
 			ROMSEEK(clownmdemu, frontend_callbacks, starting_sector, last_sector < starting_sector ? 0 : last_sector - starting_sector);
@@ -145,26 +145,26 @@ static void MegaCDBIOSCall(ClownMDEmu* const clownmdemu, const void* const user_
 
 		case 0x80:
 			/* CDBCHK */
-			clownmdemu->state.mega_cd.m68k.state.status_register &= ~1; /* Clear carry flag to signal that the BIOS is not busy. */
+			clownmdemu->mega_cd.m68k.status_register &= ~1; /* Clear carry flag to signal that the BIOS is not busy. */
 			break;
 
 		case 0x83:
 			/* CDBTOCREAD */
 			/* TODO: Complete this! */
-			clownmdemu->state.mega_cd.m68k.state.data_registers[0] = clownmdemu->state.mega_cd.m68k.state.data_registers[1] & 0xFF;
-			clownmdemu->state.mega_cd.m68k.state.data_registers[1]	= 0xFF;
+			clownmdemu->mega_cd.m68k.data_registers[0] = clownmdemu->mega_cd.m68k.data_registers[1] & 0xFF;
+			clownmdemu->mega_cd.m68k.data_registers[1]	= 0xFF;
 			break;
 
 		case 0x85:
 		{
 			/* FDRSET */
-			const cc_bool is_master_volume = (clownmdemu->state.mega_cd.m68k.state.data_registers[1] & 0x8000) != 0;
-			const cc_u16f volume = clownmdemu->state.mega_cd.m68k.state.data_registers[1] & 0x7FFF;
+			const cc_bool is_master_volume = (clownmdemu->mega_cd.m68k.data_registers[1] & 0x8000) != 0;
+			const cc_u16f volume = clownmdemu->mega_cd.m68k.data_registers[1] & 0x7FFF;
 
 			if (is_master_volume)
-				CDDA_SetMasterVolume(&clownmdemu->state.mega_cd.cdda, volume);
+				CDDA_SetMasterVolume(&clownmdemu->mega_cd.cdda, volume);
 			else
-				CDDA_SetVolume(&clownmdemu->state.mega_cd.cdda, volume);
+				CDDA_SetVolume(&clownmdemu->mega_cd.cdda, volume);
 
 			break;
 		}
@@ -172,10 +172,10 @@ static void MegaCDBIOSCall(ClownMDEmu* const clownmdemu, const void* const user_
 		case 0x86:
 		{
 			/* FDRCHG */
-			const cc_u16f target_volume = clownmdemu->state.mega_cd.m68k.state.data_registers[1] >> 16;
-			const cc_u16f fade_step = clownmdemu->state.mega_cd.m68k.state.data_registers[1] & 0xFFFF;
+			const cc_u16f target_volume = clownmdemu->mega_cd.m68k.data_registers[1] >> 16;
+			const cc_u16f fade_step = clownmdemu->mega_cd.m68k.data_registers[1] & 0xFFFF;
 
-			CDDA_FadeToVolume(&clownmdemu->state.mega_cd.cdda, target_volume, fade_step);
+			CDDA_FadeToVolume(&clownmdemu->mega_cd.cdda, target_volume, fade_step);
 
 			break;
 		}
@@ -187,29 +187,29 @@ static void MegaCDBIOSCall(ClownMDEmu* const clownmdemu, const void* const user_
 
 		case 0x89:
 			/* CDCSTOP */
-			CDC_Stop(&clownmdemu->state.mega_cd.cdc);
+			CDC_Stop(&clownmdemu->mega_cd.cdc);
 			break;
 
 		case 0x8A:
 			/* CDCSTAT */
-			if (!CDC_Stat(&clownmdemu->state.mega_cd.cdc, frontend_callbacks->cd_sector_read, frontend_callbacks->user_data))
-				clownmdemu->state.mega_cd.m68k.state.status_register |= 1; /* Set carry flag to signal that a sector is not ready. */
+			if (!CDC_Stat(&clownmdemu->mega_cd.cdc, frontend_callbacks->cd_sector_read, frontend_callbacks->user_data))
+				clownmdemu->mega_cd.m68k.status_register |= 1; /* Set carry flag to signal that a sector is not ready. */
 			else
-				clownmdemu->state.mega_cd.m68k.state.status_register &= ~1; /* Clear carry flag to signal that there's a sector ready. */
+				clownmdemu->mega_cd.m68k.status_register &= ~1; /* Clear carry flag to signal that there's a sector ready. */
 
 			break;
 
 		case 0x8B:
 			/* CDCREAD */
-			if (!CDC_Read(&clownmdemu->state.mega_cd.cdc, frontend_callbacks->cd_sector_read, frontend_callbacks->user_data, &clownmdemu->state.mega_cd.m68k.state.data_registers[0]))
+			if (!CDC_Read(&clownmdemu->mega_cd.cdc, frontend_callbacks->cd_sector_read, frontend_callbacks->user_data, &clownmdemu->mega_cd.m68k.data_registers[0]))
 			{
 				/* Sonic Megamix 4.0b relies on this. */
-				clownmdemu->state.mega_cd.m68k.state.status_register |= 1; /* Set carry flag to signal that a sector has not been prepared. */
+				clownmdemu->mega_cd.m68k.status_register |= 1; /* Set carry flag to signal that a sector has not been prepared. */
 			}
 			else
 			{
 				/* TODO: This really belongs in the CDC logic, but it needs access to the RAM buffers... */
-				switch (clownmdemu->state.mega_cd.cdc.device_destination)
+				switch (clownmdemu->mega_cd.cdc.device_destination)
 				{
 					case CDC_DESTINATION_PCM_RAM:
 					case CDC_DESTINATION_PRG_RAM:
@@ -217,9 +217,9 @@ static void MegaCDBIOSCall(ClownMDEmu* const clownmdemu, const void* const user_
 					{
 						/* TODO: How is RAM address overflow handled? */
 						cc_u32f address;
-						const cc_u32f offset = (cc_u32f)clownmdemu->state.mega_cd.cdc.dma_address * 8;
+						const cc_u32f offset = (cc_u32f)clownmdemu->mega_cd.cdc.dma_address * 8;
 
-						switch (clownmdemu->state.mega_cd.cdc.device_destination)
+						switch (clownmdemu->mega_cd.cdc.device_destination)
 						{
 							case 4:
 								address = 0xFFFF2000 + (offset & 0x1FFF);
@@ -235,18 +235,18 @@ static void MegaCDBIOSCall(ClownMDEmu* const clownmdemu, const void* const user_
 						}
 
 						/* Discard the header data. */
-						CDC_HostData(&clownmdemu->state.mega_cd.cdc, cc_true);
-						CDC_HostData(&clownmdemu->state.mega_cd.cdc, cc_true);
+						CDC_HostData(&clownmdemu->mega_cd.cdc, cc_true);
+						CDC_HostData(&clownmdemu->mega_cd.cdc, cc_true);
 
 						/* Copy the sector data to the DMA destination. */
 						/* The behaviour of CDC-to-PCM DMA exposes that this really does leverage the Sub-CPU bus on a Mega CD:
 						   the DMA destination address is measured in Sub-CPU address space bytes, not PCM RAM buffer bytes.
 						   That is to say, setting it to 8 will cause the data to be copied to 4 bytes into PCM RAM. */
-						while ((CDC_Mode(&clownmdemu->state.mega_cd.cdc, cc_true) & 0x4000) != 0)
+						while ((CDC_Mode(&clownmdemu->mega_cd.cdc, cc_true) & 0x4000) != 0)
 						{
-							const cc_u16f word = CDC_HostData(&clownmdemu->state.mega_cd.cdc, cc_true);
+							const cc_u16f word = CDC_HostData(&clownmdemu->mega_cd.cdc, cc_true);
 
-							if (clownmdemu->state.mega_cd.cdc.device_destination == CDC_DESTINATION_PCM_RAM)
+							if (clownmdemu->mega_cd.cdc.device_destination == CDC_DESTINATION_PCM_RAM)
 							{
 								MCDM68kWriteWord(user_data, address, word >> 8, target_cycle);
 								address += 2;
@@ -264,40 +264,40 @@ static void MegaCDBIOSCall(ClownMDEmu* const clownmdemu, const void* const user_
 					}
 				}
 
-				clownmdemu->state.mega_cd.m68k.state.status_register &= ~1; /* Clear carry flag to signal that a sector has been prepared. */
+				clownmdemu->mega_cd.m68k.status_register &= ~1; /* Clear carry flag to signal that a sector has been prepared. */
 			}
 
 			break;
 
 		case 0x8C:
 			/* CDCTRN */
-			if ((CDC_Mode(&clownmdemu->state.mega_cd.cdc, cc_true) & 0x8000) != 0)
+			if ((CDC_Mode(&clownmdemu->mega_cd.cdc, cc_true) & 0x8000) != 0)
 			{
-				clownmdemu->state.mega_cd.m68k.state.status_register |= 1; /* Set carry flag to signal that there's not a sector ready. */
+				clownmdemu->mega_cd.m68k.status_register |= 1; /* Set carry flag to signal that there's not a sector ready. */
 			}
 			else
 			{
 				cc_u32f i;
-				const cc_u32f sector_address = clownmdemu->state.mega_cd.m68k.state.address_registers[0];
-				const cc_u32f header_address = clownmdemu->state.mega_cd.m68k.state.address_registers[1];
+				const cc_u32f sector_address = clownmdemu->mega_cd.m68k.address_registers[0];
+				const cc_u32f header_address = clownmdemu->mega_cd.m68k.address_registers[1];
 
-				MCDM68kWriteWord(user_data, header_address + 0, CDC_HostData(&clownmdemu->state.mega_cd.cdc, cc_true), target_cycle);
-				MCDM68kWriteWord(user_data, header_address + 2, CDC_HostData(&clownmdemu->state.mega_cd.cdc, cc_true), target_cycle);
+				MCDM68kWriteWord(user_data, header_address + 0, CDC_HostData(&clownmdemu->mega_cd.cdc, cc_true), target_cycle);
+				MCDM68kWriteWord(user_data, header_address + 2, CDC_HostData(&clownmdemu->mega_cd.cdc, cc_true), target_cycle);
 
 				for (i = 0; i < CDC_SECTOR_SIZE; i += 2)
-					MCDM68kWriteWord(user_data, sector_address + i, CDC_HostData(&clownmdemu->state.mega_cd.cdc, cc_true), target_cycle);
+					MCDM68kWriteWord(user_data, sector_address + i, CDC_HostData(&clownmdemu->mega_cd.cdc, cc_true), target_cycle);
 
-				clownmdemu->state.mega_cd.m68k.state.address_registers[0] = (clownmdemu->state.mega_cd.m68k.state.address_registers[0] + CDC_SECTOR_SIZE) & 0xFFFFFFFF;
-				clownmdemu->state.mega_cd.m68k.state.address_registers[1] = (clownmdemu->state.mega_cd.m68k.state.address_registers[1] + 4) & 0xFFFFFFFF;
+				clownmdemu->mega_cd.m68k.address_registers[0] = (clownmdemu->mega_cd.m68k.address_registers[0] + CDC_SECTOR_SIZE) & 0xFFFFFFFF;
+				clownmdemu->mega_cd.m68k.address_registers[1] = (clownmdemu->mega_cd.m68k.address_registers[1] + 4) & 0xFFFFFFFF;
 
-				clownmdemu->state.mega_cd.m68k.state.status_register &= ~1; /* Clear carry flag to signal that there's always a sector ready. */
+				clownmdemu->mega_cd.m68k.status_register &= ~1; /* Clear carry flag to signal that there's always a sector ready. */
 			}
 
 			break;
 
 		case 0x8D:
 			/* CDCACK */
-			CDC_Ack(&clownmdemu->state.mega_cd.cdc);
+			CDC_Ack(&clownmdemu->mega_cd.cdc);
 			break;
 
 		default:
@@ -325,7 +325,7 @@ void SyncMCDM68kForReal(ClownMDEmu* const clownmdemu, const Clown68000_ReadWrite
 			other_state->sync.mcd_m68k.base_cycle = current_cycle;
 			other_state->sync.mcd_m68k.current_cycle = current_cycle + m68k_cycles_to_do * CLOWNMDEMU_MCD_M68K_CLOCK_DIVIDER;
 
-			Clown68000_DoCycles(&clownmdemu->state.mega_cd.m68k.state, m68k_read_write_callbacks, m68k_cycles_to_do);
+			Clown68000_DoCycles(&clownmdemu->mega_cd.m68k, m68k_read_write_callbacks, m68k_cycles_to_do);
 		}
 	}
 }
@@ -342,7 +342,7 @@ static cc_u16f SyncMCDM68kCallback(ClownMDEmu* const clownmdemu, void* const use
 
 	/* Raise an interrupt. */
 	if (clownmdemu->state.mega_cd.irq.enabled[2])
-		Clown68000_Interrupt(&clownmdemu->state.mega_cd.m68k.state, 3);
+		Clown68000_Interrupt(&clownmdemu->mega_cd.m68k, 3);
 
 	return clownmdemu->state.mega_cd.irq.irq3_countdown_master;
 }
@@ -528,7 +528,7 @@ static void ReadFilename(const void* const user_data, char* const file_name_buff
 	cc_u8f i;
 
 	for (i = 0; i < FILE_NAME_LENGTH; ++i)
-		*file_name_pointer++ = MCDM68kReadByte(user_data, clownmdemu->state.mega_cd.m68k.state.address_registers[0] + i, target_cycle);
+		*file_name_pointer++ = MCDM68kReadByte(user_data, clownmdemu->mega_cd.m68k.address_registers[0] + i, target_cycle);
 
 	if (write_protected)
 	{
@@ -647,31 +647,31 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 	if (/*address >= 0 &&*/ address < 0x80000)
 	{
 		/* PRG-RAM */
-		if (address == 0x5F16 && clownmdemu->state.mega_cd.m68k.state.program_counter == 0x5F16)
+		if (address == 0x5F16 && clownmdemu->mega_cd.m68k.program_counter == 0x5F16)
 		{
 			/* BRAM call! */
 			/* TODO: None of this shit is accurate at all. */
-			const cc_u16f command = clownmdemu->state.mega_cd.m68k.state.data_registers[0] & 0xFFFF;
+			const cc_u16f command = clownmdemu->mega_cd.m68k.data_registers[0] & 0xFFFF;
 
 			switch (command)
 			{
 				case 0x00:
 					/* BRMINIT */
-					clownmdemu->state.mega_cd.m68k.state.status_register &= ~1; /* Formatted RAM is present. */
+					clownmdemu->mega_cd.m68k.status_register &= ~1; /* Formatted RAM is present. */
 					/* Size of Backup RAM. */
-					clownmdemu->state.mega_cd.m68k.state.data_registers[0] &= 0xFFFF0000;
-					clownmdemu->state.mega_cd.m68k.state.data_registers[0] |= 0x100; /* Maximum officially-allowed size. */
+					clownmdemu->mega_cd.m68k.data_registers[0] &= 0xFFFF0000;
+					clownmdemu->mega_cd.m68k.data_registers[0] |= 0x100; /* Maximum officially-allowed size. */
 					/* "Display strings". */
-					/*clownmdemu->state.mega_cd.m68k.state.address_registers[1] = I have no idea; */
+					/*clownmdemu->mega_cd.m68k.address_registers[1] = I have no idea; */
 					break;
 
 				case 0x01:
 					/* BRMSTAT */
 					/* TODO: Report more files. */
-					clownmdemu->state.mega_cd.m68k.state.data_registers[0] &= 0xFFFF0000;
-					clownmdemu->state.mega_cd.m68k.state.data_registers[0] |= 100; /* 100 free blocks. */
-					clownmdemu->state.mega_cd.m68k.state.data_registers[1] &= 0xFFFF0000;
-					clownmdemu->state.mega_cd.m68k.state.data_registers[1] |= 1; /* Just one file. */
+					clownmdemu->mega_cd.m68k.data_registers[0] &= 0xFFFF0000;
+					clownmdemu->mega_cd.m68k.data_registers[0] |= 100; /* 100 free blocks. */
+					clownmdemu->mega_cd.m68k.data_registers[1] &= 0xFFFF0000;
+					clownmdemu->mega_cd.m68k.data_registers[1] |= 1; /* Just one file. */
 					break;
 
 				case 0x02:
@@ -682,16 +682,16 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 
 					if (!GetSaveFileSizeAny(user_data, &write_protected, &file_size, target_cycle))
 					{
-						clownmdemu->state.mega_cd.m68k.state.status_register |= 1; /* File not found. */
+						clownmdemu->mega_cd.m68k.status_register |= 1; /* File not found. */
 					}
 					else
 					{
-						clownmdemu->state.mega_cd.m68k.state.data_registers[0] &= 0xFFFF0000;
-						clownmdemu->state.mega_cd.m68k.state.data_registers[0] |= (file_size / BURAM_BLOCK_SIZE(write_protected)) & 0xFFFF;
-						clownmdemu->state.mega_cd.m68k.state.data_registers[1] &= 0xFFFFFF00;
-						clownmdemu->state.mega_cd.m68k.state.data_registers[1] |= write_protected ? 0xFF : 0;
+						clownmdemu->mega_cd.m68k.data_registers[0] &= 0xFFFF0000;
+						clownmdemu->mega_cd.m68k.data_registers[0] |= (file_size / BURAM_BLOCK_SIZE(write_protected)) & 0xFFFF;
+						clownmdemu->mega_cd.m68k.data_registers[1] &= 0xFFFFFF00;
+						clownmdemu->mega_cd.m68k.data_registers[1] |= write_protected ? 0xFF : 0;
 
-						clownmdemu->state.mega_cd.m68k.state.status_register &= ~1; /* File found. */
+						clownmdemu->mega_cd.m68k.status_register &= ~1; /* File found. */
 					}
 
 					break;
@@ -704,7 +704,7 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 
 					if (!OpenSaveFileForReadingAny(user_data, &write_protected, target_cycle))
 					{
-						clownmdemu->state.mega_cd.m68k.state.status_register |= 1; /* Error. */
+						clownmdemu->mega_cd.m68k.status_register |= 1; /* Error. */
 					}
 					else
 					{
@@ -712,16 +712,16 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 						cc_s16f value;
 
 						while ((value = frontend_callbacks->save_file_read((void*)frontend_callbacks->user_data)) != -1)
-							MCDM68kWriteByte(user_data, clownmdemu->state.mega_cd.m68k.state.address_registers[1] + total_bytes++, value, target_cycle);
+							MCDM68kWriteByte(user_data, clownmdemu->mega_cd.m68k.address_registers[1] + total_bytes++, value, target_cycle);
 
 						frontend_callbacks->save_file_closed((void*)frontend_callbacks->user_data);
 
-						clownmdemu->state.mega_cd.m68k.state.data_registers[0] &= 0xFFFF0000;
-						clownmdemu->state.mega_cd.m68k.state.data_registers[0] |= (total_bytes / BURAM_BLOCK_SIZE(write_protected)) & 0xFFFF;
-						clownmdemu->state.mega_cd.m68k.state.data_registers[1] &= 0xFFFFFF00;
-						clownmdemu->state.mega_cd.m68k.state.data_registers[1] |= write_protected ? 0xFF : 0;
+						clownmdemu->mega_cd.m68k.data_registers[0] &= 0xFFFF0000;
+						clownmdemu->mega_cd.m68k.data_registers[0] |= (total_bytes / BURAM_BLOCK_SIZE(write_protected)) & 0xFFFF;
+						clownmdemu->mega_cd.m68k.data_registers[1] &= 0xFFFFFF00;
+						clownmdemu->mega_cd.m68k.data_registers[1] |= write_protected ? 0xFF : 0;
 
-						clownmdemu->state.mega_cd.m68k.state.status_register &= ~1; /* Okay */
+						clownmdemu->mega_cd.m68k.status_register &= ~1; /* Okay */
 					}
 
 					break;
@@ -730,24 +730,24 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 				case 0x04:
 				{
 					/* BRMWRITE */
-					const cc_bool write_protected = MCDM68kReadByte(user_data, clownmdemu->state.mega_cd.m68k.state.address_registers[0] + FILE_NAME_LENGTH, target_cycle) != 0;
+					const cc_bool write_protected = MCDM68kReadByte(user_data, clownmdemu->mega_cd.m68k.address_registers[0] + FILE_NAME_LENGTH, target_cycle) != 0;
 
 					if (!OpenSaveFileForWriting(user_data, write_protected, target_cycle))
 					{
-						clownmdemu->state.mega_cd.m68k.state.status_register |= 1; /* Error. */
+						clownmdemu->mega_cd.m68k.status_register |= 1; /* Error. */
 					}
 					else
 					{
-						const cc_u16f total_blocks = MCDM68kReadWord(user_data, clownmdemu->state.mega_cd.m68k.state.address_registers[0] + FILE_NAME_LENGTH + 1, target_cycle);
+						const cc_u16f total_blocks = MCDM68kReadWord(user_data, clownmdemu->mega_cd.m68k.address_registers[0] + FILE_NAME_LENGTH + 1, target_cycle);
 						const cc_u32f total_bytes = (cc_u32f)total_blocks * BURAM_BLOCK_SIZE(write_protected);
 						cc_u32f i;
 
 						for (i = 0; i < total_bytes; ++i)
-							frontend_callbacks->save_file_written((void*)frontend_callbacks->user_data, MCDM68kReadByte(user_data, clownmdemu->state.mega_cd.m68k.state.address_registers[1] + i, target_cycle));
+							frontend_callbacks->save_file_written((void*)frontend_callbacks->user_data, MCDM68kReadByte(user_data, clownmdemu->mega_cd.m68k.address_registers[1] + i, target_cycle));
 
 						frontend_callbacks->save_file_closed((void*)frontend_callbacks->user_data);
 
-						clownmdemu->state.mega_cd.m68k.state.status_register &= ~1; /* Okay */
+						clownmdemu->mega_cd.m68k.status_register &= ~1; /* Okay */
 					}
 
 					break;
@@ -756,42 +756,42 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 				case 0x05:
 					/* BRMDEL */
 					if (!RemoveSaveFileAny(user_data, target_cycle))
-						clownmdemu->state.mega_cd.m68k.state.status_register |= 1; /* Error */
+						clownmdemu->mega_cd.m68k.status_register |= 1; /* Error */
 					else
-						clownmdemu->state.mega_cd.m68k.state.status_register &= ~1; /* Okay */
+						clownmdemu->mega_cd.m68k.status_register &= ~1; /* Okay */
 					break;
 
 				case 0x06:
 					/* BRMFORMAT */
 					/* TODO: Delete everything? */
-					clownmdemu->state.mega_cd.m68k.state.status_register &= ~1; /* Okay */
+					clownmdemu->mega_cd.m68k.status_register &= ~1; /* Okay */
 					break;
 
 				case 0x07:
 					/* BRMDIR */
 					/* TODO: Implement this. */
-					clownmdemu->state.mega_cd.m68k.state.status_register |= 1; /* Error. */
+					clownmdemu->mega_cd.m68k.status_register |= 1; /* Error. */
 					break;
 
 				case 0x08:
 				{
 					/* BRMVERIFY */
-					const cc_bool write_protected = MCDM68kReadByte(user_data, clownmdemu->state.mega_cd.m68k.state.address_registers[0] + FILE_NAME_LENGTH, target_cycle) != 0;
+					const cc_bool write_protected = MCDM68kReadByte(user_data, clownmdemu->mega_cd.m68k.address_registers[0] + FILE_NAME_LENGTH, target_cycle) != 0;
 
 					if (!OpenSaveFileForReading(user_data, write_protected, target_cycle))
 					{
-						clownmdemu->state.mega_cd.m68k.state.status_register |= 1; /* Error. */
+						clownmdemu->mega_cd.m68k.status_register |= 1; /* Error. */
 					}
 					else
 					{
 						/* TODO: Signal an error if the file is longer than expected? */
-						const cc_u16f total_blocks = MCDM68kReadWord(user_data, clownmdemu->state.mega_cd.m68k.state.address_registers[0] + FILE_NAME_LENGTH + 1, target_cycle);
+						const cc_u16f total_blocks = MCDM68kReadWord(user_data, clownmdemu->mega_cd.m68k.address_registers[0] + FILE_NAME_LENGTH + 1, target_cycle);
 						const cc_u32f total_bytes = (cc_u32f)total_blocks * BURAM_BLOCK_SIZE(write_protected);
 						cc_u32f i;
 
 						for (i = 0; i < total_bytes; ++i)
 						{
-							const cc_u8f source_value = MCDM68kReadByte(user_data, clownmdemu->state.mega_cd.m68k.state.address_registers[1] + i, target_cycle);
+							const cc_u8f source_value = MCDM68kReadByte(user_data, clownmdemu->mega_cd.m68k.address_registers[1] + i, target_cycle);
 							const cc_s16f destination_value = frontend_callbacks->save_file_read((void*)frontend_callbacks->user_data);
 
 							/* End of file encountered too early, or mismatch. */
@@ -802,9 +802,9 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 						frontend_callbacks->save_file_closed((void*)frontend_callbacks->user_data);
 
 						if (i != total_bytes)
-							clownmdemu->state.mega_cd.m68k.state.status_register |= 1; /* Error. */
+							clownmdemu->mega_cd.m68k.status_register |= 1; /* Error. */
 						else
-							clownmdemu->state.mega_cd.m68k.state.status_register &= ~1; /* Okay. */
+							clownmdemu->mega_cd.m68k.status_register &= ~1; /* Okay. */
 					}
 
 					break;
@@ -817,7 +817,7 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 
 			value = 0x4E75; /* 'rts' instruction */
 		}
-		else if (address == 0x5F22 && clownmdemu->state.mega_cd.m68k.state.program_counter == 0x5F22)
+		else if (address == 0x5F22 && clownmdemu->mega_cd.m68k.program_counter == 0x5F22)
 		{
 			/* BIOS call! */
 			MegaCDBIOSCall(clownmdemu, user_data, frontend_callbacks, target_cycle);
@@ -835,12 +835,12 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 		if (clownmdemu->state.mega_cd.word_ram.in_1m_mode)
 		{
 			/* TODO. */
-			LogMessage("SUB-CPU attempted to read from the weird half of 1M WORD-RAM at 0x%" CC_PRIXLEAST32, clownmdemu->state.mega_cd.m68k.state.program_counter);
+			LogMessage("SUB-CPU attempted to read from the weird half of 1M WORD-RAM at 0x%" CC_PRIXLEAST32, clownmdemu->mega_cd.m68k.program_counter);
 		}
 		else if (clownmdemu->state.mega_cd.word_ram.ret)
 		{
 			/* TODO: According to Page 24 of MEGA-CD HARDWARE MANUAL, this should cause the CPU to hang, just like the Z80 accessing the ROM during a DMA transfer. */
-			LogMessage("SUB-CPU attempted to read from WORD-RAM while MAIN-CPU has it at 0x%" CC_PRIXLEAST32, clownmdemu->state.mega_cd.m68k.state.program_counter);
+			LogMessage("SUB-CPU attempted to read from WORD-RAM while MAIN-CPU has it at 0x%" CC_PRIXLEAST32, clownmdemu->mega_cd.m68k.program_counter);
 		}
 		else
 		{
@@ -853,7 +853,7 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 		if (!clownmdemu->state.mega_cd.word_ram.in_1m_mode)
 		{
 			/* TODO. */
-			LogMessage("SUB-CPU attempted to read from the 1M half of WORD-RAM in 2M mode at 0x%" CC_PRIXLEAST32, clownmdemu->state.mega_cd.m68k.state.program_counter);
+			LogMessage("SUB-CPU attempted to read from the 1M half of WORD-RAM in 2M mode at 0x%" CC_PRIXLEAST32, clownmdemu->mega_cd.m68k.program_counter);
 		}
 		else
 		{
@@ -867,13 +867,13 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 		if ((address & 0x2000) != 0)
 		{
 			/* PCM wave RAM */
-			value = PCM_ReadWaveRAM(&clownmdemu->state.mega_cd.pcm, masked_address);
+			value = PCM_ReadWaveRAM(&clownmdemu->mega_cd.pcm, masked_address);
 		}
 		else
 		{
 			/* PCM register */
 			SyncPCM(callback_user_data, target_cycle);
-			value = PCM_ReadRegister(&clownmdemu->state.mega_cd.pcm, masked_address);
+			value = PCM_ReadRegister(&clownmdemu->mega_cd.pcm, masked_address);
 		}
 	}
 	else if (address == 0xFF8000)
@@ -890,27 +890,27 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 	else if (address == 0xFF8004)
 	{
 		/* CDC mode / device destination */
-		value = CDC_Mode(&clownmdemu->state.mega_cd.cdc, cc_true);
+		value = CDC_Mode(&clownmdemu->mega_cd.cdc, cc_true);
 	}
 	else if (address == 0xFF8006)
 	{
 		/* H-INT vector */
-		LogMessage("SUB-CPU attempted to read from H-INT vector register at 0x%" CC_PRIXLEAST32, clownmdemu->state.mega_cd.m68k.state.program_counter);
+		LogMessage("SUB-CPU attempted to read from H-INT vector register at 0x%" CC_PRIXLEAST32, clownmdemu->mega_cd.m68k.program_counter);
 	}
 	else if (address == 0xFF8008)
 	{
 		/* CDC host data */
-		value = CDC_HostData(&clownmdemu->state.mega_cd.cdc, cc_true);
+		value = CDC_HostData(&clownmdemu->mega_cd.cdc, cc_true);
 	}
 	else if (address == 0xFF800A)
 	{
 		/* CDC DMA address */
-		LogMessage("SUB-CPU attempted to read from DMA address register at 0x%" CC_PRIXLEAST32, clownmdemu->state.mega_cd.m68k.state.program_counter);
+		LogMessage("SUB-CPU attempted to read from DMA address register at 0x%" CC_PRIXLEAST32, clownmdemu->mega_cd.m68k.program_counter);
 	}
 	else if (address == 0xFF800C)
 	{
 		/* Stop watch */
-		LogMessage("SUB-CPU attempted to read from stop watch register at 0x%" CC_PRIXLEAST32, clownmdemu->state.mega_cd.m68k.state.program_counter);
+		LogMessage("SUB-CPU attempted to read from stop watch register at 0x%" CC_PRIXLEAST32, clownmdemu->mega_cd.m68k.program_counter);
 	}
 	else if (address == 0xFF800E)
 	{
@@ -933,7 +933,7 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 	else if (address == 0xFF8030)
 	{
 		/* Timer W/INT3 */
-		LogMessage("SUB-CPU attempted to read from Timer W/INT3 register at 0x%" CC_PRIXLEAST32, clownmdemu->state.mega_cd.m68k.state.program_counter);
+		LogMessage("SUB-CPU attempted to read from Timer W/INT3 register at 0x%" CC_PRIXLEAST32, clownmdemu->mega_cd.m68k.program_counter);
 	}
 	else if (address == 0xFF8032)
 	{
@@ -983,11 +983,11 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 	else if (address == 0xFF8066)
 	{
 		/* Trace table address */
-		LogMessage("Attempted to read trace table address register at 0x%" CC_PRIXLEAST32, clownmdemu->state.mega_cd.m68k.state.program_counter);
+		LogMessage("Attempted to read trace table address register at 0x%" CC_PRIXLEAST32, clownmdemu->mega_cd.m68k.program_counter);
 	}
 	else
 	{
-		LogMessage("Attempted to read invalid MCD 68k address 0x%" CC_PRIXFAST32 " at 0x%" CC_PRIXLEAST32, address, clownmdemu->state.mega_cd.m68k.state.program_counter);
+		LogMessage("Attempted to read invalid MCD 68k address 0x%" CC_PRIXFAST32 " at 0x%" CC_PRIXLEAST32, address, clownmdemu->mega_cd.m68k.program_counter);
 	}
 
 	return value;
@@ -1021,7 +1021,7 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 		/* PRG-RAM */
 		if (address < (cc_u32f)clownmdemu->state.mega_cd.prg_ram.write_protect * 0x200)
 		{
-			LogMessage("MAIN-CPU attempted to write to write-protected portion of PRG-RAM (0x%" CC_PRIXFAST32 ") at 0x%" CC_PRIXLEAST32, address, clownmdemu->state.mega_cd.m68k.state.program_counter);
+			LogMessage("MAIN-CPU attempted to write to write-protected portion of PRG-RAM (0x%" CC_PRIXFAST32 ") at 0x%" CC_PRIXLEAST32, address, clownmdemu->mega_cd.m68k.program_counter);
 		}
 		else
 		{
@@ -1035,11 +1035,11 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 		if (clownmdemu->state.mega_cd.word_ram.in_1m_mode)
 		{
 			/* TODO. */
-			LogMessage("SUB-CPU attempted to write to the weird half of 1M WORD-RAM at 0x%" CC_PRIXLEAST32, clownmdemu->state.mega_cd.m68k.state.program_counter);
+			LogMessage("SUB-CPU attempted to write to the weird half of 1M WORD-RAM at 0x%" CC_PRIXLEAST32, clownmdemu->mega_cd.m68k.program_counter);
 		}
 		else if (clownmdemu->state.mega_cd.word_ram.ret)
 		{
-			LogMessage("SUB-CPU attempted to write to WORD-RAM while MAIN-CPU has it at 0x%" CC_PRIXLEAST32, clownmdemu->state.mega_cd.m68k.state.program_counter);
+			LogMessage("SUB-CPU attempted to write to WORD-RAM while MAIN-CPU has it at 0x%" CC_PRIXLEAST32, clownmdemu->mega_cd.m68k.program_counter);
 		}
 		else
 		{
@@ -1053,7 +1053,7 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 		if (!clownmdemu->state.mega_cd.word_ram.in_1m_mode)
 		{
 			/* TODO. */
-			LogMessage("SUB-CPU attempted to write to the 1M half of WORD-RAM in 2M mode at 0x%" CC_PRIXLEAST32, clownmdemu->state.mega_cd.m68k.state.program_counter);
+			LogMessage("SUB-CPU attempted to write to the 1M half of WORD-RAM in 2M mode at 0x%" CC_PRIXLEAST32, clownmdemu->mega_cd.m68k.program_counter);
 		}
 		else
 		{
@@ -1072,12 +1072,12 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 			if ((address & 0x2000) != 0)
 			{
 				/* PCM wave RAM */
-				PCM_WriteWaveRAM(&clownmdemu->state.mega_cd.pcm, masked_address, low_byte);
+				PCM_WriteWaveRAM(&clownmdemu->mega_cd.pcm, masked_address, low_byte);
 			}
 			else
 			{
 				/* PCM register */
-				PCM_WriteRegister(&clownmdemu->state.mega_cd.pcm, masked_address, low_byte);
+				PCM_WriteRegister(&clownmdemu->mega_cd.pcm, masked_address, low_byte);
 			}
 		}
 	}
@@ -1102,33 +1102,33 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 	else if (address == 0xFF8004)
 	{
 		/* CDC mode / device destination */
-		CDC_SetDeviceDestination(&clownmdemu->state.mega_cd.cdc, (CDC_DeviceDestination)(high_byte & 7));
+		CDC_SetDeviceDestination(&clownmdemu->mega_cd.cdc, (CDC_DeviceDestination)(high_byte & 7));
 	}
 	else if (address == 0xFF8006)
 	{
 		/* H-INT vector */
-		LogMessage("SUB-CPU attempted to write to H-INT vector register at 0x%" CC_PRIXLEAST32, clownmdemu->state.mega_cd.m68k.state.program_counter);
+		LogMessage("SUB-CPU attempted to write to H-INT vector register at 0x%" CC_PRIXLEAST32, clownmdemu->mega_cd.m68k.program_counter);
 	}
 	else if (address == 0xFF8008)
 	{
 		/* CDC host data */
-		LogMessage("SUB-CPU attempted to write to CDC host data register at 0x%" CC_PRIXLEAST32, clownmdemu->state.mega_cd.m68k.state.program_counter);
+		LogMessage("SUB-CPU attempted to write to CDC host data register at 0x%" CC_PRIXLEAST32, clownmdemu->mega_cd.m68k.program_counter);
 	}
 	else if (address == 0xFF800A)
 	{
 		/* CDC DMA address */
-		CDC_SetDMAAddress(&clownmdemu->state.mega_cd.cdc, value);
+		CDC_SetDMAAddress(&clownmdemu->mega_cd.cdc, value);
 	}
 	else if (address == 0xFF800C)
 	{
 		/* Stop watch */
-		LogMessage("SUB-CPU attempted to write to stop watch register at 0x%" CC_PRIXLEAST32, clownmdemu->state.mega_cd.m68k.state.program_counter);
+		LogMessage("SUB-CPU attempted to write to stop watch register at 0x%" CC_PRIXLEAST32, clownmdemu->mega_cd.m68k.program_counter);
 	}
 	else if (address == 0xFF800E)
 	{
 		/* Communication flag */
 		if (do_high_byte)
-			LogMessage("SUB-CPU attempted to write to MAIN-CPU's communication flag at 0x%" CC_PRIXLEAST32, clownmdemu->state.mega_cd.m68k.state.program_counter);
+			LogMessage("SUB-CPU attempted to write to MAIN-CPU's communication flag at 0x%" CC_PRIXLEAST32, clownmdemu->mega_cd.m68k.program_counter);
 
 		if (do_low_byte)
 		{
@@ -1139,7 +1139,7 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 	else if (address >= 0xFF8010 && address < 0xFF8020)
 	{
 		/* Communication command */
-		LogMessage("SUB-CPU attempted to write to MAIN-CPU's communication command at 0x%" CC_PRIXLEAST32, clownmdemu->state.mega_cd.m68k.state.program_counter);
+		LogMessage("SUB-CPU attempted to write to MAIN-CPU's communication command at 0x%" CC_PRIXLEAST32, clownmdemu->mega_cd.m68k.program_counter);
 	}
 	else if (address >= 0xFF8020 && address < 0xFF8030)
 	{
@@ -1264,7 +1264,7 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 	}
 	else
 	{
-		LogMessage("Attempted to write invalid MCD 68k address 0x%" CC_PRIXFAST32 " at 0x%" CC_PRIXLEAST32, address, clownmdemu->state.mega_cd.m68k.state.program_counter);
+		LogMessage("Attempted to write invalid MCD 68k address 0x%" CC_PRIXFAST32 " at 0x%" CC_PRIXLEAST32, address, clownmdemu->mega_cd.m68k.program_counter);
 	}
 }
 

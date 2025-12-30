@@ -126,14 +126,12 @@ typedef struct ClownMDEmu_State
 {
 	struct
 	{
-		Clown68000_State state;
 		cc_u16l ram[0x8000];
 		cc_bool h_int_pending, v_int_pending;
 	} m68k;
 
 	struct
 	{
-		ClownZ80_State state;
 		cc_u8l ram[0x2000];
 		cc_u32l cycle_countdown;
 		cc_u16l bank;
@@ -141,9 +139,6 @@ typedef struct ClownMDEmu_State
 		cc_bool reset_held;
 	} z80;
 
-	VDP vdp;
-	FM fm;
-	PSG psg;
 	IOPort io_ports[3];
 	Controller controllers[2];
 
@@ -166,7 +161,6 @@ typedef struct ClownMDEmu_State
 	{
 		struct
 		{
-			Clown68000_State state;
 			cc_bool bus_requested;
 			cc_bool reset_held;
 		} m68k;
@@ -206,10 +200,6 @@ typedef struct ClownMDEmu_State
 			cc_u16l stamp_map_address, image_buffer_address, image_buffer_width;
 			cc_u8l image_buffer_height, image_buffer_height_in_tiles, image_buffer_x_offset, image_buffer_y_offset;
 		} rotation;
-
-		CDC cdc;
-		CDDA cdda;
-		PCM pcm;
 
 		cc_bool cd_inserted;
 		cc_u16l hblank_address;
@@ -257,8 +247,23 @@ typedef struct ClownMDEmu_Callbacks
 typedef struct ClownMDEmu
 {
 	const ClownMDEmu_Callbacks *callbacks;
+
 	const cc_u16l *cartridge_buffer;
 	cc_u32l cartridge_buffer_length;
+
+	Clown68000_State m68k;
+	ClownZ80_State z80;
+	VDP vdp;
+	FM fm;
+	PSG psg;
+
+	struct
+	{
+		Clown68000_State m68k;
+		CDC cdc;
+		CDDA cdda;
+		PCM pcm;
+	} mega_cd;
 
 	ClownMDEmu_Configuration configuration;
 	ClownMDEmu_State state;

@@ -9,7 +9,7 @@
 
 static cc_u16f SyncZ80Callback(ClownMDEmu* const clownmdemu, void* const user_data)
 {
-	return CLOWNMDEMU_Z80_CLOCK_DIVIDER * ClownZ80_DoInstruction(&clownmdemu->state.z80.state, (const ClownZ80_ReadAndWriteCallbacks*)user_data);
+	return CLOWNMDEMU_Z80_CLOCK_DIVIDER * ClownZ80_DoInstruction(&clownmdemu->z80, (const ClownZ80_ReadAndWriteCallbacks*)user_data);
 }
 
 static void Z80LogCallback(void* const user_data, const char* const format, ...)
@@ -92,7 +92,7 @@ cc_u16f Z80ReadCallbackWithCycle(const void* const user_data, const cc_u16f addr
 			break;
 
 		default:
-			LogMessage("Attempted to read invalid Z80 address 0x%" CC_PRIXFAST16 " at 0x%" CC_PRIXLEAST16, address, clownmdemu->state.z80.state.program_counter);
+			LogMessage("Attempted to read invalid Z80 address 0x%" CC_PRIXFAST16 " at 0x%" CC_PRIXLEAST16, address, clownmdemu->z80.program_counter);
 			break;
 	}
 
@@ -133,9 +133,9 @@ void Z80WriteCallbackWithCycle(const void* const user_data, const cc_u16f addres
 			SyncFM(callback_user_data, target_cycle);
 
 			if ((address & 1) == 0)
-				FM_DoAddress(&clownmdemu->state.fm, (address & 2) != 0 ? 1 : 0, value);
+				FM_DoAddress(&clownmdemu->fm, (address & 2) != 0 ? 1 : 0, value);
 			else
-				FM_DoData(&clownmdemu->state.fm, value);
+				FM_DoData(&clownmdemu->fm, value);
 
 			break;
 
@@ -175,7 +175,7 @@ void Z80WriteCallbackWithCycle(const void* const user_data, const cc_u16f addres
 			break;
 
 		default:
-			LogMessage("Attempted to write invalid Z80 address 0x%" CC_PRIXFAST16 " at 0x%" CC_PRIXLEAST16, address, clownmdemu->state.z80.state.program_counter);
+			LogMessage("Attempted to write invalid Z80 address 0x%" CC_PRIXFAST16 " at 0x%" CC_PRIXLEAST16, address, clownmdemu->z80.program_counter);
 			break;
 	}
 }
