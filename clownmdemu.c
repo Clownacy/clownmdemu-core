@@ -481,3 +481,35 @@ void ClownMDEmu_SetLogCallback(const ClownMDEmu_LogCallback log_callback, const 
 	SetLogCallback(log_callback, user_data);
 	Clown68000_SetErrorCallback(log_callback, user_data);
 }
+
+void ClownMDEmu_SaveState(const ClownMDEmu* const clownmdemu, ClownMDEmu_StateBackup* const backup)
+{
+	backup->general = clownmdemu->state;
+
+	backup->m68k = clownmdemu->m68k;
+	backup->z80 = clownmdemu->z80;
+	backup->vdp = clownmdemu->vdp.state;
+	backup->fm = clownmdemu->fm.state;
+	backup->psg = clownmdemu->psg.state;
+
+	backup->mega_cd.m68k = clownmdemu->mega_cd.m68k;
+	backup->mega_cd.cdc = clownmdemu->mega_cd.cdc;
+	backup->mega_cd.cdda = clownmdemu->mega_cd.cdda;
+	backup->mega_cd.pcm = clownmdemu->mega_cd.pcm.state;
+}
+
+void ClownMDEmu_LoadState(ClownMDEmu* const clownmdemu, const ClownMDEmu_StateBackup* const backup)
+{
+	clownmdemu->state = backup->general;
+
+	clownmdemu->m68k = backup->m68k;
+	clownmdemu->z80 = backup->z80;
+	clownmdemu->vdp.state = backup->vdp;
+	clownmdemu->fm.state = backup->fm;
+	clownmdemu->psg.state = backup->psg;
+
+	clownmdemu->mega_cd.m68k = backup->mega_cd.m68k;
+	clownmdemu->mega_cd.cdc = backup->mega_cd.cdc;
+	clownmdemu->mega_cd.cdda = backup->mega_cd.cdda;
+	clownmdemu->mega_cd.pcm.state = backup->mega_cd.pcm;
+}

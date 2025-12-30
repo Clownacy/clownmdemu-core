@@ -278,6 +278,28 @@ void ClownMDEmu_SetCartridge(ClownMDEmu *clownmdemu, const cc_u16l *buffer, cc_u
 void ClownMDEmu_Reset(ClownMDEmu *clownmdemu, cc_bool cartridge_inserted, cc_bool cd_inserted);
 void ClownMDEmu_SetLogCallback(const ClownMDEmu_LogCallback log_callback, const void *user_data);
 
+typedef struct ClownMDEmu_StateBackup
+{
+	ClownMDEmu_State general;
+
+	Clown68000_State m68k;
+	ClownZ80_State z80;
+	VDP_State vdp;
+	FM_State fm;
+	PSG_State psg;
+
+	struct
+	{
+		Clown68000_State m68k;
+		CDC cdc;
+		CDDA cdda;
+		PCM_State pcm;
+	} mega_cd;
+} ClownMDEmu_StateBackup;
+
+void ClownMDEmu_SaveState(const ClownMDEmu *clownmdemu, ClownMDEmu_StateBackup *backup);
+void ClownMDEmu_LoadState(ClownMDEmu *clownmdemu, const ClownMDEmu_StateBackup *backup);
+
 #ifdef __cplusplus
 }
 #endif
