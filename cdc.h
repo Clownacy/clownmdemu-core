@@ -18,7 +18,7 @@ typedef enum CDC_DeviceDestination
 	CDC_DESTINATION_WORD_RAM = 7
 } CDC_DeviceDestination;
 
-typedef struct CDC
+typedef struct CDC_State
 {
 	cc_u16l buffered_sectors[5][2 + CDC_SECTOR_SIZE / 2];
 
@@ -28,18 +28,18 @@ typedef struct CDC
 	cc_u8l buffered_sectors_read_index, buffered_sectors_write_index, buffered_sectors_total;
 	cc_u8l device_destination;
 	cc_bool host_data_target_sub_cpu, cdc_reading, host_data_bound;
-} CDC;
+} CDC_State;
 
-void CDC_Initialise(CDC* cdc);
-void CDC_Start(CDC* cdc, CDC_SectorReadCallback callback, const void *user_data);
-void CDC_Stop(CDC* cdc);
-cc_bool CDC_Stat(CDC* cdc, CDC_SectorReadCallback callback, const void *user_data);
-cc_bool CDC_Read(CDC* cdc, CDC_SectorReadCallback callback, const void *user_data, cc_u32l *header);
-cc_u16f CDC_HostData(CDC* cdc, cc_bool is_sub_cpu);
-void CDC_Ack(CDC* cdc);
-void CDC_Seek(CDC* cdc, CDC_SectorReadCallback callback, const void* user_data, cc_u32f sector, cc_u32f total_sectors);
-cc_u16f CDC_Mode(CDC* cdc, cc_bool is_sub_cpu);
-void CDC_SetDeviceDestination(CDC* cdc, CDC_DeviceDestination device_destination);
-void CDC_SetDMAAddress(CDC* cdc, cc_u16f dma_address);
+void CDC_Initialise(CDC_State* cdc);
+void CDC_Start(CDC_State* cdc, CDC_SectorReadCallback callback, const void *user_data);
+void CDC_Stop(CDC_State* cdc);
+cc_bool CDC_Stat(CDC_State* cdc, CDC_SectorReadCallback callback, const void *user_data);
+cc_bool CDC_Read(CDC_State* cdc, CDC_SectorReadCallback callback, const void *user_data, cc_u32l *header);
+cc_u16f CDC_HostData(CDC_State* cdc, cc_bool is_sub_cpu);
+void CDC_Ack(CDC_State* cdc);
+void CDC_Seek(CDC_State* cdc, CDC_SectorReadCallback callback, const void* user_data, cc_u32f sector, cc_u32f total_sectors);
+cc_u16f CDC_Mode(CDC_State* cdc, cc_bool is_sub_cpu);
+void CDC_SetDeviceDestination(CDC_State* cdc, CDC_DeviceDestination device_destination);
+void CDC_SetDMAAddress(CDC_State* cdc, cc_u16f dma_address);
 
 #endif /* CDC_H */

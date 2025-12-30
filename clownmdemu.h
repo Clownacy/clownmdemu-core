@@ -260,8 +260,8 @@ typedef struct ClownMDEmu
 	struct
 	{
 		Clown68000_State m68k;
-		CDC cdc;
-		CDDA cdda;
+		CDC_State cdc;
+		CDDA_State cdda;
 		PCM pcm;
 	} mega_cd;
 
@@ -291,8 +291,8 @@ typedef struct ClownMDEmu_StateBackup
 	struct
 	{
 		Clown68000_State m68k;
-		CDC cdc;
-		CDDA cdda;
+		CDC_State cdc;
+		CDDA_State cdda;
 		PCM_State pcm;
 	} mega_cd;
 } ClownMDEmu_StateBackup;

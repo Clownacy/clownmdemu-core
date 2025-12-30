@@ -56,6 +56,14 @@ void ClownMDEmu_Initialise(ClownMDEmu* const clownmdemu, const ClownMDEmu_Initia
 
 	clownmdemu->configuration = configuration->general;
 
+	ClownZ80_State_Initialise(&clownmdemu->z80);
+	VDP_Initialise(&clownmdemu->vdp, &configuration->vdp);
+	FM_Initialise(&clownmdemu->fm, &configuration->fm);
+	PSG_Initialise(&clownmdemu->psg, &configuration->psg);
+	CDC_Initialise(&clownmdemu->mega_cd.cdc);
+	CDDA_Initialise(&clownmdemu->mega_cd.cdda);
+	PCM_Initialise(&clownmdemu->mega_cd.pcm, &configuration->pcm);
+
 	/* M68K */
 	/* A real console does not retain its RAM contents between games, as RAM
 	   is cleared when the console is powered-off.
@@ -65,16 +73,11 @@ void ClownMDEmu_Initialise(ClownMDEmu* const clownmdemu, const ClownMDEmu_Initia
 	clownmdemu->state.m68k.h_int_pending = clownmdemu->state.m68k.v_int_pending = cc_false;
 
 	/* Z80 */
-	ClownZ80_State_Initialise(&clownmdemu->z80);
 	memset(clownmdemu->state.z80.ram, 0, sizeof(clownmdemu->state.z80.ram));
 	clownmdemu->state.z80.cycle_countdown = 1;
 	clownmdemu->state.z80.bank = 0;
 	clownmdemu->state.z80.bus_requested = cc_false; /* This should be false, according to Charles MacDonald's gen-hw.txt. */
 	clownmdemu->state.z80.reset_held = cc_true;
-
-	VDP_Initialise(&clownmdemu->vdp, &configuration->vdp);
-	FM_Initialise(&clownmdemu->fm, &configuration->fm);
-	PSG_Initialise(&clownmdemu->psg, &configuration->psg);
 
 	/* The standard Sega SDK bootcode uses this to detect soft-resets. */
 	for (i = 0; i < CC_COUNT_OF(clownmdemu->state.io_ports); ++i)
@@ -131,10 +134,6 @@ void ClownMDEmu_Initialise(ClownMDEmu* const clownmdemu, const ClownMDEmu_Initia
 	clownmdemu->state.mega_cd.rotation.image_buffer_height_in_tiles = 0;
 	clownmdemu->state.mega_cd.rotation.image_buffer_x_offset = 0;
 	clownmdemu->state.mega_cd.rotation.image_buffer_y_offset = 0;
-
-	CDC_Initialise(&clownmdemu->mega_cd.cdc);
-	CDDA_Initialise(&clownmdemu->mega_cd.cdda);
-	PCM_Initialise(&clownmdemu->mega_cd.pcm, &configuration->pcm);
 
 	clownmdemu->state.mega_cd.cd_inserted = cc_false;
 	clownmdemu->state.mega_cd.hblank_address = 0xFFFF;

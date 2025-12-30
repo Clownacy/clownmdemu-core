@@ -11,11 +11,11 @@ static cc_u8f To2DigitBCD(const cc_u8f value)
 	return (upper_digit << 4) | (lower_digit << 0);
 }
 
-static void GetCDSectorHeaderBytes(const CDC* const cdc, cc_u8l* const buffer)
+static void GetCDSectorHeaderBytes(const CDC_State* const state, cc_u8l* const buffer)
 {
-	buffer[0] = To2DigitBCD(cdc->current_sector / (75 * 60));
-	buffer[1] = To2DigitBCD((cdc->current_sector / 75) % 60);
-	buffer[2] = To2DigitBCD(cdc->current_sector % 75);
+	buffer[0] = To2DigitBCD(state->current_sector / (75 * 60));
+	buffer[1] = To2DigitBCD((state->current_sector / 75) % 60);
+	buffer[2] = To2DigitBCD(state->current_sector % 75);
 	/* TODO: Is this byte correct? */
 	buffer[3] = 0x01;
 }
@@ -31,189 +31,189 @@ static cc_u32f U16sToU32(const cc_u16l* const u16s)
 	return (cc_u32f)u16s[0] << 16 | u16s[1];
 }
 
-static cc_bool EndOfDataTransfer(CDC* const cdc)
+static cc_bool EndOfDataTransfer(CDC_State* const state)
 {
-	return cdc->host_data_word_index >= CDC_END(cdc) - 1;
+	return state->host_data_word_index >= CDC_END(state) - 1;
 }
 
-static cc_bool DataSetReady(CDC* const cdc)
+static cc_bool DataSetReady(CDC_State* const state)
 {
-	return cdc->host_data_word_index != CDC_END(cdc);
+	return state->host_data_word_index != CDC_END(state);
 }
 
-static void RefillSectorBuffer(CDC* const cdc, const CDC_SectorReadCallback cd_sector_read, const void* const user_data)
+static void RefillSectorBuffer(CDC_State* const state, const CDC_SectorReadCallback cd_sector_read, const void* const user_data)
 {
-	if (!cdc->cdc_reading)
+	if (!state->cdc_reading)
 		return;
 
 	/* TODO: Stop reading sectors instantaneously! */
-	while (cdc->buffered_sectors_total != CC_COUNT_OF(cdc->buffered_sectors))
+	while (state->buffered_sectors_total != CC_COUNT_OF(state->buffered_sectors))
 	{
 		cc_u8l header_bytes[4];
-		cc_u16l* const sector_words = cdc->buffered_sectors[cdc->buffered_sectors_write_index];
+		cc_u16l* const sector_words = state->buffered_sectors[state->buffered_sectors_write_index];
 
-		GetCDSectorHeaderBytes(cdc, header_bytes);
+		GetCDSectorHeaderBytes(state, header_bytes);
 
 		sector_words[0] = BytesToU16(&header_bytes[0]);
 		sector_words[1] = BytesToU16(&header_bytes[2]);
 		cd_sector_read((void*)user_data, &sector_words[2]);
 
-		++cdc->current_sector;
+		++state->current_sector;
 
-		++cdc->buffered_sectors_total;
-		++cdc->buffered_sectors_write_index;
+		++state->buffered_sectors_total;
+		++state->buffered_sectors_write_index;
 
-		if (cdc->buffered_sectors_write_index == CC_COUNT_OF(cdc->buffered_sectors))
-			cdc->buffered_sectors_write_index = 0;
+		if (state->buffered_sectors_write_index == CC_COUNT_OF(state->buffered_sectors))
+			state->buffered_sectors_write_index = 0;
 
-		if (cdc->sectors_remaining != 0 && --cdc->sectors_remaining == 0)
+		if (state->sectors_remaining != 0 && --state->sectors_remaining == 0)
 		{
-			cdc->cdc_reading = cc_false;
+			state->cdc_reading = cc_false;
 			break;
 		}
 	}
 }
 
-void CDC_Initialise(CDC* const cdc)
+void CDC_Initialise(CDC_State* const state)
 {
-	cdc->current_sector = 0;
-	cdc->sectors_remaining = 0;
-	cdc->host_data_word_index = CDC_END(cdc);
-	cdc->dma_address = 0;
-	cdc->host_data_buffered_sector_index = 0;
-	cdc->buffered_sectors_read_index = 0;
-	cdc->buffered_sectors_write_index = 0;
-	cdc->buffered_sectors_total = 0;
-	cdc->device_destination = CDC_DESTINATION_SUB_CPU_READ;
-	cdc->host_data_target_sub_cpu = cc_false;
-	cdc->cdc_reading = cc_false;
-	cdc->host_data_bound = cc_false;
+	state->current_sector = 0;
+	state->sectors_remaining = 0;
+	state->host_data_word_index = CDC_END(state);
+	state->dma_address = 0;
+	state->host_data_buffered_sector_index = 0;
+	state->buffered_sectors_read_index = 0;
+	state->buffered_sectors_write_index = 0;
+	state->buffered_sectors_total = 0;
+	state->device_destination = CDC_DESTINATION_SUB_CPU_READ;
+	state->host_data_target_sub_cpu = cc_false;
+	state->cdc_reading = cc_false;
+	state->host_data_bound = cc_false;
 }
 
-void CDC_Start(CDC* const cdc, const CDC_SectorReadCallback callback, const void* const user_data)
+void CDC_Start(CDC_State* const state, const CDC_SectorReadCallback callback, const void* const user_data)
 {
-	cdc->cdc_reading = cc_true;
+	state->cdc_reading = cc_true;
 
-	RefillSectorBuffer(cdc, callback, user_data);
+	RefillSectorBuffer(state, callback, user_data);
 }
 
-void CDC_Stop(CDC* const cdc)
+void CDC_Stop(CDC_State* const state)
 {
-	cdc->cdc_reading = cc_false;
+	state->cdc_reading = cc_false;
 }
 
-cc_bool CDC_Stat(CDC* const cdc, const CDC_SectorReadCallback callback, const void* const user_data)
+cc_bool CDC_Stat(CDC_State* const state, const CDC_SectorReadCallback callback, const void* const user_data)
 {
-	RefillSectorBuffer(cdc, callback, user_data);
+	RefillSectorBuffer(state, callback, user_data);
 
-	return cdc->buffered_sectors_total != 0;
+	return state->buffered_sectors_total != 0;
 }
 
-cc_bool CDC_Read(CDC* const cdc, const CDC_SectorReadCallback callback, const void* const user_data, cc_u32l* const header)
+cc_bool CDC_Read(CDC_State* const state, const CDC_SectorReadCallback callback, const void* const user_data, cc_u32l* const header)
 {
-	RefillSectorBuffer(cdc, callback, user_data);
+	RefillSectorBuffer(state, callback, user_data);
 
-	if (cdc->buffered_sectors_total == 0)
+	if (state->buffered_sectors_total == 0)
 		return cc_false;
 
-	if (cdc->host_data_bound)
+	if (state->host_data_bound)
 		return cc_false;
 
 	/* TODO: Is this thing actually latched during 'CDCRead', or is it when the value is first written? */
-	switch (cdc->device_destination)
+	switch (state->device_destination)
 	{
 		case CDC_DESTINATION_MAIN_CPU_READ:
-			cdc->host_data_target_sub_cpu = cc_false;
+			state->host_data_target_sub_cpu = cc_false;
 			break;
 
 		case CDC_DESTINATION_SUB_CPU_READ:
 		case CDC_DESTINATION_PCM_RAM:
 		case CDC_DESTINATION_PRG_RAM:
 		case CDC_DESTINATION_WORD_RAM:
-			cdc->host_data_target_sub_cpu = cc_true;
+			state->host_data_target_sub_cpu = cc_true;
 			break;
 
 		default:
-			LogMessage("CDCREAD called with invalid device destination (0x%" CC_PRIXLEAST8 ")", cdc->device_destination);
+			LogMessage("CDCREAD called with invalid device destination (0x%" CC_PRIXLEAST8 ")", state->device_destination);
 			return cc_false;
 	}
 
-	cdc->host_data_buffered_sector_index = cdc->buffered_sectors_read_index;
-	cdc->host_data_word_index = 0;
+	state->host_data_buffered_sector_index = state->buffered_sectors_read_index;
+	state->host_data_word_index = 0;
 
-	*header = U16sToU32(cdc->buffered_sectors[cdc->host_data_buffered_sector_index]);
+	*header = U16sToU32(state->buffered_sectors[state->host_data_buffered_sector_index]);
 
-	cdc->host_data_bound = cc_true;
+	state->host_data_bound = cc_true;
 
 	return cc_true;
 }
 
-cc_u16f CDC_HostData(CDC* const cdc, const cc_bool is_sub_cpu)
+cc_u16f CDC_HostData(CDC_State* const state, const cc_bool is_sub_cpu)
 {
 	cc_u16f value;
 
-	if (is_sub_cpu != cdc->host_data_target_sub_cpu)
+	if (is_sub_cpu != state->host_data_target_sub_cpu)
 	{
 		/* TODO: What is actually returned when this is not the target CPU? */
 		value = 0;
 	}
-	else if (!cdc->host_data_bound)
+	else if (!state->host_data_bound)
 	{
 		/* TODO: What is actually returned in this case? */
 		value = 0;
 	}
-	else if (!DataSetReady(cdc))
+	else if (!DataSetReady(state))
 	{
 		/* According to Genesis Plus GX, this will repeat the final value indefinitely. */
 		/* TODO: Verify this on actual hardware. */
-		value = cdc->buffered_sectors[cdc->host_data_buffered_sector_index][cdc->host_data_word_index - 1];
+		value = state->buffered_sectors[state->host_data_buffered_sector_index][state->host_data_word_index - 1];
 	}
 	else
 	{
-		value = cdc->buffered_sectors[cdc->host_data_buffered_sector_index][cdc->host_data_word_index++];
+		value = state->buffered_sectors[state->host_data_buffered_sector_index][state->host_data_word_index++];
 	}
 
 	return value;
 }
 
-void CDC_Ack(CDC* const cdc)
+void CDC_Ack(CDC_State* const state)
 {
-	if (!cdc->host_data_bound)
+	if (!state->host_data_bound)
 		return;
 
-	cdc->host_data_bound = cc_false;
+	state->host_data_bound = cc_false;
 
 	/* Advance the read index. */
-	--cdc->buffered_sectors_total;
+	--state->buffered_sectors_total;
 
-	++cdc->buffered_sectors_read_index;
-	if (cdc->buffered_sectors_read_index == CC_COUNT_OF(cdc->buffered_sectors))
-		cdc->buffered_sectors_read_index = 0;
+	++state->buffered_sectors_read_index;
+	if (state->buffered_sectors_read_index == CC_COUNT_OF(state->buffered_sectors))
+		state->buffered_sectors_read_index = 0;
 }
 
-void CDC_Seek(CDC* const cdc, const CDC_SectorReadCallback callback, const void* const user_data, const cc_u32f sector, const cc_u32f total_sectors)
+void CDC_Seek(CDC_State* const state, const CDC_SectorReadCallback callback, const void* const user_data, const cc_u32f sector, const cc_u32f total_sectors)
 {
-	cdc->current_sector = sector;
-	cdc->sectors_remaining = total_sectors;
+	state->current_sector = sector;
+	state->sectors_remaining = total_sectors;
 
-	RefillSectorBuffer(cdc, callback, user_data);
+	RefillSectorBuffer(state, callback, user_data);
 }
 
-cc_u16f CDC_Mode(CDC* const cdc, const cc_bool is_sub_cpu)
+cc_u16f CDC_Mode(CDC_State* const state, const cc_bool is_sub_cpu)
 {
-	if (is_sub_cpu != cdc->host_data_target_sub_cpu)
+	if (is_sub_cpu != state->host_data_target_sub_cpu)
 		return 0x8000;
 
-	return EndOfDataTransfer(cdc) << 15 | DataSetReady(cdc) << 14;
+	return EndOfDataTransfer(state) << 15 | DataSetReady(state) << 14;
 }
 
-void CDC_SetDeviceDestination(CDC* const cdc, const CDC_DeviceDestination device_destination)
+void CDC_SetDeviceDestination(CDC_State* const state, const CDC_DeviceDestination device_destination)
 {
-	cdc->device_destination = device_destination;
-	cdc->dma_address = 0;
+	state->device_destination = device_destination;
+	state->dma_address = 0;
 }
 
-void CDC_SetDMAAddress(CDC* const cdc, const cc_u16f dma_address)
+void CDC_SetDMAAddress(CDC_State* const state, const cc_u16f dma_address)
 {
-	cdc->dma_address = dma_address;
+	state->dma_address = dma_address;
 }
