@@ -24,15 +24,6 @@ extern "C" {
 
 /* TODO: Documentation. */
 
-#define CLOWNMDEMU_PARAMETERS_INITIALISE(CONFIGURATION, STATE, CALLBACKS) { \
-		(CONFIGURATION), \
-		(STATE), \
-		(CALLBACKS), \
-\
-		NULL, \
-		0 \
-	}
-
 /* Mega Drive */
 #define CLOWNMDEMU_MASTER_CLOCK_NTSC 53693175
 #define CLOWNMDEMU_MASTER_CLOCK_PAL  53203424
@@ -116,19 +107,20 @@ typedef enum ClownMDEmu_CDDAMode
 
 typedef struct ClownMDEmu_Configuration
 {
-	struct
-	{
-		ClownMDEmu_Region region;
-		ClownMDEmu_TVStandard tv_standard;
-		cc_bool low_pass_filter_disabled;
-		cc_bool cd_add_on_enabled;
-	} general;
+	ClownMDEmu_Region region;
+	ClownMDEmu_TVStandard tv_standard;
+	cc_bool low_pass_filter_disabled;
+	cc_bool cd_add_on_enabled;
+} ClownMDEmu_Configuration;
 
+typedef struct ClownMDEmu_InitialConfiguration
+{
+	ClownMDEmu_Configuration general;
 	VDP_Configuration vdp;
 	FM_Configuration fm;
 	PSG_Configuration psg;
 	PCM_Configuration pcm;
-} ClownMDEmu_Configuration;
+} ClownMDEmu_InitialConfiguration;
 
 typedef struct ClownMDEmu_State
 {
@@ -243,10 +235,10 @@ typedef struct ClownMDEmu_Callbacks
 	VDP_ScanlineRenderedCallback scanline_rendered;
 	cc_bool (*input_requested)(void *user_data, cc_u8f player_id, ClownMDEmu_Button button_id);
 
-	void (*fm_audio_to_be_generated)(void *user_data, const struct ClownMDEmu *clownmdemu, size_t total_frames, void (*generate_fm_audio)(const struct ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames));
-	void (*psg_audio_to_be_generated)(void *user_data, const struct ClownMDEmu *clownmdemu, size_t total_frames, void (*generate_psg_audio)(const struct ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames));
-	void (*pcm_audio_to_be_generated)(void *user_data, const struct ClownMDEmu *clownmdemu, size_t total_frames, void (*generate_pcm_audio)(const struct ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames));
-	void (*cdda_audio_to_be_generated)(void *user_data, const struct ClownMDEmu *clownmdemu, size_t total_frames, void (*generate_cdda_audio)(const struct ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames));
+	void (*fm_audio_to_be_generated)(void *user_data, struct ClownMDEmu *clownmdemu, size_t total_frames, void (*generate_fm_audio)(struct ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames));
+	void (*psg_audio_to_be_generated)(void *user_data, struct ClownMDEmu *clownmdemu, size_t total_frames, void (*generate_psg_audio)(struct ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames));
+	void (*pcm_audio_to_be_generated)(void *user_data, struct ClownMDEmu *clownmdemu, size_t total_frames, void (*generate_pcm_audio)(struct ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames));
+	void (*cdda_audio_to_be_generated)(void *user_data, struct ClownMDEmu *clownmdemu, size_t total_frames, void (*generate_cdda_audio)(struct ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames));
 
 	void (*cd_seeked)(void *user_data, cc_u32f sector_index);
 	CDC_SectorReadCallback cd_sector_read;
@@ -264,22 +256,21 @@ typedef struct ClownMDEmu_Callbacks
 
 typedef struct ClownMDEmu
 {
-	const ClownMDEmu_Configuration *configuration;
-	ClownMDEmu_State *state;
 	const ClownMDEmu_Callbacks *callbacks;
-
 	const cc_u16l *cartridge_buffer;
 	cc_u32l cartridge_buffer_length;
+
+	ClownMDEmu_Configuration configuration;
+	ClownMDEmu_State state;
 } ClownMDEmu;
 
 typedef void (*ClownMDEmu_LogCallback)(void *user_data, const char *format, va_list arg);
 
 void ClownMDEmu_Constant_Initialise(void);
-void ClownMDEmu_State_Initialise(ClownMDEmu_State *state, const ClownMDEmu_Configuration *configuration);
-void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_Configuration *configuration, ClownMDEmu_State *state, const ClownMDEmu_Callbacks *callbacks);
-void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu);
+void ClownMDEmu_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_InitialConfiguration *configuration, const ClownMDEmu_Callbacks *callbacks);
+void ClownMDEmu_Iterate(ClownMDEmu *clownmdemu);
 void ClownMDEmu_SetCartridge(ClownMDEmu *clownmdemu, const cc_u16l *buffer, cc_u32f buffer_length);
-void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, cc_bool cartridge_inserted, cc_bool cd_inserted);
+void ClownMDEmu_Reset(ClownMDEmu *clownmdemu, cc_bool cartridge_inserted, cc_bool cd_inserted);
 void ClownMDEmu_SetLogCallback(const ClownMDEmu_LogCallback log_callback, const void *user_data);
 
 #ifdef __cplusplus

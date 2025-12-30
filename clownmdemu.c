@@ -46,108 +46,104 @@ void ClownMDEmu_Constant_Initialise(void)
 	VDP_Constant_Initialise();
 }
 
-void ClownMDEmu_State_Initialise(ClownMDEmu_State* const state, const ClownMDEmu_Configuration* const configuration)
+void ClownMDEmu_Initialise(ClownMDEmu* const clownmdemu, const ClownMDEmu_InitialConfiguration* const configuration, const ClownMDEmu_Callbacks *callbacks)
 {
 	cc_u16f i;
+
+	clownmdemu->callbacks = callbacks;
+	clownmdemu->cartridge_buffer = NULL;
+	clownmdemu->cartridge_buffer_length = 0;
+
+	clownmdemu->configuration = configuration->general;
 
 	/* M68K */
 	/* A real console does not retain its RAM contents between games, as RAM
 	   is cleared when the console is powered-off.
 	   Failing to clear RAM causes issues with Sonic games and ROM-hacks,
 	   which skip initialisation when a certain magic number is found in RAM. */
-	memset(state->m68k.ram, 0, sizeof(state->m68k.ram));
-	state->m68k.h_int_pending = state->m68k.v_int_pending = cc_false;
+	memset(clownmdemu->state.m68k.ram, 0, sizeof(clownmdemu->state.m68k.ram));
+	clownmdemu->state.m68k.h_int_pending = clownmdemu->state.m68k.v_int_pending = cc_false;
 
 	/* Z80 */
-	ClownZ80_State_Initialise(&state->z80.state);
-	memset(state->z80.ram, 0, sizeof(state->z80.ram));
-	state->z80.cycle_countdown = 1;
-	state->z80.bank = 0;
-	state->z80.bus_requested = cc_false; /* This should be false, according to Charles MacDonald's gen-hw.txt. */
-	state->z80.reset_held = cc_true;
+	ClownZ80_State_Initialise(&clownmdemu->state.z80.state);
+	memset(clownmdemu->state.z80.ram, 0, sizeof(clownmdemu->state.z80.ram));
+	clownmdemu->state.z80.cycle_countdown = 1;
+	clownmdemu->state.z80.bank = 0;
+	clownmdemu->state.z80.bus_requested = cc_false; /* This should be false, according to Charles MacDonald's gen-hw.txt. */
+	clownmdemu->state.z80.reset_held = cc_true;
 
-	VDP_Initialise(&state->vdp, &configuration->vdp);
-	FM_Initialise(&state->fm, &configuration->fm);
-	PSG_Initialise(&state->psg, &configuration->psg);
+	VDP_Initialise(&clownmdemu->state.vdp, &configuration->vdp);
+	FM_Initialise(&clownmdemu->state.fm, &configuration->fm);
+	PSG_Initialise(&clownmdemu->state.psg, &configuration->psg);
 
 	/* The standard Sega SDK bootcode uses this to detect soft-resets. */
-	for (i = 0; i < CC_COUNT_OF(state->io_ports); ++i)
-		IOPort_Initialise(&state->io_ports[i]);
+	for (i = 0; i < CC_COUNT_OF(clownmdemu->state.io_ports); ++i)
+		IOPort_Initialise(&clownmdemu->state.io_ports[i]);
 
-	for (i = 0; i < CC_COUNT_OF(state->controllers); ++i)
-		Controller_Initialise(&state->controllers[i]);
+	for (i = 0; i < CC_COUNT_OF(clownmdemu->state.controllers); ++i)
+		Controller_Initialise(&clownmdemu->state.controllers[i]);
 
 	/* Reset some external RAM state, but preserve the buffer so
 	   that external RAM is not cleared by hard resets. */
-	state->external_ram.size = 0;
-	state->external_ram.non_volatile = cc_false;
-	state->external_ram.data_size = 0;
-	state->external_ram.device_type = 0;
-	state->external_ram.mapped_in = cc_false;
+	clownmdemu->state.external_ram.size = 0;
+	clownmdemu->state.external_ram.non_volatile = cc_false;
+	clownmdemu->state.external_ram.data_size = 0;
+	clownmdemu->state.external_ram.device_type = 0;
+	clownmdemu->state.external_ram.mapped_in = cc_false;
 
-	for (i = 0; i < CC_COUNT_OF(state->cartridge_bankswitch); ++i)
-		state->cartridge_bankswitch[i] = i;
+	for (i = 0; i < CC_COUNT_OF(clownmdemu->state.cartridge_bankswitch); ++i)
+		clownmdemu->state.cartridge_bankswitch[i] = i;
 
-	state->cartridge_inserted = cc_false;
+	clownmdemu->state.cartridge_inserted = cc_false;
 
 	/* Mega CD */
-	state->mega_cd.m68k.bus_requested = cc_true;
-	state->mega_cd.m68k.reset_held = cc_true;
+	clownmdemu->state.mega_cd.m68k.bus_requested = cc_true;
+	clownmdemu->state.mega_cd.m68k.reset_held = cc_true;
 
-	state->mega_cd.prg_ram.bank = 0;
+	clownmdemu->state.mega_cd.prg_ram.bank = 0;
 
-	state->mega_cd.word_ram.in_1m_mode = cc_false;
+	clownmdemu->state.mega_cd.word_ram.in_1m_mode = cc_false;
 	/* Page 24 of MEGA-CD HARDWARE MANUAL confirms this. */
-	state->mega_cd.word_ram.dmna = cc_false;
-	state->mega_cd.word_ram.ret = cc_true;
+	clownmdemu->state.mega_cd.word_ram.dmna = cc_false;
+	clownmdemu->state.mega_cd.word_ram.ret = cc_true;
 
-	state->mega_cd.communication.flag = 0;
+	clownmdemu->state.mega_cd.communication.flag = 0;
 
-	for (i = 0; i < CC_COUNT_OF(state->mega_cd.communication.command); ++i)
-		state->mega_cd.communication.command[i] = 0;
+	for (i = 0; i < CC_COUNT_OF(clownmdemu->state.mega_cd.communication.command); ++i)
+		clownmdemu->state.mega_cd.communication.command[i] = 0;
 
-	for (i = 0; i < CC_COUNT_OF(state->mega_cd.communication.status); ++i)
-		state->mega_cd.communication.status[i] = 0;
+	for (i = 0; i < CC_COUNT_OF(clownmdemu->state.mega_cd.communication.status); ++i)
+		clownmdemu->state.mega_cd.communication.status[i] = 0;
 	
-	for (i = 0; i < CC_COUNT_OF(state->mega_cd.irq.enabled); ++i)
-		state->mega_cd.irq.enabled[i] = cc_false;
+	for (i = 0; i < CC_COUNT_OF(clownmdemu->state.mega_cd.irq.enabled); ++i)
+		clownmdemu->state.mega_cd.irq.enabled[i] = cc_false;
 
-	state->mega_cd.irq.irq1_pending = cc_false;
-	state->mega_cd.irq.irq3_countdown_master = state->mega_cd.irq.irq3_countdown = 0;
+	clownmdemu->state.mega_cd.irq.irq1_pending = cc_false;
+	clownmdemu->state.mega_cd.irq.irq3_countdown_master = clownmdemu->state.mega_cd.irq.irq3_countdown = 0;
 
-	state->mega_cd.rotation.large_stamp_map = cc_false;
-	state->mega_cd.rotation.large_stamp = cc_false;
-	state->mega_cd.rotation.repeating_stamp_map = cc_false;
-	state->mega_cd.rotation.stamp_map_address = 0;
-	state->mega_cd.rotation.image_buffer_address = 0;
-	state->mega_cd.rotation.image_buffer_width = 0;
-	state->mega_cd.rotation.image_buffer_height = 0;
-	state->mega_cd.rotation.image_buffer_height_in_tiles = 0;
-	state->mega_cd.rotation.image_buffer_x_offset = 0;
-	state->mega_cd.rotation.image_buffer_y_offset = 0;
+	clownmdemu->state.mega_cd.rotation.large_stamp_map = cc_false;
+	clownmdemu->state.mega_cd.rotation.large_stamp = cc_false;
+	clownmdemu->state.mega_cd.rotation.repeating_stamp_map = cc_false;
+	clownmdemu->state.mega_cd.rotation.stamp_map_address = 0;
+	clownmdemu->state.mega_cd.rotation.image_buffer_address = 0;
+	clownmdemu->state.mega_cd.rotation.image_buffer_width = 0;
+	clownmdemu->state.mega_cd.rotation.image_buffer_height = 0;
+	clownmdemu->state.mega_cd.rotation.image_buffer_height_in_tiles = 0;
+	clownmdemu->state.mega_cd.rotation.image_buffer_x_offset = 0;
+	clownmdemu->state.mega_cd.rotation.image_buffer_y_offset = 0;
 
-	CDC_Initialise(&state->mega_cd.cdc);
-	CDDA_Initialise(&state->mega_cd.cdda);
-	PCM_Initialise(&state->mega_cd.pcm, &configuration->pcm);
+	CDC_Initialise(&clownmdemu->state.mega_cd.cdc);
+	CDDA_Initialise(&clownmdemu->state.mega_cd.cdda);
+	PCM_Initialise(&clownmdemu->state.mega_cd.pcm, &configuration->pcm);
 
-	state->mega_cd.cd_inserted = cc_false;
-	state->mega_cd.hblank_address = 0xFFFF;
-	state->mega_cd.delayed_dma_word = 0;
+	clownmdemu->state.mega_cd.cd_inserted = cc_false;
+	clownmdemu->state.mega_cd.hblank_address = 0xFFFF;
+	clownmdemu->state.mega_cd.delayed_dma_word = 0;
 
 	/* Low-pass filters. */
-	LowPassFilter_FirstOrder_Initialise(state->low_pass_filters.fm, CC_COUNT_OF(state->low_pass_filters.fm));
-	LowPassFilter_FirstOrder_Initialise(state->low_pass_filters.psg, CC_COUNT_OF(state->low_pass_filters.psg));
-	LowPassFilter_SecondOrder_Initialise(state->low_pass_filters.pcm, CC_COUNT_OF(state->low_pass_filters.pcm));
-}
-
-void ClownMDEmu_Parameters_Initialise(ClownMDEmu* const clownmdemu, const ClownMDEmu_Configuration* const configuration, ClownMDEmu_State* const state, const ClownMDEmu_Callbacks* const callbacks)
-{
-	clownmdemu->configuration = configuration;
-	clownmdemu->state = state;
-	clownmdemu->callbacks = callbacks;
-
-	clownmdemu->cartridge_buffer = NULL;
-	clownmdemu->cartridge_buffer_length = 0;
+	LowPassFilter_FirstOrder_Initialise(clownmdemu->state.low_pass_filters.fm, CC_COUNT_OF(clownmdemu->state.low_pass_filters.fm));
+	LowPassFilter_FirstOrder_Initialise(clownmdemu->state.low_pass_filters.psg, CC_COUNT_OF(clownmdemu->state.low_pass_filters.psg));
+	LowPassFilter_SecondOrder_Initialise(clownmdemu->state.low_pass_filters.pcm, CC_COUNT_OF(clownmdemu->state.low_pass_filters.pcm));
 }
 
 /* Very useful H-Counter/V-Counter information:
@@ -158,7 +154,7 @@ static cc_u16f CyclesUntilHorizontalSync(const ClownMDEmu* const clownmdemu)
 {
 	const cc_u16f h32_divider = 5;
 
-	if (clownmdemu->state->vdp.state.h40_enabled)
+	if (clownmdemu->state.vdp.state.h40_enabled)
 	{
 		const cc_u16f h40_divider = 4;
 	
@@ -191,16 +187,16 @@ static cc_u16f CyclesUntilHorizontalSync(const ClownMDEmu* const clownmdemu)
 	}
 }
 
-void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
+void ClownMDEmu_Iterate(ClownMDEmu* const clownmdemu)
 {
-	ClownMDEmu_State* const state = clownmdemu->state;
+	ClownMDEmu_State* const state = &clownmdemu->state;
 
 	const cc_u16f television_vertical_resolution = GetTelevisionVerticalResolution(clownmdemu);
 	const cc_u16f console_vertical_resolution = VDP_GetScreenHeightInTilePairs(&state->vdp.state) * VDP_STANDARD_TILE_PAIR_HEIGHT;
 	const CycleMegaDrive cycles_per_frame_mega_drive = GetMegaDriveCyclesPerFrame(clownmdemu);
 	const cc_u16f cycles_per_scanline = cycles_per_frame_mega_drive.cycle / television_vertical_resolution;
 	const cc_u16f cycles_until_horizontal_sync = CyclesUntilHorizontalSync(clownmdemu);
-	const CycleMegaCD cycles_per_frame_mega_cd = MakeCycleMegaCD(clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(CLOWNMDEMU_MCD_MASTER_CLOCK) : CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(CLOWNMDEMU_MCD_MASTER_CLOCK));
+	const CycleMegaCD cycles_per_frame_mega_cd = MakeCycleMegaCD(clownmdemu->configuration.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(CLOWNMDEMU_MCD_MASTER_CLOCK) : CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(CLOWNMDEMU_MCD_MASTER_CLOCK));
 
 	CPUCallbackUserData cpu_callback_user_data;
 	cc_u8f h_int_counter;
@@ -266,12 +262,12 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 		{
 			if (state->vdp.state.double_resolution_enabled)
 			{
-				VDP_RenderScanline(&clownmdemu->state->vdp, scanline * 2 + 0, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
-				VDP_RenderScanline(&clownmdemu->state->vdp, scanline * 2 + 1, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
+				VDP_RenderScanline(&clownmdemu->state.vdp, scanline * 2 + 0, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
+				VDP_RenderScanline(&clownmdemu->state.vdp, scanline * 2 + 1, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
 			}
 			else
 			{
-				VDP_RenderScanline(&clownmdemu->state->vdp, scanline, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
+				VDP_RenderScanline(&clownmdemu->state.vdp, scanline, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
 			}
 		}
 		else if (scanline == console_vertical_resolution) /* Check if we have reached the end of the console-output scanlines */
@@ -282,7 +278,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 
 			/* According to Charles MacDonald's gen-hw.txt, this occurs regardless of the 'v_int_enabled' setting. */
 			SyncZ80(clownmdemu, &cpu_callback_user_data, current_cycle);
-			ClownZ80_Interrupt(&clownmdemu->state->z80.state, cc_true);
+			ClownZ80_Interrupt(&clownmdemu->state.z80.state, cc_true);
 
 			/* Flag that we have entered the V-blank region */
 			state->vdp.state.currently_in_vblank = cc_true;
@@ -292,7 +288,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 			/* Assert the Z80 interrupt for a whole scanline. This has the side-effect of causing a second interrupt to occur if the handler exits quickly. */
 			/* TODO: According to Vladikcomper, this interrupt should be asserted for roughly 171 Z80 cycles. */
 			SyncZ80(clownmdemu, &cpu_callback_user_data, current_cycle);
-			ClownZ80_Interrupt(&clownmdemu->state->z80.state, cc_false);
+			ClownZ80_Interrupt(&clownmdemu->state.z80.state, cc_false);
 		}
 	}
 
@@ -303,14 +299,14 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 	SyncFM(&cpu_callback_user_data, cycles_per_frame_mega_drive);
 	SyncPSG(&cpu_callback_user_data, cycles_per_frame_mega_drive);
 	SyncPCM(&cpu_callback_user_data, cycles_per_frame_mega_cd);
-	SyncCDDA(&cpu_callback_user_data, clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(44100) : CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(44100));
+	SyncCDDA(&cpu_callback_user_data, clownmdemu->configuration.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(44100) : CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(44100));
 
 	/* Fire IRQ1 if needed. */
 	/* TODO: This is a hack. Look into when this interrupt should actually be done. */
 	if (state->mega_cd.irq.irq1_pending)
 	{
 		state->mega_cd.irq.irq1_pending = cc_false;
-		Clown68000_Interrupt(&clownmdemu->state->mega_cd.m68k.state, 1);
+		Clown68000_Interrupt(&clownmdemu->state.mega_cd.m68k.state, 1);
 	}
 
 	/* TODO: This should be done 75 times a second (in sync with the CDD interrupt), not 60! */
@@ -348,9 +344,9 @@ static cc_u32f NextPowerOfTwo(cc_u32f v)
 	return v;
 }
 
-static void SetUpExternalRAM(const ClownMDEmu* const clownmdemu)
+static void SetUpExternalRAM(ClownMDEmu* const clownmdemu)
 {
-	ClownMDEmu_State* const state = clownmdemu->state;
+	ClownMDEmu_State* const state = &clownmdemu->state;
 
 	cc_u32f cartridge_base = 0;
 
@@ -415,9 +411,9 @@ void ClownMDEmu_SetCartridge(ClownMDEmu* const clownmdemu, const cc_u16l* const 
 	clownmdemu->cartridge_buffer_length = buffer_length;
 }
 
-void ClownMDEmu_Reset(const ClownMDEmu* const clownmdemu, const cc_bool cartridge_inserted, const cc_bool cd_inserted)
+void ClownMDEmu_Reset(ClownMDEmu* const clownmdemu, const cc_bool cartridge_inserted, const cc_bool cd_inserted)
 {
-	ClownMDEmu_State* const state = clownmdemu->state;
+	ClownMDEmu_State* const state = &clownmdemu->state;
 
 	Clown68000_ReadWriteCallbacks m68k_read_write_callbacks;
 	CPUCallbackUserData callback_user_data;
@@ -473,11 +469,11 @@ void ClownMDEmu_Reset(const ClownMDEmu* const clownmdemu, const cc_bool cartridg
 
 	m68k_read_write_callbacks.read_callback = M68kReadCallback;
 	m68k_read_write_callbacks.write_callback = M68kWriteCallback;
-	Clown68000_Reset(&clownmdemu->state->m68k.state, &m68k_read_write_callbacks);
+	Clown68000_Reset(&clownmdemu->state.m68k.state, &m68k_read_write_callbacks);
 
 	m68k_read_write_callbacks.read_callback = MCDM68kReadCallback;
 	m68k_read_write_callbacks.write_callback = MCDM68kWriteCallback;
-	Clown68000_Reset(&clownmdemu->state->mega_cd.m68k.state, &m68k_read_write_callbacks);
+	Clown68000_Reset(&clownmdemu->state.mega_cd.m68k.state, &m68k_read_write_callbacks);
 }
 
 void ClownMDEmu_SetLogCallback(const ClownMDEmu_LogCallback log_callback, const void* const user_data)

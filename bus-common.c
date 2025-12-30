@@ -10,12 +10,12 @@
 
 cc_u16f GetTelevisionVerticalResolution(const ClownMDEmu* const clownmdemu)
 {
-	return clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? 312 : 262; /* PAL and NTSC, respectively */
+	return clownmdemu->configuration.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? 312 : 262; /* PAL and NTSC, respectively */
 }
 
 CycleMegaDrive GetMegaDriveCyclesPerFrame(const ClownMDEmu* const clownmdemu)
 {
-	return MakeCycleMegaDrive(clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_PAL) : CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_NTSC));
+	return MakeCycleMegaDrive(clownmdemu->configuration.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_PAL) : CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_NTSC));
 }
 
 CycleMegaDrive MakeCycleMegaDrive(const cc_u32f cycle)
@@ -55,7 +55,7 @@ CycleMegaCD CycleMegaDriveToMegaCD(const ClownMDEmu* const clownmdemu, const Cyc
 	const cc_u32f pal[2] = {0x784B, 0x02AF}; /* 0x80000000 * CLOWNMDEMU_MCD_MASTER_CLOCK / CLOWNMDEMU_MASTER_CLOCK_PAL */
 
 	CycleMegaCD new_cycle;
-	new_cycle.cycle = ConvertCycle(cycle.cycle, clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_NTSC ? ntsc : pal);
+	new_cycle.cycle = ConvertCycle(cycle.cycle, clownmdemu->configuration.tv_standard == CLOWNMDEMU_TV_STANDARD_NTSC ? ntsc : pal);
 	return new_cycle;
 }
 
@@ -66,7 +66,7 @@ CycleMegaDrive CycleMegaCDToMegaDrive(const ClownMDEmu* const clownmdemu, const 
 	const cc_u32f pal[2] = {0x8833, 0x655D}; /* 0x80000000 * CLOWNMDEMU_MASTER_CLOCK_PAL / CLOWNMDEMU_MCD_MASTER_CLOCK */
 
 	CycleMegaDrive new_cycle;
-	new_cycle.cycle = ConvertCycle(cycle.cycle, clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_NTSC ? ntsc : pal);
+	new_cycle.cycle = ConvertCycle(cycle.cycle, clownmdemu->configuration.tv_standard == CLOWNMDEMU_TV_STANDARD_NTSC ? ntsc : pal);
 	return new_cycle;
 }
 
@@ -83,7 +83,7 @@ cc_u32f SyncCommon(SyncState* const sync, const cc_u32f target_cycle, const cc_u
 	return cycles_to_do;
 }
 
-void SyncCPUCommon(const ClownMDEmu* const clownmdemu, SyncCPUState* const sync, const cc_u32f target_cycle, const cc_bool cpu_not_running, const SyncCPUCommonCallback callback, const void* const user_data)
+void SyncCPUCommon(ClownMDEmu* const clownmdemu, SyncCPUState* const sync, const cc_u32f target_cycle, const cc_bool cpu_not_running, const SyncCPUCommonCallback callback, const void* const user_data)
 {
 	/* Store this in a local variable to make the upcoming code faster. */
 	cc_u16f countdown = *sync->cycle_countdown;
@@ -111,9 +111,9 @@ void SyncCPUCommon(const ClownMDEmu* const clownmdemu, SyncCPUState* const sync,
 	}
 }
 
-static void FMCallbackWrapper(const ClownMDEmu* const clownmdemu, cc_s16l* const sample_buffer, const size_t total_frames)
+static void FMCallbackWrapper(ClownMDEmu* const clownmdemu, cc_s16l* const sample_buffer, const size_t total_frames)
 {
-	FM_OutputSamples(&clownmdemu->state->fm, sample_buffer, total_frames);
+	FM_OutputSamples(&clownmdemu->state.fm, sample_buffer, total_frames);
 
 	/* https://www.meme.net.au/butterworth.html
 	   Configured for a cut-off of 2842Hz at 53267Hz.
@@ -122,8 +122,8 @@ static void FMCallbackWrapper(const ClownMDEmu* const clownmdemu, cc_s16l* const
 	   which is implemented as an RC filter with a 10K resistor and a 5600pf capacitor.
 	   2842 = 1 / (2 * pi * (10 * (10 ^ 3)) * (5600 * (10 ^ -12))) */
 	/* TODO: PAL frequency. */
-	if (!clownmdemu->configuration->general.low_pass_filter_disabled)
-		LowPassFilter_FirstOrder_Apply(clownmdemu->state->low_pass_filters.fm, CC_COUNT_OF(clownmdemu->state->low_pass_filters.fm), sample_buffer, total_frames, LOW_PASS_FILTER_COMPUTE_MAGIC_FIRST_ORDER(6.910, 4.910));
+	if (!clownmdemu->configuration.low_pass_filter_disabled)
+		LowPassFilter_FirstOrder_Apply(clownmdemu->state.low_pass_filters.fm, CC_COUNT_OF(clownmdemu->state.low_pass_filters.fm), sample_buffer, total_frames, LOW_PASS_FILTER_COMPUTE_MAGIC_FIRST_ORDER(6.910, 4.910));
 }
 
 static void GenerateFMAudio(const void* const user_data, const cc_u32f total_frames)
@@ -135,12 +135,12 @@ static void GenerateFMAudio(const void* const user_data, const cc_u32f total_fra
 
 cc_u8f SyncFM(CPUCallbackUserData* const other_state, const CycleMegaDrive target_cycle)
 {
-	return FM_Update(&other_state->clownmdemu->state->fm, SyncCommon(&other_state->sync.fm, target_cycle.cycle, CLOWNMDEMU_M68K_CLOCK_DIVIDER), GenerateFMAudio, other_state);
+	return FM_Update(&other_state->clownmdemu->state.fm, SyncCommon(&other_state->sync.fm, target_cycle.cycle, CLOWNMDEMU_M68K_CLOCK_DIVIDER), GenerateFMAudio, other_state);
 }
 
-static void GeneratePSGAudio(const ClownMDEmu* const clownmdemu, cc_s16l* const sample_buffer, const size_t total_frames)
+static void GeneratePSGAudio(ClownMDEmu* const clownmdemu, cc_s16l* const sample_buffer, const size_t total_frames)
 {
-	PSG_Update(&clownmdemu->state->psg, sample_buffer, total_frames);
+	PSG_Update(&clownmdemu->state.psg, sample_buffer, total_frames);
 
 	/* https://www.meme.net.au/butterworth.html
 	   Configured for a cut-off of 2842Hz at 223722Hz.
@@ -149,8 +149,8 @@ static void GeneratePSGAudio(const ClownMDEmu* const clownmdemu, cc_s16l* const 
 	   which is implemented as an RC filter with a 10K resistor and a 5600pf capacitor.
 	   2842 = 1 / (2 * pi * (10 * (10 ^ 3)) * (5600 * (10 ^ -12))) */
 	/* TODO: PAL frequency. */
-	if (!clownmdemu->configuration->general.low_pass_filter_disabled)
-		LowPassFilter_FirstOrder_Apply(clownmdemu->state->low_pass_filters.psg, CC_COUNT_OF(clownmdemu->state->low_pass_filters.psg), sample_buffer, total_frames, LOW_PASS_FILTER_COMPUTE_MAGIC_FIRST_ORDER(26.044, 24.044));
+	if (!clownmdemu->configuration.low_pass_filter_disabled)
+		LowPassFilter_FirstOrder_Apply(clownmdemu->state.low_pass_filters.psg, CC_COUNT_OF(clownmdemu->state.low_pass_filters.psg), sample_buffer, total_frames, LOW_PASS_FILTER_COMPUTE_MAGIC_FIRST_ORDER(26.044, 24.044));
 }
 
 void SyncPSG(CPUCallbackUserData* const other_state, const CycleMegaDrive target_cycle)
@@ -162,17 +162,17 @@ void SyncPSG(CPUCallbackUserData* const other_state, const CycleMegaDrive target
 		other_state->clownmdemu->callbacks->psg_audio_to_be_generated((void*)other_state->clownmdemu->callbacks->user_data, other_state->clownmdemu, frames_to_generate, GeneratePSGAudio);
 }
 
-static void GeneratePCMAudio(const ClownMDEmu* const clownmdemu, cc_s16l* const sample_buffer, const size_t total_frames)
+static void GeneratePCMAudio(ClownMDEmu* const clownmdemu, cc_s16l* const sample_buffer, const size_t total_frames)
 {
-	PCM_Update(&clownmdemu->state->mega_cd.pcm, sample_buffer, total_frames);
+	PCM_Update(&clownmdemu->state.mega_cd.pcm, sample_buffer, total_frames);
 
 	/* https://www.meme.net.au/butterworth.html
 	   Configured for a cut-off of 7973Hz at 32552Hz.
 	   32552Hz is the RF5C164's sample rate.
 	   7973Hz is the cut-off frequency of a Mega CD's PCM low-pass filter. */
 	/* TODO: Verify this against the Mega CD's schematic. */
-	if (!clownmdemu->configuration->general.low_pass_filter_disabled)
-		LowPassFilter_SecondOrder_Apply(clownmdemu->state->low_pass_filters.pcm, CC_COUNT_OF(clownmdemu->state->low_pass_filters.pcm), sample_buffer, total_frames, LOW_PASS_FILTER_COMPUTE_MAGIC_SECOND_ORDER(3.526, 0.132, 0.606));
+	if (!clownmdemu->configuration.low_pass_filter_disabled)
+		LowPassFilter_SecondOrder_Apply(clownmdemu->state.low_pass_filters.pcm, CC_COUNT_OF(clownmdemu->state.low_pass_filters.pcm), sample_buffer, total_frames, LOW_PASS_FILTER_COMPUTE_MAGIC_SECOND_ORDER(3.526, 0.132, 0.606));
 }
 
 void SyncPCM(CPUCallbackUserData* const other_state, const CycleMegaCD target_cycle)
@@ -180,9 +180,9 @@ void SyncPCM(CPUCallbackUserData* const other_state, const CycleMegaCD target_cy
 	other_state->clownmdemu->callbacks->pcm_audio_to_be_generated((void*)other_state->clownmdemu->callbacks->user_data, other_state->clownmdemu, SyncCommon(&other_state->sync.pcm, target_cycle.cycle, CLOWNMDEMU_MCD_M68K_CLOCK_DIVIDER * CLOWNMDEMU_PCM_SAMPLE_RATE_DIVIDER), GeneratePCMAudio);
 }
 
-static void GenerateCDDAAudio(const ClownMDEmu* const clownmdemu, cc_s16l* const sample_buffer, const size_t total_frames)
+static void GenerateCDDAAudio(ClownMDEmu* const clownmdemu, cc_s16l* const sample_buffer, const size_t total_frames)
 {
-	CDDA_Update(&clownmdemu->state->mega_cd.cdda, clownmdemu->callbacks->cd_audio_read, clownmdemu->callbacks->user_data, sample_buffer, total_frames);
+	CDDA_Update(&clownmdemu->state.mega_cd.cdda, clownmdemu->callbacks->cd_audio_read, clownmdemu->callbacks->user_data, sample_buffer, total_frames);
 }
 
 void SyncCDDA(CPUCallbackUserData* const other_state, const cc_u32f total_frames)
@@ -192,22 +192,22 @@ void SyncCDDA(CPUCallbackUserData* const other_state, const cc_u32f total_frames
 
 /* https://gendev.spritesmind.net/forum/viewtopic.php?t=3290 */
 
-void RaiseHorizontalInterruptIfNeeded(const ClownMDEmu* const clownmdemu)
+void RaiseHorizontalInterruptIfNeeded(ClownMDEmu* const clownmdemu)
 {
-	if (clownmdemu->state->m68k.h_int_pending && clownmdemu->state->vdp.state.h_int_enabled)
+	if (clownmdemu->state.m68k.h_int_pending && clownmdemu->state.vdp.state.h_int_enabled)
 	{
-		clownmdemu->state->m68k.h_int_pending = cc_false;
+		clownmdemu->state.m68k.h_int_pending = cc_false;
 
-		Clown68000_Interrupt(&clownmdemu->state->m68k.state, 4);
+		Clown68000_Interrupt(&clownmdemu->state.m68k.state, 4);
 	}
 }
 
-void RaiseVerticalInterruptIfNeeded(const ClownMDEmu* const clownmdemu)
+void RaiseVerticalInterruptIfNeeded(ClownMDEmu* const clownmdemu)
 {
-	if (clownmdemu->state->m68k.v_int_pending && clownmdemu->state->vdp.state.v_int_enabled)
+	if (clownmdemu->state.m68k.v_int_pending && clownmdemu->state.vdp.state.v_int_enabled)
 	{
-		clownmdemu->state->m68k.v_int_pending = cc_false;
+		clownmdemu->state.m68k.v_int_pending = cc_false;
 
-		Clown68000_Interrupt(&clownmdemu->state->m68k.state, 6);
+		Clown68000_Interrupt(&clownmdemu->state.m68k.state, 6);
 	}
 }
