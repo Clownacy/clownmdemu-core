@@ -867,13 +867,13 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 		if ((address & 0x2000) != 0)
 		{
 			/* PCM wave RAM */
-			value = PCM_ReadWaveRAM(&clownmdemu->pcm, masked_address);
+			value = PCM_ReadWaveRAM(&clownmdemu->state->mega_cd.pcm, masked_address);
 		}
 		else
 		{
 			/* PCM register */
 			SyncPCM(callback_user_data, target_cycle);
-			value = PCM_ReadRegister(&clownmdemu->pcm, masked_address);
+			value = PCM_ReadRegister(&clownmdemu->state->mega_cd.pcm, masked_address);
 		}
 	}
 	else if (address == 0xFF8000)
@@ -1072,12 +1072,12 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 			if ((address & 0x2000) != 0)
 			{
 				/* PCM wave RAM */
-				PCM_WriteWaveRAM(&clownmdemu->pcm, masked_address, low_byte);
+				PCM_WriteWaveRAM(&clownmdemu->state->mega_cd.pcm, masked_address, low_byte);
 			}
 			else
 			{
 				/* PCM register */
-				PCM_WriteRegister(&clownmdemu->pcm, masked_address, low_byte);
+				PCM_WriteRegister(&clownmdemu->state->mega_cd.pcm, masked_address, low_byte);
 			}
 		}
 	}

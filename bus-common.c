@@ -164,7 +164,7 @@ void SyncPSG(CPUCallbackUserData* const other_state, const CycleMegaDrive target
 
 static void GeneratePCMAudio(const ClownMDEmu* const clownmdemu, cc_s16l* const sample_buffer, const size_t total_frames)
 {
-	PCM_Update(&clownmdemu->pcm, sample_buffer, total_frames);
+	PCM_Update(&clownmdemu->state->mega_cd.pcm, sample_buffer, total_frames);
 
 	/* https://www.meme.net.au/butterworth.html
 	   Configured for a cut-off of 7973Hz at 32552Hz.

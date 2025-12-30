@@ -44,11 +44,6 @@ extern "C" {
 		{ \
 			&(CONFIGURATION)->fm, \
 			&(STATE)->fm \
-		}, \
-\
-		{ \
-			&(CONFIGURATION)->pcm, \
-			&(STATE)->mega_cd.pcm \
 		} \
 	}
 
@@ -236,7 +231,7 @@ typedef struct ClownMDEmu_State
 
 		CDC cdc;
 		CDDA cdda;
-		PCM_State pcm;
+		PCM pcm;
 
 		cc_bool cd_inserted;
 		cc_u16l hblank_address;
@@ -295,7 +290,6 @@ typedef struct ClownMDEmu
 	Clown68000_State *mcd_m68k;
 	VDP vdp;
 	FM fm;
-	PCM pcm;
 } ClownMDEmu;
 
 typedef void (*ClownMDEmu_LogCallback)(void *user_data, const char *format, va_list arg);

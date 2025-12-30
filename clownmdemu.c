@@ -128,7 +128,7 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State* const state, const ClownMDEmu
 
 	CDC_Initialise(&state->mega_cd.cdc);
 	CDDA_Initialise(&state->mega_cd.cdda);
-	PCM_State_Initialise(&state->mega_cd.pcm);
+	PCM_Initialise(&state->mega_cd.pcm, &configuration->pcm);
 
 	state->mega_cd.cd_inserted = cc_false;
 	state->mega_cd.hblank_address = 0xFFFF;
@@ -158,9 +158,6 @@ void ClownMDEmu_Parameters_Initialise(ClownMDEmu* const clownmdemu, const ClownM
 
 	clownmdemu->fm.configuration = &configuration->fm;
 	clownmdemu->fm.state = &state->fm;
-
-	clownmdemu->pcm.configuration = &configuration->pcm;
-	clownmdemu->pcm.state = &state->mega_cd.pcm;
 }
 
 /* Very useful H-Counter/V-Counter information:
