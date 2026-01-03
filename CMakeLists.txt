@@ -46,12 +46,6 @@ add_library(clownmdemu-core STATIC
 	"vdp.h"
 )
 
-set_target_properties(clownmdemu-core PROPERTIES
-	C_STANDARD 90
-	C_STANDARD_REQUIRED NO
-	C_EXTENSIONS OFF
-)
-
 add_subdirectory("clown68000" EXCLUDE_FROM_ALL)
 target_link_libraries(clownmdemu-core PRIVATE clown68000-interpreter)
 
