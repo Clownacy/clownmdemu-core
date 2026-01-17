@@ -304,7 +304,7 @@ void ClownMDEmu_LoadState(ClownMDEmu *clownmdemu, const ClownMDEmu_StateBackup *
 }
 #endif
 
-#if defined(CC_CPLUSPLUS) && CC_CPLUSPLUS >= 202002L
+#if defined(CC_CPLUSPLUS) && CC_CPLUSPLUS >= 201703L
 
 #include <cassert>
 #include <cstdarg>
@@ -347,8 +347,8 @@ namespace ClownMDEmuCXX
 #define CLOWNMDEMU_CONFIGURATION_NOT(VALUE) !VALUE
 
 #define CLOWNMDEMU_CONFIGURATION_GETTER_SETTER(IDENTIFIER, VALUE, OPERATION) \
-	std::remove_cvref_t<decltype(VALUE)> Get##IDENTIFIER() const { return OPERATION(VALUE); } \
-	void Set##IDENTIFIER(const std::remove_cvref_t<decltype(VALUE)> value){ VALUE = OPERATION(value); }
+	std::remove_reference_t<decltype(VALUE)> Get##IDENTIFIER() const { return OPERATION(VALUE); } \
+	void Set##IDENTIFIER(const std::remove_reference_t<decltype(VALUE)> value){ VALUE = OPERATION(value); }
 
 #define CLOWNMDEMU_CONFIGURATION_GETTER_SETTER_AS_IS(IDENTIFIER, VALUE) \
 	CLOWNMDEMU_CONFIGURATION_GETTER_SETTER(IDENTIFIER, VALUE, CLOWNMDEMU_CONFIGURATION_AS_IS)
