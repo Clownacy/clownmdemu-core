@@ -365,7 +365,7 @@ namespace ClownMDEmuCXX
 		CLOWNMDEMU_CONFIGURATION_GETTER_SETTER_NOT(WindowPlaneEnabled, vdp.window_disabled)
 		CLOWNMDEMU_CONFIGURATION_GETTER_SETTER_NOT(ScrollPlaneAEnabled, vdp.planes_disabled[0])
 		CLOWNMDEMU_CONFIGURATION_GETTER_SETTER_NOT(ScrollPlaneBEnabled, vdp.planes_disabled[1])
-		CLOWNMDEMU_CONFIGURATION_GETTER_SETTER_AS_IS(WidescreenTilePairs, vdp.widescreen_tile_pairs)
+		CLOWNMDEMU_CONFIGURATION_GETTER_SETTER_AS_IS(WidescreenTiles, vdp.widescreen_tiles)
 
 		CLOWNMDEMU_CONFIGURATION_GETTER_SETTER_NOT(FM1Enabled, fm.fm_channels_disabled[0])
 		CLOWNMDEMU_CONFIGURATION_GETTER_SETTER_NOT(FM2Enabled, fm.fm_channels_disabled[1])
@@ -681,7 +681,7 @@ namespace ClownMDEmuCXX
 		CLOWNMDEMU_CONFIGURATION_GETTER_SETTER_NOT(WindowPlaneEnabled, vdp.configuration.window_disabled)
 		CLOWNMDEMU_CONFIGURATION_GETTER_SETTER_NOT(ScrollPlaneAEnabled, vdp.configuration.planes_disabled[0])
 		CLOWNMDEMU_CONFIGURATION_GETTER_SETTER_NOT(ScrollPlaneBEnabled, vdp.configuration.planes_disabled[1])
-		CLOWNMDEMU_CONFIGURATION_GETTER_SETTER_AS_IS(WidescreenTilePairs, vdp.configuration.widescreen_tile_pairs)
+		CLOWNMDEMU_CONFIGURATION_GETTER_SETTER_AS_IS(WidescreenTiles, vdp.configuration.widescreen_tiles)
 
 		CLOWNMDEMU_CONFIGURATION_GETTER_SETTER_NOT(FM1Enabled, fm.configuration.fm_channels_disabled[0])
 		CLOWNMDEMU_CONFIGURATION_GETTER_SETTER_NOT(FM2Enabled, fm.configuration.fm_channels_disabled[1])

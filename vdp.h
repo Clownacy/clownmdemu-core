@@ -19,9 +19,12 @@ extern "C" {
 #define VDP_MAX_TILE_HEIGHT CC_MAX(VDP_STANDARD_TILE_HEIGHT, VDP_INTERLACE_MODE_2_TILE_HEIGHT)
 
 #define VDP_MAX_WIDESCREEN_TILE_PAIRS ((32 - VDP_MAX_SCREEN_WIDTH_IN_TILE_PAIRS) / 2)
+#define VDP_MAX_WIDESCREEN_TILES (VDP_MAX_WIDESCREEN_TILE_PAIRS * VDP_TILE_PAIR_COUNT)
 
 #define VDP_H40_SCREEN_WIDTH_IN_TILE_PAIRS 20
 #define VDP_H32_SCREEN_WIDTH_IN_TILE_PAIRS 16
+#define VDP_H40_SCREEN_WIDTH_IN_TILES (VDP_H40_SCREEN_WIDTH_IN_TILE_PAIRS * VDP_TILE_PAIR_COUNT)
+#define VDP_H32_SCREEN_WIDTH_IN_TILES (VDP_H32_SCREEN_WIDTH_IN_TILE_PAIRS * VDP_TILE_PAIR_COUNT)
 #define VDP_MAX_SCREEN_WIDTH_IN_TILE_PAIRS CC_MAX(VDP_H40_SCREEN_WIDTH_IN_TILE_PAIRS, VDP_H32_SCREEN_WIDTH_IN_TILE_PAIRS)
 #define VDP_MAX_SCREEN_WIDTH_IN_TILES (VDP_MAX_SCREEN_WIDTH_IN_TILE_PAIRS * VDP_TILE_PAIR_COUNT)
 #define VDP_MAX_SCREEN_WIDTH_IN_PIXELS (VDP_MAX_SCREEN_WIDTH_IN_TILES * VDP_TILE_WIDTH)
@@ -45,7 +48,7 @@ typedef struct VDP_Configuration
 	cc_bool sprites_disabled;
 	cc_bool window_disabled;
 	cc_bool planes_disabled[2];
-	cc_u8l widescreen_tile_pairs;
+	cc_u8l widescreen_tiles;
 } VDP_Configuration;
 
 typedef enum VDP_Access
@@ -237,7 +240,7 @@ VDP_CachedSprite VDP_GetCachedSprite(const VDP_State *state, cc_u16f sprite_inde
 
 #define VDP_GetScreenHeightInTiles(state) ((state)->v30_enabled ? VDP_V30_SCANLINES_IN_TILES : VDP_V28_SCANLINES_IN_TILES)
 
-#define VDP_GetExtendedScreenWidthInTilePairs(vdp) (VDP_GetScreenWidthInTilePairs(&(vdp)->state) + (unsigned int)(vdp)->configuration.widescreen_tile_pairs * 2)
+#define VDP_GetExtendedScreenWidthInTilePairs(vdp) (VDP_GetScreenWidthInTilePairs(&(vdp)->state) + CC_DIVIDE_CEILING((unsigned int)(vdp)->configuration.widescreen_tiles, TILE_PAIR_COUNT) * 2)
 #define VDP_GetExtendedScreenWidthInTiles(vdp) (VDP_GetExtendedScreenWidthInTilePairs(vdp) * VDP_TILE_PAIR_COUNT)
 #define VDP_GetExtendedScreenWidthInPixels(vdp) (VDP_GetExtendedScreenWidthInTiles(vdp) * VDP_TILE_WIDTH)
 

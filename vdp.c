@@ -36,7 +36,7 @@
 
 #define VRAM_ADDRESS_BASE_OFFSET(OPTION) ((OPTION) ? 0x10000 : 0)
 
-#define WIDESCREEN_X_OFFSET_TILE_PAIRS(VDP) (VDP)->configuration.widescreen_tile_pairs
+#define WIDESCREEN_X_OFFSET_TILE_PAIRS(VDP) CC_DIVIDE_CEILING((VDP)->configuration.widescreen_tiles, TILE_PAIR_COUNT)
 #define WIDESCREEN_X_OFFSET_TILES(VDP) (WIDESCREEN_X_OFFSET_TILE_PAIRS(VDP) * TILE_PAIR_COUNT)
 #define WIDESCREEN_X_OFFSET_PIXELS(VDP) (WIDESCREEN_X_OFFSET_TILES(VDP) * TILE_WIDTH)
 
@@ -818,7 +818,24 @@ static void RenderForegroundAndSpritePlanes(const VDP* const vdp, const cc_u16f 
 	}
 
 	/* Send pixels to the frontend to be displayed */
-	scanline_rendered_callback((void*)scanline_rendered_callback_user_data, scanline, plane_metapixels, left_boundary_pixels, right_boundary_pixels, VDP_GetExtendedScreenWidthInPixels(vdp), MULTIPLY_BY_TILE_HEIGHT(state, VDP_GetScreenHeightInTiles(state)));
+	{
+		/* We want to output at multiples of 8 pixels, but can only render at multiples of 16, so discard any extra pixels here. */
+		const cc_u16f input_extra_tiles = CC_DIVIDE_CEILING(vdp->configuration.widescreen_tiles, TILE_PAIR_COUNT) * TILE_PAIR_COUNT * 2;
+		const cc_u16f input_extra_tiles_in_pixels = input_extra_tiles * TILE_WIDTH;
+
+		const cc_u16f output_extra_tiles = vdp->configuration.widescreen_tiles * 2;
+		const cc_u16f output_extra_tiles_in_pixels = output_extra_tiles * TILE_WIDTH;
+
+		const cc_u16f x_offset = (input_extra_tiles_in_pixels - output_extra_tiles_in_pixels) / 2;
+
+		const cc_u16f output_width = VDP_GetScreenWidthInPixels(state) + output_extra_tiles_in_pixels;
+		const cc_u16f output_height = MULTIPLY_BY_TILE_HEIGHT(state, VDP_GetScreenHeightInTiles(state));
+
+		const cc_u16f clamped_left_boundary_pixels = CC_CLAMP(x_offset, x_offset + output_width, left_boundary_pixels) - x_offset;
+		const cc_u16f clamped_right_boundary_pixels = CC_CLAMP(x_offset, x_offset + output_width, right_boundary_pixels) - x_offset;
+
+		scanline_rendered_callback((void*)scanline_rendered_callback_user_data, scanline, plane_metapixels + x_offset, clamped_left_boundary_pixels, clamped_right_boundary_pixels, output_width, output_height);
+	}
 }
 
 void VDP_RenderScanline(VDP* const vdp, const cc_u16f scanline, const VDP_ScanlineRenderedCallback scanline_rendered_callback, const void* const scanline_rendered_callback_user_data)
