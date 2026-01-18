@@ -414,9 +414,9 @@ namespace ClownMDEmuCXX
 	template<typename Derived>
 	class Emulator : protected ClownMDEmu
 	{
-		///////////////
-		// Callbacks //
-		///////////////
+		/*************/
+		/* Callbacks */
+		/*************/
 
 	private:
 		const ClownMDEmu_Callbacks callbacks = {
@@ -517,9 +517,9 @@ namespace ClownMDEmuCXX
 			return static_cast<Derived*>(static_cast<Emulator*>(user_data))->SaveFileSizeObtained(filename, size);
 		}
 
-		///////////////
-		// Interface //
-		///////////////
+		/*************/
+		/* Interface */
+		/*************/
 
 	public:
 		Emulator(const InitialConfiguration &configuration)
@@ -573,9 +573,9 @@ namespace ClownMDEmuCXX
 			ClownMDEmu_LoadState(this, &state_backup);
 		}
 
-		//////////////////
-		// Log Callback //
-		//////////////////
+		/****************/
+		/* Log Callback */
+		/****************/
 
 	public:
 		using LogCallbackFormatted = std::function<void(const char *format, std::va_list arg)>;
@@ -601,7 +601,7 @@ namespace ClownMDEmuCXX
 			SetLogCallback(
 				[callback](const char* const format, std::va_list arg)
 				{
-					// TODO: Use 'std::string::resize_and_overwrite' here when C++23 becomes the norm.
+					/* TODO: Use 'std::string::resize_and_overwrite' here when C++23 becomes the norm. */
 					std::va_list arg_copy;
 					va_copy(arg_copy, arg);
 					std::string string(std::vsnprintf(nullptr, 0, format, arg_copy), '\0');
@@ -613,9 +613,9 @@ namespace ClownMDEmuCXX
 			);
 		}
 
-		//////////////////
-		// State Access //
-		//////////////////
+		/****************/
+		/* State Access */
+		/****************/
 
 	public:
 		[[nodiscard]] const auto& GetState() const
@@ -673,9 +673,9 @@ namespace ClownMDEmuCXX
 			return state.external_ram.buffer;
 		}
 
-		///////////////////
-		// Configuration //
-		///////////////////
+		/*****************/
+		/* Configuration */
+		/*****************/
 
 	public:
 		CLOWNMDEMU_CONFIGURATION_GETTER_SETTER_AS_IS(TVStandard, configuration.tv_standard)
