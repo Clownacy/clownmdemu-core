@@ -350,10 +350,8 @@ void VDP_Constant_Initialise(void)
 	}
 }
 
-void VDP_Initialise(VDP* const vdp, const VDP_Configuration* const configuration)
+void VDP_Initialise(VDP* const vdp)
 {
-	vdp->configuration = *configuration;
-
 	vdp->state.access.write_pending = cc_false;
 	vdp->state.access.address_register = 0;
 	vdp->state.access.code_register = 0;

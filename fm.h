@@ -72,7 +72,7 @@ typedef struct FM
 	FM_State state;
 } FM;
 
-void FM_Initialise(FM *fm, const FM_Configuration *configuration);
+void FM_Initialise(FM *fm);
 
 void FM_DoAddress(FM *fm, cc_u8f port, cc_u8f address);
 void FM_DoData(FM *fm, cc_u8f data);

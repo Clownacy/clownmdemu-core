@@ -275,7 +275,8 @@ void ClownMDEmu_Constant_Initialise(void);
 void ClownMDEmu_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_InitialConfiguration *configuration, const ClownMDEmu_Callbacks *callbacks);
 void ClownMDEmu_Iterate(ClownMDEmu *clownmdemu);
 void ClownMDEmu_SetCartridge(ClownMDEmu *clownmdemu, const cc_u16l *buffer, cc_u32f buffer_length);
-void ClownMDEmu_Reset(ClownMDEmu *clownmdemu, cc_bool cartridge_inserted, cc_bool cd_inserted);
+void ClownMDEmu_SoftReset(ClownMDEmu *clownmdemu, cc_bool cartridge_inserted, cc_bool cd_inserted);
+void ClownMDEmu_HardReset(ClownMDEmu *clownmdemu, cc_bool cartridge_inserted, cc_bool cd_inserted);
 void ClownMDEmu_SetLogCallback(const ClownMDEmu_LogCallback log_callback, const void *user_data);
 
 typedef struct ClownMDEmu_StateBackup
@@ -547,9 +548,14 @@ namespace ClownMDEmuCXX
 			return cartridge_buffer_length != 0;
 		}
 
-		void Reset(const cc_bool cd_inserted)
+		void SoftReset(const cc_bool cd_inserted)
 		{
-			ClownMDEmu_Reset(this, IsCartridgeInserted(), cd_inserted);
+			ClownMDEmu_SoftReset(this, IsCartridgeInserted(), cd_inserted);
+		}
+
+		void HardReset(const cc_bool cd_inserted)
+		{
+			ClownMDEmu_HardReset(this, IsCartridgeInserted(), cd_inserted);
 		}
 
 		void Iterate()

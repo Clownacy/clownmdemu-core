@@ -8,11 +8,9 @@
 /* RF5C68A manual */
 /* https://segaretro.org/images/2/22/RF5C68A.pdf */
 
-void PCM_Initialise(PCM* const pcm, const PCM_Configuration* const configuration)
+void PCM_Initialise(PCM* const pcm)
 {
 	cc_u8f i;
-
-	pcm->configuration = *configuration;
 
 	for (i = 0; i < CC_COUNT_OF(pcm->state.channels); ++i)
 	{

@@ -52,11 +52,9 @@ void PSG_Constant_Initialise(void)
 }
 #endif
 
-void PSG_Initialise(PSG* const psg, const PSG_Configuration* const configuration)
+void PSG_Initialise(PSG* const psg)
 {
 	size_t i;
-
-	psg->configuration = *configuration;
 
 	/* Reset tone channels. */
 	for (i = 0; i < CC_COUNT_OF(psg->state.tones); ++i)

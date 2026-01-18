@@ -125,12 +125,10 @@ static cc_u16f FM_ConvertTimerBValue(const cc_u16f value)
 	return 0x10 * (0x100 - value);
 }
 
-void FM_Initialise(FM* const fm, const FM_Configuration* const configuration)
+void FM_Initialise(FM* const fm)
 {
 	FM_ChannelMetadata *channel;
 	cc_u8f i;
-
-	fm->configuration = *configuration;
 
 	for (channel = &fm->state.channels[0]; channel < &fm->state.channels[CC_COUNT_OF(fm->state.channels)]; ++channel)
 	{

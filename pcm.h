@@ -40,7 +40,7 @@ typedef struct PCM
 	PCM_State state;
 } PCM;
 
-void PCM_Initialise(PCM *pcm, const PCM_Configuration *configuration);
+void PCM_Initialise(PCM *pcm);
 void PCM_WriteRegister(PCM *pcm, cc_u16f reg, cc_u8f value);
 cc_u8f PCM_ReadRegister(const PCM *pcm, cc_u8f reg);
 cc_u8f PCM_ReadWaveRAM(const PCM* pcm, cc_u16f address);

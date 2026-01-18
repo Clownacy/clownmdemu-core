@@ -215,7 +215,7 @@ typedef cc_u16f (*VDP_ReadCallback)(void *user_data, cc_u32f address, cc_u32f ta
 typedef void (*VDP_KDebugCallback)(void *user_data, const char *string);
 
 void VDP_Constant_Initialise(void);
-void VDP_Initialise(VDP *vdp, const VDP_Configuration *configuration);
+void VDP_Initialise(VDP *vdp);
 void VDP_RenderScanline(VDP *vdp, cc_u16f scanline, VDP_ScanlineRenderedCallback scanline_rendered_callback, const void *scanline_rendered_callback_user_data);
 
 cc_u16f VDP_ReadData(VDP *vdp);

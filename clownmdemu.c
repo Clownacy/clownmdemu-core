@@ -46,23 +46,17 @@ void ClownMDEmu_Constant_Initialise(void)
 	VDP_Constant_Initialise();
 }
 
-void ClownMDEmu_Initialise(ClownMDEmu* const clownmdemu, const ClownMDEmu_InitialConfiguration* const configuration, const ClownMDEmu_Callbacks *callbacks)
+static void ClownMDEmu_State_Initialise(ClownMDEmu* const clownmdemu)
 {
 	cc_u16f i;
 
-	clownmdemu->callbacks = callbacks;
-	clownmdemu->cartridge_buffer = NULL;
-	clownmdemu->cartridge_buffer_length = 0;
-
-	clownmdemu->configuration = configuration->general;
-
 	ClownZ80_State_Initialise(&clownmdemu->z80);
-	VDP_Initialise(&clownmdemu->vdp, &configuration->vdp);
-	FM_Initialise(&clownmdemu->fm, &configuration->fm);
-	PSG_Initialise(&clownmdemu->psg, &configuration->psg);
+	VDP_Initialise(&clownmdemu->vdp);
+	FM_Initialise(&clownmdemu->fm);
+	PSG_Initialise(&clownmdemu->psg);
 	CDC_Initialise(&clownmdemu->mega_cd.cdc);
 	CDDA_Initialise(&clownmdemu->mega_cd.cdda);
-	PCM_Initialise(&clownmdemu->mega_cd.pcm, &configuration->pcm);
+	PCM_Initialise(&clownmdemu->mega_cd.pcm);
 
 	/* M68K */
 	/* A real console does not retain its RAM contents between games, as RAM
@@ -143,6 +137,21 @@ void ClownMDEmu_Initialise(ClownMDEmu* const clownmdemu, const ClownMDEmu_Initia
 	LowPassFilter_FirstOrder_Initialise(clownmdemu->state.low_pass_filters.fm, CC_COUNT_OF(clownmdemu->state.low_pass_filters.fm));
 	LowPassFilter_FirstOrder_Initialise(clownmdemu->state.low_pass_filters.psg, CC_COUNT_OF(clownmdemu->state.low_pass_filters.psg));
 	LowPassFilter_SecondOrder_Initialise(clownmdemu->state.low_pass_filters.pcm, CC_COUNT_OF(clownmdemu->state.low_pass_filters.pcm));
+}
+
+void ClownMDEmu_Initialise(ClownMDEmu* const clownmdemu, const ClownMDEmu_InitialConfiguration* const configuration, const ClownMDEmu_Callbacks* const callbacks)
+{
+	clownmdemu->callbacks = callbacks;
+	clownmdemu->cartridge_buffer = NULL;
+	clownmdemu->cartridge_buffer_length = 0;
+
+	clownmdemu->configuration = configuration->general;
+	clownmdemu->vdp.configuration = configuration->vdp;
+	clownmdemu->fm.configuration = configuration->fm;
+	clownmdemu->psg.configuration = configuration->psg;
+	clownmdemu->mega_cd.pcm.configuration = configuration->pcm;
+
+	ClownMDEmu_State_Initialise(clownmdemu);
 }
 
 /* Very useful H-Counter/V-Counter information:
@@ -410,7 +419,7 @@ void ClownMDEmu_SetCartridge(ClownMDEmu* const clownmdemu, const cc_u16l* const 
 	clownmdemu->cartridge_buffer_length = buffer_length;
 }
 
-void ClownMDEmu_Reset(ClownMDEmu* const clownmdemu, const cc_bool cartridge_inserted, const cc_bool cd_inserted)
+void ClownMDEmu_SoftReset(ClownMDEmu* const clownmdemu, const cc_bool cartridge_inserted, const cc_bool cd_inserted)
 {
 	ClownMDEmu_State* const state = &clownmdemu->state;
 
@@ -473,6 +482,12 @@ void ClownMDEmu_Reset(ClownMDEmu* const clownmdemu, const cc_bool cartridge_inse
 	m68k_read_write_callbacks.read_callback = MCDM68kReadCallback;
 	m68k_read_write_callbacks.write_callback = MCDM68kWriteCallback;
 	Clown68000_Reset(&clownmdemu->mega_cd.m68k, &m68k_read_write_callbacks);
+}
+
+void ClownMDEmu_HardReset(ClownMDEmu* const clownmdemu, const cc_bool cartridge_inserted, const cc_bool cd_inserted)
+{
+	ClownMDEmu_State_Initialise(clownmdemu);
+	ClownMDEmu_SoftReset(clownmdemu, cartridge_inserted, cd_inserted);
 }
 
 void ClownMDEmu_SetLogCallback(const ClownMDEmu_LogCallback log_callback, const void* const user_data)

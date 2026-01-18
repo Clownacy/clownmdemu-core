@@ -87,7 +87,7 @@ typedef struct PSG
 
 /* Initialises the PSG struct with sane default values. */
 /* All channels will be muted. */
-void PSG_Initialise(PSG *psg, const PSG_Configuration *configuration);
+void PSG_Initialise(PSG *psg);
 
 /* Processes a command. */
 /* See https://www.smspower.org/Development/SN76489 for an explanation of the various commands. */

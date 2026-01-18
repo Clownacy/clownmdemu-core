@@ -869,7 +869,7 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 								SyncZ80(clownmdemu, callback_user_data, target_cycle);
 								ClownZ80_Reset(&clownmdemu->z80);
 								/* TODO: Add a proper reset function? */
-								FM_Initialise(&clownmdemu->fm, &clownmdemu->fm.configuration);
+								FM_Initialise(&clownmdemu->fm);
 							}
 
 							clownmdemu->state.z80.reset_held = new_reset_held;
