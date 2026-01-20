@@ -566,12 +566,17 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 				case 8 / 2:
 				{
 					/* H/V COUNTER */
-					/* TODO: The V counter emulation is incredibly inaccurate: the timing is likely wrong, and it should be incremented while in the blanking areas too. */
-					/* TODO: Apparently in interlace mode 1, the lowest bit of the V-counter is set to the hidden ninth bit. */
 					const cc_u8f h_counter = GetHCounterValue(clownmdemu, target_cycle);
+
+					/* Lemmings 2 relies on this, or it will not boot. This is due to setting H-Int to every other line,
+					   and then waiting for an odd-numbered line. */
+					const cc_u8f v_counter_raw = clownmdemu->state.current_scanline - 1;
+
+					/* TODO: Apparently, in interlace mode 1, the lowest bit of the V-counter is set to the hidden ninth bit. */
 					const cc_u8f v_counter = clownmdemu->vdp.state.double_resolution_enabled
-						? ((clownmdemu->state.current_scanline & 0x7F) << 1) | ((clownmdemu->state.current_scanline & 0x80) >> 7)
-						: (clownmdemu->state.current_scanline & 0xFF);
+						? ((v_counter_raw & 0x7F) << 1) | ((v_counter_raw & 0x80) >> 7)
+						: (v_counter_raw & 0xFF);
+
 					value = v_counter << 8 | h_counter;
 					break;
 				}
