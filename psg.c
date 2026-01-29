@@ -199,24 +199,14 @@ void PSG_Update(PSG* const psg, cc_s16l* const sample_buffer, const size_t total
 			if (psg->state.noise.countdown == 0)
 			{
 				/* Reset the countdown. */
-				switch (psg->state.noise.frequency_mode)
+				if (psg->state.noise.frequency_mode == 3)
 				{
-					case 0:
-						psg->state.noise.countdown = 0x10;
-						break;
-
-					case 1:
-						psg->state.noise.countdown = 0x20;
-						break;
-
-					case 2:
-						psg->state.noise.countdown = 0x40;
-						break;
-
-					case 3:
 						/* Use the last tone channel's frequency. */
 						psg->state.noise.countdown = psg->state.tones[CC_COUNT_OF(psg->state.tones) - 1].countdown_master;
-						break;
+				}
+				else
+				{
+						psg->state.noise.countdown = 0x10 << psg->state.noise.frequency_mode;
 				}
 
 				psg->state.noise.fake_output_bit = !psg->state.noise.fake_output_bit;
