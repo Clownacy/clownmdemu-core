@@ -311,6 +311,7 @@ void ClownMDEmu_LoadState(ClownMDEmu *clownmdemu, const ClownMDEmu_StateBackup *
 #include <cstdarg>
 #include <cstddef>
 #include <cstdio>
+#include <array>
 #include <functional>
 #include <string>
 #include <type_traits>
@@ -329,6 +330,12 @@ namespace ClownMDEmuCXX
 		};
 
 		inline Constant constant;
+
+		template<typename T, std::size_t S>
+		auto& CArrayAsStdArray(T (&array)[S])
+		{
+			return *reinterpret_cast<std::array<T, S>*>(array);
+		}
 	}
 
 	template<typename Derived>
@@ -670,7 +677,7 @@ namespace ClownMDEmuCXX
 
 		[[nodiscard]] auto& GetExternalRAM()
 		{
-			return state.external_ram.buffer;
+			return Internal::CArrayAsStdArray(state.external_ram.buffer);
 		}
 
 		/*****************/
