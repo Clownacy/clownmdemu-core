@@ -150,6 +150,7 @@ void ClownMDEmu_Initialise(ClownMDEmu* const clownmdemu, const ClownMDEmu_Initia
 	clownmdemu->fm.configuration = configuration->fm;
 	clownmdemu->psg.configuration = configuration->psg;
 	clownmdemu->mega_cd.pcm.configuration = configuration->pcm;
+	clownmdemu->mega_cd.cdda.configuration = configuration->cdda;
 
 	ClownMDEmu_State_Initialise(clownmdemu);
 }
@@ -508,7 +509,7 @@ void ClownMDEmu_SaveState(const ClownMDEmu* const clownmdemu, ClownMDEmu_StateBa
 
 	backup->mega_cd.m68k = clownmdemu->mega_cd.m68k;
 	backup->mega_cd.cdc = clownmdemu->mega_cd.cdc;
-	backup->mega_cd.cdda = clownmdemu->mega_cd.cdda;
+	backup->mega_cd.cdda = clownmdemu->mega_cd.cdda.state;
 	backup->mega_cd.pcm = clownmdemu->mega_cd.pcm.state;
 }
 
@@ -524,6 +525,6 @@ void ClownMDEmu_LoadState(ClownMDEmu* const clownmdemu, const ClownMDEmu_StateBa
 
 	clownmdemu->mega_cd.m68k = backup->mega_cd.m68k;
 	clownmdemu->mega_cd.cdc = backup->mega_cd.cdc;
-	clownmdemu->mega_cd.cdda = backup->mega_cd.cdda;
+	clownmdemu->mega_cd.cdda.state = backup->mega_cd.cdda;
 	clownmdemu->mega_cd.pcm.state = backup->mega_cd.pcm;
 }

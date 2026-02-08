@@ -120,6 +120,7 @@ typedef struct ClownMDEmu_InitialConfiguration
 	FM_Configuration fm;
 	PSG_Configuration psg;
 	PCM_Configuration pcm;
+	CDDA_Configuration cdda;
 } ClownMDEmu_InitialConfiguration;
 
 typedef struct ClownMDEmu_State
@@ -261,7 +262,7 @@ typedef struct ClownMDEmu
 	{
 		Clown68000_State m68k;
 		CDC_State cdc;
-		CDDA_State cdda;
+		CDDA cdda;
 		PCM pcm;
 	} mega_cd;
 
@@ -388,6 +389,8 @@ namespace ClownMDEmuCXX
 		CLOWNMDEMU_CONFIGURATION_GETTER_SETTER_NOT(PSG2Enabled, psg.tone_disabled[1])
 		CLOWNMDEMU_CONFIGURATION_GETTER_SETTER_NOT(PSG3Enabled, psg.tone_disabled[2])
 		CLOWNMDEMU_CONFIGURATION_GETTER_SETTER_NOT(PSGNoiseEnabled, psg.noise_disabled)
+
+		CLOWNMDEMU_CONFIGURATION_GETTER_SETTER_NOT(CDDAEnabled, cdda.disabled)
 
 		CLOWNMDEMU_CONFIGURATION_GETTER_SETTER_NOT(PCM1Enabled, pcm.channels_disabled[0])
 		CLOWNMDEMU_CONFIGURATION_GETTER_SETTER_NOT(PCM2Enabled, pcm.channels_disabled[1])
@@ -667,7 +670,7 @@ namespace ClownMDEmuCXX
 
 		[[nodiscard]] const auto& GetCDDAState() const
 		{
-			return mega_cd.cdda;
+			return mega_cd.cdda.state;
 		}
 
 		[[nodiscard]] const auto& GetPCMState() const
@@ -709,6 +712,8 @@ namespace ClownMDEmuCXX
 		CLOWNMDEMU_CONFIGURATION_GETTER_SETTER_NOT(PSG2Enabled, psg.configuration.tone_disabled[1])
 		CLOWNMDEMU_CONFIGURATION_GETTER_SETTER_NOT(PSG3Enabled, psg.configuration.tone_disabled[2])
 		CLOWNMDEMU_CONFIGURATION_GETTER_SETTER_NOT(PSGNoiseEnabled, psg.configuration.noise_disabled)
+
+		CLOWNMDEMU_CONFIGURATION_GETTER_SETTER_NOT(CDDAEnabled, mega_cd.cdda.configuration.disabled)
 
 		CLOWNMDEMU_CONFIGURATION_GETTER_SETTER_NOT(PCM1Enabled, mega_cd.pcm.configuration.channels_disabled[0])
 		CLOWNMDEMU_CONFIGURATION_GETTER_SETTER_NOT(PCM2Enabled, mega_cd.pcm.configuration.channels_disabled[1])
