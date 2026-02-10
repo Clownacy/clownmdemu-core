@@ -207,6 +207,7 @@ void ClownMDEmu_Iterate(ClownMDEmu* const clownmdemu)
 	const cc_u16f cycles_until_horizontal_sync = CyclesUntilHorizontalSync(clownmdemu);
 	const CycleMegaCD cycles_per_frame_mega_cd = MakeCycleMegaCD(clownmdemu->configuration.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(CLOWNMDEMU_MCD_MASTER_CLOCK) : CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(CLOWNMDEMU_MCD_MASTER_CLOCK));
 
+	CycleMegaDrive current_mega_drive_cycle = MakeCycleMegaDrive(0);
 	CPUCallbackUserData cpu_callback_user_data;
 	cc_u8f h_int_counter;
 	cc_u8f i;
@@ -227,88 +228,31 @@ void ClownMDEmu_Iterate(ClownMDEmu* const clownmdemu)
 	for (i = 0; i < CC_COUNT_OF(cpu_callback_user_data.sync.io_ports); ++i)
 		cpu_callback_user_data.sync.io_ports[i].current_cycle = 0;
 
-	/* Reload H-Int counter at the top of the screen, just like real hardware does */
-	h_int_counter = clownmdemu->vdp.state.h_int_interval;
+	/* We start at V-Int, to minimise input latency (games tend to read the control pads during V-Int). */
+	state->current_scanline = console_vertical_resolution;
+	clownmdemu->vdp.state.currently_in_vblank = cc_true;
 
-	clownmdemu->vdp.state.currently_in_vblank = cc_false;
+	/* Do V-Int. */
+	state->m68k.v_int_pending = cc_true;
+	RaiseVerticalInterruptIfNeeded(clownmdemu);
 
-	for (state->current_scanline = 0; state->current_scanline < television_vertical_resolution; ++state->current_scanline)
+	/* According to Charles MacDonald's gen-hw.txt, this occurs regardless of the 'v_int_enabled' setting. */
+	ClownZ80_Interrupt(&clownmdemu->z80, cc_true);
+
+	/* Assert the Z80 interrupt for a whole scanline. This has the side-effect of causing a second interrupt to occur if the handler exits quickly. */
+	/* TODO: According to Vladikcomper, this interrupt should be asserted for roughly 171 Z80 cycles. */
+	current_mega_drive_cycle.cycle += cycles_per_scanline;
+	SyncM68k(clownmdemu, &cpu_callback_user_data, current_mega_drive_cycle);
+	SyncZ80(clownmdemu, &cpu_callback_user_data, current_mega_drive_cycle);
+	ClownZ80_Interrupt(&clownmdemu->z80, cc_false);
+
+	++state->current_scanline;
+
+	for (; state->current_scanline < television_vertical_resolution; ++state->current_scanline)
 	{
-		const cc_u16f scanline = state->current_scanline;
-		const CycleMegaDrive current_cycle_minus_horizontal_sync = MakeCycleMegaDrive(cycles_per_scanline * scanline + cycles_until_horizontal_sync);
-		const CycleMegaDrive current_cycle = MakeCycleMegaDrive(cycles_per_scanline * (1 + scanline));
-
-		/* Sync the 68k, since it's the one thing that can influence the VDP */
-		SyncM68k(clownmdemu, &cpu_callback_user_data, current_cycle_minus_horizontal_sync);
-
-		if (scanline < console_vertical_resolution)
-		{
-			/* Fire a H-Int if we've reached the requested line */
-			/* TODO: There is some strange behaviour surrounding how H-Int is asserted. */
-			/* https://gendev.spritesmind.net/forum/viewtopic.php?t=183 */
-			/* TODO: The interrupt should occur at the START of H-Blank, not the end. */
-			/* Lemmings 2 appears to rely on this so that the V-counter is 1 less than it would otherwise be, or else the game will not boot. */
-			/* http://gendev.spritesmind.net/forum/viewtopic.php?t=388&start=45 */
-			/* TODO: Timing info here: */
-			/* http://gendev.spritesmind.net/forum/viewtopic.php?p=8201#p8201 */
-			/* http://gendev.spritesmind.net/forum/viewtopic.php?p=8443#p8443 */
-			/* http://gendev.spritesmind.net/forum/viewtopic.php?t=3058 */
-			/* http://gendev.spritesmind.net/forum/viewtopic.php?t=519 */
-			if (h_int_counter-- == 0)
-			{
-				h_int_counter = clownmdemu->vdp.state.h_int_interval;
-
-				/* Do H-Int */
-				state->m68k.h_int_pending = cc_true;
-				RaiseHorizontalInterruptIfNeeded(clownmdemu);
-			}
-		}
-
-		SyncM68k(clownmdemu, &cpu_callback_user_data, current_cycle);
-
-		/* Only render scanlines and generate H-Ints for scanlines that the console outputs to */
-		if (scanline < console_vertical_resolution)
-		{
-			if (clownmdemu->vdp.state.double_resolution_enabled)
-			{
-				VDP_RenderScanline(&clownmdemu->vdp, scanline * 2 + 0, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
-				VDP_RenderScanline(&clownmdemu->vdp, scanline * 2 + 1, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
-			}
-			else
-			{
-				VDP_RenderScanline(&clownmdemu->vdp, scanline, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
-			}
-		}
-		else if (scanline == console_vertical_resolution) /* Check if we have reached the end of the console-output scanlines */
-		{
-			/* Do V-Int */
-			state->m68k.v_int_pending = cc_true;
-			RaiseVerticalInterruptIfNeeded(clownmdemu);
-
-			/* According to Charles MacDonald's gen-hw.txt, this occurs regardless of the 'v_int_enabled' setting. */
-			SyncZ80(clownmdemu, &cpu_callback_user_data, current_cycle);
-			ClownZ80_Interrupt(&clownmdemu->z80, cc_true);
-
-			/* Flag that we have entered the V-blank region */
-			clownmdemu->vdp.state.currently_in_vblank = cc_true;
-		}
-		else if (scanline == console_vertical_resolution + 1)
-		{
-			/* Assert the Z80 interrupt for a whole scanline. This has the side-effect of causing a second interrupt to occur if the handler exits quickly. */
-			/* TODO: According to Vladikcomper, this interrupt should be asserted for roughly 171 Z80 cycles. */
-			SyncZ80(clownmdemu, &cpu_callback_user_data, current_cycle);
-			ClownZ80_Interrupt(&clownmdemu->z80, cc_false);
-		}
+		current_mega_drive_cycle.cycle += cycles_per_scanline;
+		SyncM68k(clownmdemu, &cpu_callback_user_data, current_mega_drive_cycle);
 	}
-
-	/* Update everything for the rest of the frame. */
-	SyncM68k(clownmdemu, &cpu_callback_user_data, cycles_per_frame_mega_drive);
-	SyncZ80(clownmdemu, &cpu_callback_user_data, cycles_per_frame_mega_drive);
-	SyncMCDM68k(clownmdemu, &cpu_callback_user_data, cycles_per_frame_mega_cd);
-	SyncFM(&cpu_callback_user_data, cycles_per_frame_mega_drive);
-	SyncPSG(&cpu_callback_user_data, cycles_per_frame_mega_drive);
-	SyncPCM(&cpu_callback_user_data, cycles_per_frame_mega_cd);
-	SyncCDDA(&cpu_callback_user_data, clownmdemu->configuration.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(44100) : CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(44100));
 
 	/* Fire IRQ1 if needed. */
 	/* TODO: This is a hack. Look into when this interrupt should actually be done. */
@@ -320,6 +264,65 @@ void ClownMDEmu_Iterate(ClownMDEmu* const clownmdemu)
 
 	/* TODO: This should be done 75 times a second (in sync with the CDD interrupt), not 60! */
 	CDDA_UpdateFade(&clownmdemu->mega_cd.cdda);
+
+	/* Reload H-Int counter at the top of the screen, just like real hardware does. */
+	h_int_counter = clownmdemu->vdp.state.h_int_interval;
+
+	clownmdemu->vdp.state.currently_in_vblank = cc_false;
+	state->current_scanline = 0;
+
+	for (; state->current_scanline < console_vertical_resolution; ++state->current_scanline)
+	{
+		const cc_u16f scanline = state->current_scanline;
+
+		current_mega_drive_cycle.cycle += cycles_until_horizontal_sync;
+
+		/* Sync the 68k, since it's the one thing that can influence the VDP. */
+		SyncM68k(clownmdemu, &cpu_callback_user_data, current_mega_drive_cycle);
+
+		/* Fire a H-Int if we've reached the requested line */
+		/* TODO: There is some strange behaviour surrounding how H-Int is asserted. */
+		/* https://gendev.spritesmind.net/forum/viewtopic.php?t=183 */
+		/* TODO: The interrupt should occur at the START of H-Blank, not the end. */
+		/* Lemmings 2 appears to rely on this so that the V-counter is 1 less than it would otherwise be, or else the game will not boot. */
+		/* http://gendev.spritesmind.net/forum/viewtopic.php?t=388&start=45 */
+		/* TODO: Timing info here: */
+		/* http://gendev.spritesmind.net/forum/viewtopic.php?p=8201#p8201 */
+		/* http://gendev.spritesmind.net/forum/viewtopic.php?p=8443#p8443 */
+		/* http://gendev.spritesmind.net/forum/viewtopic.php?t=3058 */
+		/* http://gendev.spritesmind.net/forum/viewtopic.php?t=519 */
+		if (h_int_counter-- == 0)
+		{
+			h_int_counter = clownmdemu->vdp.state.h_int_interval;
+
+			/* Do H-Int. */
+			state->m68k.h_int_pending = cc_true;
+			RaiseHorizontalInterruptIfNeeded(clownmdemu);
+		}
+
+		current_mega_drive_cycle.cycle += cycles_per_scanline - cycles_until_horizontal_sync;
+
+		SyncM68k(clownmdemu, &cpu_callback_user_data, current_mega_drive_cycle);
+
+		if (clownmdemu->vdp.state.double_resolution_enabled)
+		{
+			VDP_RenderScanline(&clownmdemu->vdp, scanline * 2 + 0, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
+			VDP_RenderScanline(&clownmdemu->vdp, scanline * 2 + 1, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
+		}
+		else
+		{
+			VDP_RenderScanline(&clownmdemu->vdp, scanline, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
+		}
+	}
+
+	/* Update everything for the rest of the frame. */
+	SyncM68k(clownmdemu, &cpu_callback_user_data, cycles_per_frame_mega_drive);
+	SyncZ80(clownmdemu, &cpu_callback_user_data, cycles_per_frame_mega_drive);
+	SyncMCDM68k(clownmdemu, &cpu_callback_user_data, cycles_per_frame_mega_cd);
+	SyncFM(&cpu_callback_user_data, cycles_per_frame_mega_drive);
+	SyncPSG(&cpu_callback_user_data, cycles_per_frame_mega_drive);
+	SyncPCM(&cpu_callback_user_data, cycles_per_frame_mega_cd);
+	SyncCDDA(&cpu_callback_user_data, clownmdemu->configuration.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(44100) : CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(44100));
 }
 
 static cc_u16f ReadCartridgeWord(const ClownMDEmu* const clownmdemu, const cc_u32f address)
