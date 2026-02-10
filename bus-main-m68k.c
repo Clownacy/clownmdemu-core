@@ -819,7 +819,7 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 								parameters.frontend_callbacks = frontend_callbacks;
 								parameters.joypad_index = joypad_index;
 
-								IOPort_WriteData(&clownmdemu->state.io_ports[joypad_index], low_byte, CLOWNMDEMU_MASTER_CLOCK_NTSC / 1000000, write_callback, &parameters);
+								IOPort_WriteData(&clownmdemu->state.io_ports[joypad_index], low_byte, SyncCommon(&callback_user_data->sync.io_ports[joypad_index], target_cycle.cycle, CLOWNMDEMU_MASTER_CLOCK_NTSC / 1000000), write_callback, &parameters);
 							}
 
 							break;
