@@ -323,6 +323,8 @@ void ClownMDEmu_Iterate(ClownMDEmu* const clownmdemu)
 	SyncPSG(&cpu_callback_user_data, cycles_per_frame_mega_drive);
 	SyncPCM(&cpu_callback_user_data, cycles_per_frame_mega_cd);
 	SyncCDDA(&cpu_callback_user_data, clownmdemu->configuration.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(44100) : CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(44100));
+	for (i = 0; i < CC_COUNT_OF(cpu_callback_user_data.sync.io_ports); ++i)
+		SyncIOPort(&cpu_callback_user_data, cycles_per_frame_mega_drive, i);
 }
 
 static cc_u16f ReadCartridgeWord(const ClownMDEmu* const clownmdemu, const cc_u32f address)
