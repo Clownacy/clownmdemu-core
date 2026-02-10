@@ -199,7 +199,6 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 	ClownMDEmu* const clownmdemu = callback_user_data->clownmdemu;
-	const ClownMDEmu_Callbacks* const frontend_callbacks = clownmdemu->callbacks;
 	const cc_u32f address = address_word * 2;
 
 	/* TODO: Check if this is the correct value. */
