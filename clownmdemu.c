@@ -229,7 +229,7 @@ void ClownMDEmu_Iterate(ClownMDEmu* const clownmdemu)
 		cpu_callback_user_data.sync.io_ports[i].current_cycle = 0;
 
 	/* We start at V-Int, to minimise input latency (games tend to read the control pads during V-Int). */
-	state->current_scanline = console_vertical_resolution;
+	state->current_scanline = console_vertical_resolution + 1;
 	clownmdemu->vdp.state.currently_in_vblank = cc_true;
 
 	/* Do V-Int. */
@@ -271,7 +271,8 @@ void ClownMDEmu_Iterate(ClownMDEmu* const clownmdemu)
 	clownmdemu->vdp.state.currently_in_vblank = cc_false;
 	state->current_scanline = 0;
 
-	for (; state->current_scanline < console_vertical_resolution; ++state->current_scanline)
+	/* '+1' because line 225 is a valid line to fire H-INT at, and V-INT apparently occurs at the end of it too. */
+	for (; state->current_scanline < console_vertical_resolution + 1; ++state->current_scanline)
 	{
 		const cc_u16f scanline = state->current_scanline;
 
