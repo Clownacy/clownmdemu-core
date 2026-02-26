@@ -536,7 +536,7 @@ static void RenderWindowPlane(const VDP* const vdp, const cc_u8f start, const cc
 	const cc_u8f plane_width_bitmask = (1 << plane_pitch_shift) - 1;
 
 	const cc_u32f vram_address_base = state->window_address + (tile_y << plane_pitch_shift) * 2;
-	const cc_u16f tile_x_base = (start * TILE_PAIR_COUNT - WIDESCREEN_X_OFFSET_TILES(vdp)) & plane_width_bitmask;
+	const cc_u16f tile_x_base = (0 - WIDESCREEN_X_OFFSET_TILES(vdp)) & plane_width_bitmask;
 
 	cc_u8l *metapixels_pointer = &metapixels[start * TILE_PAIR_WIDTH];
 
