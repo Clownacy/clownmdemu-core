@@ -26,6 +26,14 @@ static cc_u8f ControllerManager_ControllerRead(ControllerManager* const manager,
 	return Controller_Read(&manager->state.controllers[controller_index], ControllerManager_ControllerCallback, &controller_user_data);
 }
 
+static void ControllerManager_DoMicroseconds(ControllerManager* const manager, const cc_u16f microseconds)
+{
+	unsigned int i;
+
+	for (i = 0; i < CC_COUNT_OF(manager->state.controllers); ++i)
+		Controller_DoMicroseconds(&manager->state.controllers[i], microseconds);
+}
+
 void ControllerManager_Initialise(ControllerManager* const manager)
 {
 	unsigned int i;
@@ -50,17 +58,11 @@ cc_u8f ControllerManager_Read(ControllerManager* const manager, const cc_u8f por
 			switch (port_index)
 			{
 				case 0:
-					if (manager->state.ea_4_way_play.selected_controller <= 3)
-					{
-						unsigned int i;
+					if (manager->state.ea_4_way_play.selected_controller > 3)
+						return 0x7C; /* Identifier. */
 
-						for (i = 0; i < CC_COUNT_OF(manager->state.controllers); ++i)
-							Controller_DoMicroseconds(&manager->state.controllers[i], microseconds);
-
-						return ControllerManager_ControllerRead(manager, manager->state.ea_4_way_play.selected_controller, callback, user_data);
-					}
-
-					return 0x7C; /* Identifier. */
+					ControllerManager_DoMicroseconds(manager, microseconds);
+					return ControllerManager_ControllerRead(manager, manager->state.ea_4_way_play.selected_controller, callback, user_data);
 
 				case 1:
 					/* No idea, mate. */
@@ -90,17 +92,9 @@ void ControllerManager_Write(ControllerManager* const manager, const cc_u8f port
 			switch (port_index)
 			{
 				case 0:
-				{
-					unsigned int i;
-
-					for (i = 0; i < CC_COUNT_OF(manager->state.controllers); ++i)
-					{
-						Controller_DoMicroseconds(&manager->state.controllers[i], microseconds);
-						Controller_Write(&manager->state.controllers[i], value);
-					}
-
+					ControllerManager_DoMicroseconds(manager, microseconds);
+					Controller_Write(&manager->state.controllers[manager->state.ea_4_way_play.selected_controller], value);
 					break;
-				}
 
 				case 1:
 					manager->state.ea_4_way_play.selected_controller = (value >> 4) & 7;
