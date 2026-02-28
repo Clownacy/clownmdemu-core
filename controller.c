@@ -2,19 +2,6 @@
 
 #include <string.h>
 
-static void Controller_DoMicroseconds(Controller* const controller, const cc_u16f microseconds)
-{
-	if (controller->countdown >= microseconds)
-	{
-		controller->countdown -= microseconds;
-	}
-	else
-	{
-		controller->countdown = 0;
-		controller->strobes = 0;
-	}
-}
-
 static cc_bool Controller_GetButtonBit(const Controller_Callback callback, const void *user_data, const Controller_Button button)
 {
 	return !callback((void*)user_data, button);
@@ -25,10 +12,8 @@ void Controller_Initialise(Controller* const controller)
 	memset(controller, 0, sizeof(*controller));
 }
 
-cc_u8f Controller_Read(Controller* const controller, const cc_u16f microseconds, const Controller_Callback callback, const void *user_data)
+cc_u8f Controller_Read(Controller* const controller, const Controller_Callback callback, const void *user_data)
 {
-	Controller_DoMicroseconds(controller, microseconds);
-
 	if (controller->th_bit)
 	{
 		switch (controller->strobes)
@@ -72,11 +57,9 @@ cc_u8f Controller_Read(Controller* const controller, const cc_u16f microseconds,
 	}
 }
 
-void Controller_Write(Controller* const controller, const cc_u8f value, const cc_u16f microseconds)
+void Controller_Write(Controller* const controller, const cc_u8f value)
 {
 	const cc_bool new_th_bit = (value & 0x40) != 0;
-
-	Controller_DoMicroseconds(controller, microseconds);
 
 	/* TODO: The 1us latch time! Doesn't Decap Attack rely on that? */
 	if (new_th_bit && !controller->th_bit)
@@ -86,4 +69,17 @@ void Controller_Write(Controller* const controller, const cc_u8f value, const cc
 	}
 
 	controller->th_bit = new_th_bit;
+}
+
+void Controller_DoMicroseconds(Controller* const controller, const cc_u16f microseconds)
+{
+	if (controller->countdown >= microseconds)
+	{
+		controller->countdown -= microseconds;
+	}
+	else
+	{
+		controller->countdown = 0;
+		controller->strobes = 0;
+	}
 }

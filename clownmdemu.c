@@ -50,6 +50,7 @@ static void ClownMDEmu_State_Initialise(ClownMDEmu* const clownmdemu)
 {
 	cc_u16f i;
 
+	ControllerManager_Initialise(&clownmdemu->controller_manager);
 	ClownZ80_State_Initialise(&clownmdemu->z80);
 	VDP_Initialise(&clownmdemu->vdp);
 	FM_Initialise(&clownmdemu->fm);
@@ -76,8 +77,6 @@ static void ClownMDEmu_State_Initialise(ClownMDEmu* const clownmdemu)
 	/* The standard Sega SDK bootcode uses this to detect soft-resets. */
 	for (i = 0; i < CC_COUNT_OF(clownmdemu->state.io_ports); ++i)
 		IOPort_Initialise(&clownmdemu->state.io_ports[i]);
-
-	ControllerManager_Initialise(&clownmdemu->state.controller_manager);
 
 	/* Reset some external RAM state, but preserve the buffer so
 	   that external RAM is not cleared by hard resets. */
@@ -145,6 +144,7 @@ void ClownMDEmu_Initialise(ClownMDEmu* const clownmdemu, const ClownMDEmu_Initia
 	clownmdemu->cartridge_buffer_length = 0;
 
 	clownmdemu->configuration = configuration->general;
+	clownmdemu->controller_manager.configuration = configuration->controller_manager;
 	clownmdemu->vdp.configuration = configuration->vdp;
 	clownmdemu->fm.configuration = configuration->fm;
 	clownmdemu->psg.configuration = configuration->psg;

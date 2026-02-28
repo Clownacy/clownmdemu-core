@@ -88,12 +88,11 @@ static cc_u32f GetBankedCartridgeAddress(const ClownMDEmu* const clownmdemu, con
 	return clownmdemu->state.cartridge_bankswitch[bank_index] * bank_size + bank_offset;
 }
 
-static cc_bool FrontendControllerCallback(void* const user_data, const Controller_Button button)
+static cc_bool FrontendControllerCallback(void* const user_data, const cc_u8f controller_index, const Controller_Button button)
 {
 	ClownMDEmu_Button frontend_button;
 
-	const IOPortToController_Parameters* const parameters = (const IOPortToController_Parameters*)user_data;
-	const ClownMDEmu_Callbacks* const frontend_callbacks = parameters->clownmdemu->callbacks;
+	const ClownMDEmu_Callbacks* const frontend_callbacks = (const ClownMDEmu_Callbacks*)user_data;
 
 	switch (button)
 	{
@@ -150,7 +149,7 @@ static cc_bool FrontendControllerCallback(void* const user_data, const Controlle
 			return cc_false;
 	}
 
-	return frontend_callbacks->input_requested((void*)frontend_callbacks->user_data, parameters->joypad_index, frontend_button);
+	return frontend_callbacks->input_requested((void*)frontend_callbacks->user_data, controller_index, frontend_button);
 }
 
 static cc_u8f IOPortToController_ReadCallback(void* const user_data, const cc_u16f cycles)
@@ -158,7 +157,7 @@ static cc_u8f IOPortToController_ReadCallback(void* const user_data, const cc_u1
 	const IOPortToController_Parameters *parameters = (const IOPortToController_Parameters*)user_data;
 	ClownMDEmu* const clownmdemu = parameters->clownmdemu;
 
-	return ControllerManager_Read(&clownmdemu->state.controller_manager, parameters->joypad_index, cycles, FrontendControllerCallback, parameters);
+	return ControllerManager_Read(&clownmdemu->controller_manager, parameters->joypad_index, cycles, FrontendControllerCallback, clownmdemu->callbacks);
 }
 
 static void IOPortToController_WriteCallback(void* const user_data, const cc_u8f value, const cc_u16f cycles)
@@ -166,7 +165,7 @@ static void IOPortToController_WriteCallback(void* const user_data, const cc_u8f
 	const IOPortToController_Parameters *parameters = (const IOPortToController_Parameters*)user_data;
 	ClownMDEmu* const clownmdemu = parameters->clownmdemu;
 
-	ControllerManager_Write(&clownmdemu->state.controller_manager, parameters->joypad_index, value, cycles);
+	ControllerManager_Write(&clownmdemu->controller_manager, parameters->joypad_index, value, cycles);
 }
 
 cc_u8f SyncIOPortAndRead(CPUCallbackUserData* const callback_user_data, const CycleMegaDrive target_cycle, const cc_u16f joypad_index)

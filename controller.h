@@ -30,7 +30,8 @@ typedef struct Controller
 } Controller;
 
 void Controller_Initialise(Controller *controller);
-cc_u8f Controller_Read(Controller *controller, cc_u16f microseconds, Controller_Callback callback, const void *user_data);
-void Controller_Write(Controller *controller, cc_u8f value, cc_u16f microseconds);
+cc_u8f Controller_Read(Controller *controller, Controller_Callback callback, const void *user_data);
+void Controller_Write(Controller *controller, cc_u8f value);
+void Controller_DoMicroseconds(Controller *controller, cc_u16f microseconds);
 
 #endif /* CONTROLLER_H */

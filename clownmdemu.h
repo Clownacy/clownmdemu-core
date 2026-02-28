@@ -116,6 +116,7 @@ typedef struct ClownMDEmu_Configuration
 typedef struct ClownMDEmu_InitialConfiguration
 {
 	ClownMDEmu_Configuration general;
+	ControllerManager_Configuration controller_manager;
 	VDP_Configuration vdp;
 	FM_Configuration fm;
 	PSG_Configuration psg;
@@ -141,7 +142,6 @@ typedef struct ClownMDEmu_State
 	} z80;
 
 	IOPort io_ports[3];
-	ControllerManager controller_manager;
 
 	struct
 	{
@@ -252,6 +252,7 @@ typedef struct ClownMDEmu
 	const cc_u16l *cartridge_buffer;
 	cc_u32l cartridge_buffer_length;
 
+	ControllerManager controller_manager;
 	Clown68000_State m68k;
 	ClownZ80_State z80;
 	VDP vdp;
@@ -369,6 +370,8 @@ namespace ClownMDEmuCXX
 		CLOWNMDEMU_CONFIGURATION_GETTER_SETTER_AS_IS(Region, general.region)
 		CLOWNMDEMU_CONFIGURATION_GETTER_SETTER_NOT(LowPassFilterEnabled, general.low_pass_filter_disabled)
 		CLOWNMDEMU_CONFIGURATION_GETTER_SETTER_AS_IS(CDAddOnEnabled, general.cd_add_on_enabled)
+
+		CLOWNMDEMU_CONFIGURATION_GETTER_SETTER_AS_IS(ControllerProtocol, controller_manager.protocol)
 
 		CLOWNMDEMU_CONFIGURATION_GETTER_SETTER_NOT(SpritePlaneEnabled, vdp.sprites_disabled)
 		CLOWNMDEMU_CONFIGURATION_GETTER_SETTER_NOT(WindowPlaneEnabled, vdp.window_disabled)
@@ -692,6 +695,8 @@ namespace ClownMDEmuCXX
 		CLOWNMDEMU_CONFIGURATION_GETTER_SETTER_AS_IS(Region, configuration.region)
 		CLOWNMDEMU_CONFIGURATION_GETTER_SETTER_NOT(LowPassFilterEnabled, configuration.low_pass_filter_disabled)
 		CLOWNMDEMU_CONFIGURATION_GETTER_SETTER_AS_IS(CDAddOnEnabled, configuration.cd_add_on_enabled)
+
+		CLOWNMDEMU_CONFIGURATION_GETTER_SETTER_AS_IS(ControllerProtocol, controller_manager.configuration.protocol)
 
 		CLOWNMDEMU_CONFIGURATION_GETTER_SETTER_NOT(SpritePlaneEnabled, vdp.configuration.sprites_disabled)
 		CLOWNMDEMU_CONFIGURATION_GETTER_SETTER_NOT(WindowPlaneEnabled, vdp.configuration.window_disabled)
