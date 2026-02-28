@@ -93,7 +93,7 @@ static cc_bool FrontendControllerCallback(void* const user_data, const Controlle
 	ClownMDEmu_Button frontend_button;
 
 	const IOPortToController_Parameters* const parameters = (const IOPortToController_Parameters*)user_data;
-	const ClownMDEmu_Callbacks* const frontend_callbacks = parameters->frontend_callbacks;
+	const ClownMDEmu_Callbacks* const frontend_callbacks = parameters->clownmdemu->callbacks;
 
 	switch (button)
 	{
@@ -156,15 +156,17 @@ static cc_bool FrontendControllerCallback(void* const user_data, const Controlle
 static cc_u8f IOPortToController_ReadCallback(void* const user_data, const cc_u16f cycles)
 {
 	const IOPortToController_Parameters *parameters = (const IOPortToController_Parameters*)user_data;
+	ClownMDEmu* const clownmdemu = parameters->clownmdemu;
 
-	return Controller_Read(parameters->controller, cycles, FrontendControllerCallback, parameters);
+	return ControllerManager_Read(&clownmdemu->state.controller_manager, parameters->joypad_index, cycles, FrontendControllerCallback, parameters);
 }
 
 static void IOPortToController_WriteCallback(void* const user_data, const cc_u8f value, const cc_u16f cycles)
 {
 	const IOPortToController_Parameters *parameters = (const IOPortToController_Parameters*)user_data;
+	ClownMDEmu* const clownmdemu = parameters->clownmdemu;
 
-	Controller_Write(parameters->controller, value, cycles);
+	ControllerManager_Write(&clownmdemu->state.controller_manager, parameters->joypad_index, value, cycles);
 }
 
 cc_u8f SyncIOPortAndRead(CPUCallbackUserData* const callback_user_data, const CycleMegaDrive target_cycle, const cc_u16f joypad_index)
@@ -174,8 +176,7 @@ cc_u8f SyncIOPortAndRead(CPUCallbackUserData* const callback_user_data, const Cy
 	ClownMDEmu* const clownmdemu = callback_user_data->clownmdemu;
 	const IOPort_ReadCallback read_callback = joypad_index < 2 ? IOPortToController_ReadCallback : NULL;
 
-	parameters.controller = &clownmdemu->state.controllers[joypad_index];
-	parameters.frontend_callbacks = clownmdemu->callbacks;
+	parameters.clownmdemu = clownmdemu;
 	parameters.joypad_index = joypad_index;
 
 	return IOPort_ReadData(&clownmdemu->state.io_ports[joypad_index], SyncCommon(&callback_user_data->sync.io_ports[joypad_index], target_cycle.cycle, CLOWNMDEMU_MASTER_CLOCK_NTSC / 1000000), read_callback, &parameters);
@@ -188,8 +189,7 @@ void SyncIOPortAndWrite(CPUCallbackUserData* const callback_user_data, const Cyc
 	ClownMDEmu* const clownmdemu = callback_user_data->clownmdemu;
 	const IOPort_WriteCallback write_callback = joypad_index < 2 ? IOPortToController_WriteCallback : NULL;
 
-	parameters.controller = &clownmdemu->state.controllers[joypad_index];
-	parameters.frontend_callbacks = clownmdemu->callbacks;
+	parameters.clownmdemu = clownmdemu;
 	parameters.joypad_index = joypad_index;
 
 	IOPort_WriteData(&clownmdemu->state.io_ports[joypad_index], value, SyncCommon(&callback_user_data->sync.io_ports[joypad_index], target_cycle.cycle, CLOWNMDEMU_MASTER_CLOCK_NTSC / 1000000), write_callback, &parameters);

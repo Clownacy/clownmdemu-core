@@ -9,7 +9,7 @@
 #include "cdc.h"
 #include "cdda.h"
 #include "clown68000/interpreter/clown68000.h"
-#include "controller.h"
+#include "controller-manager.h"
 #include "fm.h"
 #include "io-port.h"
 #include "low-pass-filter.h"
@@ -141,7 +141,7 @@ typedef struct ClownMDEmu_State
 	} z80;
 
 	IOPort io_ports[3];
-	Controller controllers[2];
+	ControllerManager controller_manager;
 
 	struct
 	{

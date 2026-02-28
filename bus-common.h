@@ -52,8 +52,7 @@ typedef struct CycleMegaCD
 /* TODO: Move this to somewhere more specific. */
 typedef struct IOPortToController_Parameters
 {
-	Controller *controller;
-	const ClownMDEmu_Callbacks *frontend_callbacks;
+	ClownMDEmu *clownmdemu;
 	cc_u8f joypad_index;
 } IOPortToController_Parameters;
 

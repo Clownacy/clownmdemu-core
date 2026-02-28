@@ -22,6 +22,8 @@ add_library(clownmdemu-core STATIC
 	"clownmdemu.h"
 	"controller.c"
 	"controller.h"
+	"controller-manager.c"
+	"controller-manager.h"
 	"fm.c"
 	"fm.h"
 	"fm-channel.c"

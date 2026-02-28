@@ -77,8 +77,7 @@ static void ClownMDEmu_State_Initialise(ClownMDEmu* const clownmdemu)
 	for (i = 0; i < CC_COUNT_OF(clownmdemu->state.io_ports); ++i)
 		IOPort_Initialise(&clownmdemu->state.io_ports[i]);
 
-	for (i = 0; i < CC_COUNT_OF(clownmdemu->state.controllers); ++i)
-		Controller_Initialise(&clownmdemu->state.controllers[i]);
+	ControllerManager_Initialise(&clownmdemu->state.controller_manager);
 
 	/* Reset some external RAM state, but preserve the buffer so
 	   that external RAM is not cleared by hard resets. */
