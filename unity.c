@@ -8,6 +8,7 @@
 #include "clownmdemu.c"
 #include "controller.c"
 #include "controller-manager.c"
+#include "controller-multitap.c"
 #include "fm.c"
 #include "fm-channel.c"
 #include "fm-lfo.c"

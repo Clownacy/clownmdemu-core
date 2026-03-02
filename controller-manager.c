@@ -42,6 +42,9 @@ void ControllerManager_Initialise(ControllerManager* const manager)
 		Controller_Initialise(&manager->state.controllers[i]);
 
 	manager->state.ea_4_way_play.selected_controller = 0;
+
+	for (i = 0; i < CC_COUNT_OF(manager->state.multitaps); ++i)
+		ControllerMultitap_Initialise(&manager->state.multitaps[i]);
 }
 
 cc_u8f ControllerManager_Read(ControllerManager* const manager, const cc_u8f port_index, const cc_u16f microseconds, const ControllerManager_Callback callback, const void* const user_data)
@@ -71,6 +74,9 @@ cc_u8f ControllerManager_Read(ControllerManager* const manager, const cc_u8f por
 			}
 
 			break;
+
+		case CONTROLLER_MANAGER_PROTOCOL_SEGA_TAP:
+			return ControllerMultitap_Read(&manager->state.multitaps[port_index], callback, user_data);
 	}
 
 	/* Just a placeholder fall-back value. */
@@ -101,6 +107,10 @@ void ControllerManager_Write(ControllerManager* const manager, const cc_u8f port
 					break;
 			}
 
+			break;
+
+		case CONTROLLER_MANAGER_PROTOCOL_SEGA_TAP:
+			ControllerMultitap_Write(&manager->state.multitaps[port_index], value);
 			break;
 	}
 }
