@@ -13,8 +13,8 @@ typedef struct ControllerMultitap
 	cc_u8l pulses;
 } ControllerMultitap;
 
-void ControllerTap_Initialise(ControllerMultitap *multitap);
-cc_u8f ControllerTap_Read(ControllerMultitap *multitap, ControllerMultitap_Callback callback, const void *user_data);
-void ControllerTap_Write(ControllerMultitap *multitap, cc_u8f value);
+void ControllerMultitap_Initialise(ControllerMultitap *multitap);
+cc_u8f ControllerMultitap_Read(ControllerMultitap *multitap, ControllerMultitap_Callback callback, const void *user_data);
+void ControllerMultitap_Write(ControllerMultitap *multitap, cc_u8f value);
 
 #endif /* CONTROLLER_MULTITAP_H */
