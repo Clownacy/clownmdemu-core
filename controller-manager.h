@@ -7,8 +7,8 @@
 typedef enum ControllerManager_Protocol
 {
 	CONTROLLER_MANAGER_PROTOCOL_STANDARD,
-	CONTROLLER_MANAGER_PROTOCOL_EA_4_WAY_PLAY,
-	CONTROLLER_MANAGER_PROTOCOL_SEGA_TAP
+	CONTROLLER_MANAGER_PROTOCOL_SEGA_TAP,
+	CONTROLLER_MANAGER_PROTOCOL_EA_4_WAY_PLAY
 } ControllerManager_Protocol;
 
 typedef ControllerMultitap_Callback ControllerManager_Callback;
