@@ -26,6 +26,8 @@ add_library(clownmdemu-core STATIC
 	"controller-manager.h"
 	"controller-multitap.c"
 	"controller-multitap.h"
+	"controller-multitap-ea.c"
+	"controller-multitap-ea.h"
 	"fm.c"
 	"fm.h"
 	"fm-channel.c"

@@ -3,6 +3,7 @@
 
 #include "controller.h"
 #include "controller-multitap.h"
+#include "controller-multitap-ea.h"
 
 typedef enum ControllerManager_Protocol
 {
@@ -20,11 +21,7 @@ typedef struct ControllerManager_Configuration
 
 typedef struct ControllerManager_State
 {
-	Controller controllers[4];
-	struct
-	{
-		cc_u8l selected_controller;
-	} ea_4_way_play;
+	ControllerMultitapEA ea_multitap;
 	ControllerMultitap multitaps[2];
 } ControllerManager_State;
 

@@ -9,6 +9,7 @@
 #include "controller.c"
 #include "controller-manager.c"
 #include "controller-multitap.c"
+#include "controller-multitap-ea.c"
 #include "fm.c"
 #include "fm-channel.c"
 #include "fm-lfo.c"
