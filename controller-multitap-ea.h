@@ -3,7 +3,7 @@
 
 #include "clowncommon/clowncommon.h"
 
-#include "controller-multitap.h"
+#include "controller-multitap-sega.h"
 
 typedef struct ControllerMultitapEA
 {
@@ -13,10 +13,10 @@ typedef struct ControllerMultitapEA
 
 void ControllerMultitapEA_Initialise(ControllerMultitapEA *multitap);
 
-cc_u8f ControllerMultitapEA_ReadPort(ControllerMultitapEA *multitap, cc_u8f port_index, cc_u16f microseconds, ControllerMultitap_Callback callback, const void *user_data);
+cc_u8f ControllerMultitapEA_ReadPort(ControllerMultitapEA *multitap, cc_u8f port_index, cc_u16f microseconds, ControllerMultitapSega_Callback callback, const void *user_data);
 void ControllerMultitapEA_WritePort(ControllerMultitapEA *multitap, cc_u8f port_index, cc_u16f microseconds, cc_u8f value);
 
-cc_u8f ControllerMultitapEA_ReadController(ControllerMultitapEA *multitap, cc_u8f controller_index, cc_u16f microseconds, ControllerMultitap_Callback callback, const void *user_data);
+cc_u8f ControllerMultitapEA_ReadController(ControllerMultitapEA *multitap, cc_u8f controller_index, cc_u16f microseconds, ControllerMultitapSega_Callback callback, const void *user_data);
 void ControllerMultitapEA_WriteController(ControllerMultitapEA *multitap, cc_u8f controller_index, cc_u16f microseconds, cc_u8f value);
 
 #endif /* CONTROLLER_MULTITAP_EA_H */

@@ -2,8 +2,8 @@
 #define CONTROLLER_MANAGER_H
 
 #include "controller.h"
-#include "controller-multitap.h"
 #include "controller-multitap-ea.h"
+#include "controller-multitap-sega.h"
 
 typedef enum ControllerManager_Protocol
 {
@@ -12,7 +12,7 @@ typedef enum ControllerManager_Protocol
 	CONTROLLER_MANAGER_PROTOCOL_EA_4_WAY_PLAY
 } ControllerManager_Protocol;
 
-typedef ControllerMultitap_Callback ControllerManager_Callback;
+typedef ControllerMultitapSega_Callback ControllerManager_Callback;
 
 typedef struct ControllerManager_Configuration
 {
@@ -22,7 +22,7 @@ typedef struct ControllerManager_Configuration
 typedef struct ControllerManager_State
 {
 	ControllerMultitapEA ea_multitap;
-	ControllerMultitap multitaps[2];
+	ControllerMultitapSega sega_multitaps[2];
 } ControllerManager_State;
 
 typedef struct ControllerManager

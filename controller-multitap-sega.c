@@ -1,30 +1,30 @@
-#include "controller-multitap.h"
+#include "controller-multitap-sega.h"
 
-static cc_bool ControllerMultitap_GetButtonBit(const ControllerMultitap_Callback callback, const void* const user_data, const cc_u8f controller_index, const Controller_Button button)
+static cc_bool ControllerMultitapSega_GetButtonBit(const ControllerMultitapSega_Callback callback, const void* const user_data, const cc_u8f controller_index, const Controller_Button button)
 {
 	return !callback((void*)user_data, controller_index, button);
 }
 
-static cc_u8f ControllerMultitap_GetButtonNybble(const ControllerMultitap_Callback callback, const void* const user_data, const cc_u8f controller_index, const Controller_Button* const buttons)
+static cc_u8f ControllerMultitapSega_GetButtonNybble(const ControllerMultitapSega_Callback callback, const void* const user_data, const cc_u8f controller_index, const Controller_Button* const buttons)
 {
 	cc_u8f i, value = 0;
 
 	for (i = 0; i < 4; ++i)
 	{
 		value <<= 1;
-		value |= ControllerMultitap_GetButtonBit(callback, user_data, controller_index, buttons[i]);
+		value |= ControllerMultitapSega_GetButtonBit(callback, user_data, controller_index, buttons[i]);
 	}
 
 	return value;
 }
 
-void ControllerMultitap_Initialise(ControllerMultitap* const multitap)
+void ControllerMultitapSega_Initialise(ControllerMultitapSega* const multitap)
 {
 	multitap->th_bit = multitap->tl_bit = cc_false;
 	multitap->pulses = 0;
 }
 
-static cc_u8f ControllerMultitap_GetNybble(ControllerMultitap* const multitap, const ControllerMultitap_Callback callback, const void* const user_data)
+static cc_u8f ControllerMultitapSega_GetNybble(ControllerMultitapSega* const multitap, const ControllerMultitapSega_Callback callback, const void* const user_data)
 {
 	if (multitap->th_bit)
 		return 3;
@@ -68,7 +68,7 @@ static cc_u8f ControllerMultitap_GetNybble(ControllerMultitap* const multitap, c
 			const cc_u8f button_index     = (multitap->pulses - 7) % 3;
 			const cc_u8f controller_index = (multitap->pulses - 7) / 3;
 
-			return ControllerMultitap_GetButtonNybble(callback, user_data, controller_index, buttons[button_index]);
+			return ControllerMultitapSega_GetButtonNybble(callback, user_data, controller_index, buttons[button_index]);
 		}
 	}
 
@@ -76,12 +76,12 @@ static cc_u8f ControllerMultitap_GetNybble(ControllerMultitap* const multitap, c
 	return 0xF;
 }
 
-cc_u8f ControllerMultitap_Read(ControllerMultitap* const multitap, const ControllerMultitap_Callback callback, const void* const user_data)
+cc_u8f ControllerMultitapSega_Read(ControllerMultitapSega* const multitap, const ControllerMultitapSega_Callback callback, const void* const user_data)
 {
-	return (multitap->tl_bit << 4) | ControllerMultitap_GetNybble(multitap, callback, user_data);
+	return (multitap->tl_bit << 4) | ControllerMultitapSega_GetNybble(multitap, callback, user_data);
 }
 
-void ControllerMultitap_Write(ControllerMultitap* const multitap, const cc_u8f value)
+void ControllerMultitapSega_Write(ControllerMultitapSega* const multitap, const cc_u8f value)
 {
 	const cc_bool new_tl_bit = (value & (1 << 5)) != 0;
 	const cc_bool new_th_bit = (value & (1 << 6)) != 0;

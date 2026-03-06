@@ -2,7 +2,7 @@
 
 typedef struct ControllerMultitapEA_ControllerUserData
 {
-	ControllerMultitap_Callback callback;
+	ControllerMultitapSega_Callback callback;
 	const void *user_data;
 	cc_u8f controller_index;
 } ControllerMultitapEA_ControllerUserData;
@@ -14,7 +14,7 @@ static cc_bool ControllerMultitapEA_ControllerCallback(void* const user_data, co
 	return controller_user_data->callback((void*)controller_user_data->user_data, controller_user_data->controller_index, button);
 }
 
-static cc_u8f ControllerMultitapEA_ControllerRead(ControllerMultitapEA* const multitap, const cc_u8f controller_index, const ControllerMultitap_Callback callback, const void* const user_data)
+static cc_u8f ControllerMultitapEA_ControllerRead(ControllerMultitapEA* const multitap, const cc_u8f controller_index, const ControllerMultitapSega_Callback callback, const void* const user_data)
 {
 	ControllerMultitapEA_ControllerUserData controller_user_data;
 	controller_user_data.callback = callback;
@@ -42,7 +42,7 @@ void ControllerMultitapEA_Initialise(ControllerMultitapEA* const multitap)
 	multitap->selected_controller = 0;
 }
 
-cc_u8f ControllerMultitapEA_ReadPort(ControllerMultitapEA* const multitap, const cc_u8f port_index, const cc_u16f microseconds, const ControllerMultitap_Callback callback, const void* const user_data)
+cc_u8f ControllerMultitapEA_ReadPort(ControllerMultitapEA* const multitap, const cc_u8f port_index, const cc_u16f microseconds, const ControllerMultitapSega_Callback callback, const void* const user_data)
 {
 	switch (port_index)
 	{
@@ -78,7 +78,7 @@ void ControllerMultitapEA_WritePort(ControllerMultitapEA* const multitap, const 
 	}
 }
 
-cc_u8f ControllerMultitapEA_ReadController(ControllerMultitapEA* const multitap, const cc_u8f controller_index, const cc_u16f microseconds, const ControllerMultitap_Callback callback, const void* const user_data)
+cc_u8f ControllerMultitapEA_ReadController(ControllerMultitapEA* const multitap, const cc_u8f controller_index, const cc_u16f microseconds, const ControllerMultitapSega_Callback callback, const void* const user_data)
 {
 	Controller_DoMicroseconds(&multitap->controllers[controller_index], microseconds);
 	return ControllerMultitapEA_ControllerRead(multitap, controller_index, callback, user_data);
