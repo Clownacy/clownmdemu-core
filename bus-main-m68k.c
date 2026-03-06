@@ -235,7 +235,7 @@ static void IOPortToController_WriteCallback(void* const user_data, const cc_u8f
 	const IOPortToController_Parameters *parameters = (const IOPortToController_Parameters*)user_data;
 	ClownMDEmu* const clownmdemu = parameters->clownmdemu;
 
-	ControllerManager_Write(&clownmdemu->controller_manager, parameters->joypad_index, value, cycles);
+	ControllerManager_Write(&clownmdemu->controller_manager, parameters->joypad_index, cycles, value);
 }
 
 cc_u8f SyncIOPortAndRead(CPUCallbackUserData* const callback_user_data, const CycleMegaDrive target_cycle, const cc_u16f joypad_index)

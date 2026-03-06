@@ -3,7 +3,7 @@
 
 #include "clowncommon/clowncommon.h"
 
-#include "controller-multitap-sega.h"
+#include "controller.h"
 
 typedef struct ControllerMultitapEA
 {

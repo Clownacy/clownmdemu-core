@@ -32,7 +32,7 @@ cc_u8f ControllerManager_Read(ControllerManager* const manager, const cc_u8f por
 	return 0xFF;
 }
 
-void ControllerManager_Write(ControllerManager* const manager, const cc_u8f port_index, const cc_u8f value, const cc_u16f microseconds)
+void ControllerManager_Write(ControllerManager* const manager, const cc_u8f port_index, const cc_u16f microseconds, const cc_u8f value)
 {
 	assert(port_index < 2);
 
