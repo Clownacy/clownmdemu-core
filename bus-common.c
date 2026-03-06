@@ -18,6 +18,13 @@ CycleMegaDrive GetMegaDriveCyclesPerFrame(const ClownMDEmu* const clownmdemu)
 	return MakeCycleMegaDrive(clownmdemu->configuration.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_PAL) : CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_NTSC));
 }
 
+CycleMegaDrive GetMegaDriveCyclesPerScanline(const ClownMDEmu* const clownmdemu)
+{
+	CycleMegaDrive cycles_per_frame = GetMegaDriveCyclesPerFrame(clownmdemu);
+	cycles_per_frame.cycle /= GetTelevisionVerticalResolution(clownmdemu);
+	return cycles_per_frame;
+}
+
 CycleMegaDrive MakeCycleMegaDrive(const cc_u32f cycle)
 {
 	CycleMegaDrive cycle_mega_drive;

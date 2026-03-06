@@ -979,7 +979,7 @@ void VDP_WriteData(VDP* const vdp, const cc_u16f value, const VDP_ColourUpdatedC
 }
 
 /* TODO: Retention of partial commands. */
-void VDP_WriteControl(VDP* const vdp, const cc_u16f value, const VDP_ColourUpdatedCallback colour_updated_callback, const void* const colour_updated_callback_user_data, const VDP_ReadCallback read_callback, const void* const read_callback_user_data, const VDP_KDebugCallback kdebug_callback, const void* const kdebug_callback_user_data, const cc_u32f target_cycle)
+void VDP_WriteControl(VDP* const vdp, const cc_u16f value, const VDP_ColourUpdatedCallback colour_updated_callback, const void* const colour_updated_callback_user_data, const VDP_DMATransferBeginCallback dma_transfer_begin_callback, const VDP_ReadCallback read_callback, const void* const read_callback_user_data, const VDP_KDebugCallback kdebug_callback, const void* const kdebug_callback_user_data, const cc_u32f target_cycle)
 {
 	VDP_State* const state = &vdp->state;
 
@@ -1302,6 +1302,14 @@ void VDP_WriteControl(VDP* const vdp, const cc_u16f value, const VDP_ColourUpdat
 	{
 		/* Firing DMA */
 		ClearDMAPending(state);
+
+		/* DMA transfers to VRAM are slower than CRAM and VSRAM, due to internally using bytes instead of words. */
+		if (state->dma.mode == VDP_DMA_MODE_MEMORY_TO_VRAM)
+		{
+			/* TODO: Use this variable for the below loop? */
+			const cc_u32f total_reads = state->dma.length == 0 ? 0x10000 : state->dma.length;
+			dma_transfer_begin_callback((void*)read_callback_user_data, total_reads << (state->access.selected_buffer == VDP_ACCESS_VRAM));
+		}
 
 		do
 		{

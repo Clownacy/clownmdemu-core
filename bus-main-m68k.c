@@ -46,6 +46,37 @@ static cc_bool MegaCDEnabled(const ClownMDEmu* const clownmdemu)
 	return clownmdemu->state.mega_cd.cd_inserted || clownmdemu->configuration.cd_add_on_enabled;
 }
 
+static cc_u16f GetDMATransferBytesPerScanline(ClownMDEmu* const clownmdemu)
+{
+	/* TODO: Does this actually count the part between the final rendered scanline (224) and V-Int as 'display off'? */
+	if (clownmdemu->vdp.state.currently_in_vblank || !clownmdemu->vdp.state.display_enabled)
+	{
+		/* Blanking */
+		if (clownmdemu->vdp.state.h40_enabled)
+			return VDP_H40_DMA_BYTES_PER_LINE_DISPLAY_OFF;
+		else
+			return VDP_H32_DMA_BYTES_PER_LINE_DISPLAY_OFF;
+	}
+	else
+	{
+		/* Active display */
+		if (clownmdemu->vdp.state.h40_enabled)
+			return VDP_H40_DMA_BYTES_PER_LINE_DISPLAY_ON;
+		else
+			return VDP_H32_DMA_BYTES_PER_LINE_DISPLAY_ON;
+	}
+}
+
+static void VDPDMATransferBeginCallback(void *const user_data, const cc_u32f total_reads)
+{
+	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
+	ClownMDEmu* const clownmdemu = callback_user_data->clownmdemu;
+	const CycleMegaDrive cycles_per_scanline = GetMegaDriveCyclesPerScanline(clownmdemu);
+
+	/* Delay emulated 68k to approximate DMA transfers hogging the CPU bus. */
+	clownmdemu->m68k.cycles_done += cycles_per_scanline.cycle / CLOWNMDEMU_M68K_CLOCK_DIVIDER / GetDMATransferBytesPerScanline(clownmdemu) * total_reads;
+}
+
 static cc_u16f VDPReadCallback(void* const user_data, const cc_u32f address, const cc_u32f target_cycle)
 {
 	return M68kReadCallbackWithCycleWithDMA(user_data, address / 2, cc_true, cc_true, MakeCycleMegaDrive(target_cycle), cc_true);
@@ -1062,7 +1093,7 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 				case 4 / 2:
 				case 6 / 2:
 					/* VDP control port */
-					VDP_WriteControl(&clownmdemu->vdp, value, frontend_callbacks->colour_updated, frontend_callbacks->user_data, VDPReadCallback, callback_user_data, VDPKDebugCallback, NULL, target_cycle.cycle);
+					VDP_WriteControl(&clownmdemu->vdp, value, frontend_callbacks->colour_updated, frontend_callbacks->user_data, VDPDMATransferBeginCallback, VDPReadCallback, callback_user_data, VDPKDebugCallback, NULL, target_cycle.cycle);
 
 					/* TODO: This should be done more faithfully once the CPU interpreters are bus-event-oriented. */
 					RaiseHorizontalInterruptIfNeeded(clownmdemu);

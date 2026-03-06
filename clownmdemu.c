@@ -166,32 +166,28 @@ static cc_u16f CyclesUntilHorizontalSync(const ClownMDEmu* const clownmdemu)
 	{
 		const cc_u16f h40_divider = 4;
 	
-		const cc_u16f left_blanking   =   2 * h32_divider
-		                              +  62 * h40_divider;
-		const cc_u16f left_border     =  26 * h40_divider;
-		const cc_u16f active_display  = 640 * h40_divider;
-		const cc_u16f right_border    =  28 * h40_divider;
-		const cc_u16f right_blanking  =  18 * h40_divider;
-	/*	const cc_u16f horizontal_sync =  15 * h32_divider
-		                              +   2 * h40_divider
-		                              +  15 * h32_divider
-		                              +   2 * h40_divider
-		                              +  15 * h32_divider
-		                              +   2 * h40_divider
-		                              +  13 * h32_divider;*/
+		const cc_u16f left_blanking   = VDP_CYCLES_H40_LEFT_BLANKING_1   * h32_divider
+		                              + VDP_CYCLES_H40_LEFT_BLANKING_2   * h40_divider;
+		const cc_u16f left_border     = VDP_CYCLES_H40_LEFT_BORDER       * h40_divider;
+		const cc_u16f active_display  = VDP_CYCLES_H40_ACTIVE_DISPLAY    * h40_divider;
+		const cc_u16f right_border    = VDP_CYCLES_H40_RIGHT_BORDER      * h40_divider;
+		const cc_u16f right_blanking  = VDP_CYCLES_H40_RIGHT_BLANKING    * h40_divider;
+	/*	const cc_u16f horizontal_sync = VDP_CYCLES_H40_HORIZONTAL_SYNC_1 * h32_divider
+		                              + VDP_CYCLES_H40_HORIZONTAL_SYNC_2 * h40_divider
+		                              + VDP_CYCLES_H40_HORIZONTAL_SYNC_3 * h32_divider
+		                              + VDP_CYCLES_H40_HORIZONTAL_SYNC_4 * h40_divider
+		                              + VDP_CYCLES_H40_HORIZONTAL_SYNC_5 * h32_divider
+		                              + VDP_CYCLES_H40_HORIZONTAL_SYNC_6 * h40_divider
+		                              + VDP_CYCLES_H40_HORIZONTAL_SYNC_7 * h32_divider;*/
 
 		return left_blanking + left_border + active_display + right_border + right_blanking;
 	}
 	else
-	{	
-		const cc_u16f left_blanking   =  48 * h32_divider;
-		const cc_u16f left_border     =  26 * h32_divider;
-		const cc_u16f active_display  = 512 * h32_divider;
-		const cc_u16f right_border    =  28 * h32_divider;
-		const cc_u16f right_blanking  =  18 * h32_divider;
-	/*	const cc_u16f horizontal_sync =  52 * h32_divider;*/
+	{
+		const cc_u16f raster_line     = VDP_CYCLES_H32_PER_RASTER_LINE     * h32_divider;
+	/*	const cc_u16f horizontal_sync = VDP_CYCLES_H32_PER_HORIZONTAL_SYNC * h32_divider;*/
 
-		return left_blanking + left_border + active_display + right_border + right_blanking;
+		return raster_line;
 	}
 }
 
