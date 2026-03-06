@@ -130,6 +130,7 @@ typedef struct ClownMDEmu_State
 	{
 		cc_u16l ram[0x8000];
 		cc_bool h_int_pending, v_int_pending;
+		cc_bool frozen_by_dma_transfer;
 	} m68k;
 
 	struct
@@ -139,6 +140,7 @@ typedef struct ClownMDEmu_State
 		cc_u16l bank;
 		cc_bool bus_requested;
 		cc_bool reset_held;
+		cc_bool frozen_by_dma_transfer;
 	} z80;
 
 	IOPort io_ports[3];
@@ -157,6 +159,8 @@ typedef struct ClownMDEmu_State
 	cc_bool cartridge_inserted;
 
 	cc_u16l current_scanline;
+
+	cc_u32l vdp_dma_transfer_countdown;
 
 	struct
 	{

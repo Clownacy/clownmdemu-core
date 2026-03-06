@@ -66,6 +66,7 @@ static void ClownMDEmu_State_Initialise(ClownMDEmu* const clownmdemu)
 	   which skip initialisation when a certain magic number is found in RAM. */
 	memset(clownmdemu->state.m68k.ram, 0, sizeof(clownmdemu->state.m68k.ram));
 	clownmdemu->state.m68k.h_int_pending = clownmdemu->state.m68k.v_int_pending = cc_false;
+	clownmdemu->state.m68k.frozen_by_dma_transfer = cc_false;
 
 	/* Z80 */
 	memset(clownmdemu->state.z80.ram, 0, sizeof(clownmdemu->state.z80.ram));
@@ -73,6 +74,7 @@ static void ClownMDEmu_State_Initialise(ClownMDEmu* const clownmdemu)
 	clownmdemu->state.z80.bank = 0;
 	clownmdemu->state.z80.bus_requested = cc_false; /* This should be false, according to Charles MacDonald's gen-hw.txt. */
 	clownmdemu->state.z80.reset_held = cc_true;
+	clownmdemu->state.z80.frozen_by_dma_transfer = cc_false;
 
 	/* The standard Sega SDK bootcode uses this to detect soft-resets. */
 	for (i = 0; i < CC_COUNT_OF(clownmdemu->state.io_ports); ++i)
@@ -90,6 +92,8 @@ static void ClownMDEmu_State_Initialise(ClownMDEmu* const clownmdemu)
 		clownmdemu->state.cartridge_bankswitch[i] = i;
 
 	clownmdemu->state.cartridge_inserted = cc_false;
+
+	clownmdemu->state.vdp_dma_transfer_countdown = 0;
 
 	/* Mega CD */
 	clownmdemu->state.mega_cd.m68k.bus_requested = cc_true;
@@ -217,6 +221,8 @@ void ClownMDEmu_Iterate(ClownMDEmu* const clownmdemu)
 	cpu_callback_user_data.sync.mcd_m68k.base_cycle = 0;
 	cpu_callback_user_data.sync.mcd_m68k_irq3.current_cycle = 0;
 	cpu_callback_user_data.sync.mcd_m68k_irq3.cycle_countdown = &state->mega_cd.irq.irq3_countdown;
+	cpu_callback_user_data.sync.vdp_dma_transfer.current_cycle = 0;
+	cpu_callback_user_data.sync.vdp_dma_transfer.cycle_countdown = &state->vdp_dma_transfer_countdown;
 	cpu_callback_user_data.sync.fm.current_cycle = 0;
 	cpu_callback_user_data.sync.psg.current_cycle = 0;
 	cpu_callback_user_data.sync.pcm.current_cycle = 0;

@@ -25,7 +25,7 @@ static void Z80LogCallback(void* const user_data, const char* const format, ...)
 
 void SyncZ80(ClownMDEmu* const clownmdemu, CPUCallbackUserData* const other_state, const CycleMegaDrive target_cycle)
 {
-	const cc_bool z80_not_running = clownmdemu->state.z80.bus_requested || clownmdemu->state.z80.reset_held;
+	const cc_bool z80_not_running = clownmdemu->state.z80.bus_requested || clownmdemu->state.z80.reset_held || clownmdemu->state.z80.frozen_by_dma_transfer;
 
 	ClownZ80_ReadAndWriteCallbacks z80_read_write_callbacks;
 
@@ -37,11 +37,25 @@ void SyncZ80(ClownMDEmu* const clownmdemu, CPUCallbackUserData* const other_stat
 	SyncCPUCommon(clownmdemu, &other_state->sync.z80, target_cycle.cycle, z80_not_running, SyncZ80Callback, &z80_read_write_callbacks);
 }
 
+static void M68kBusAccessCommon(ClownMDEmu* const clownmdemu, CPUCallbackUserData* const callback_user_data, const CycleMegaDrive target_cycle)
+{
+	SyncM68k(clownmdemu, callback_user_data, target_cycle);
+
+	/* If the 68k's bus is currently being used for a DMA transfer, then the Z80 will freeze until it is finished. */
+	clownmdemu->state.z80.frozen_by_dma_transfer = clownmdemu->state.m68k.frozen_by_dma_transfer;
+}
+
 static cc_u16f M68kReadByte(const void* const user_data, const cc_u32f address, const CycleMegaDrive target_cycle)
 {
 	const cc_bool is_odd = (address & 1) != 0;
 
 	return (M68kReadCallbackWithCycle(user_data, address / 2, !is_odd, is_odd, target_cycle) >> (is_odd ? 0 : 8)) & 0xFF;
+}
+
+static cc_u16f ReadFromM68kBus(ClownMDEmu* const clownmdemu, CPUCallbackUserData* const callback_user_data, const CycleMegaDrive target_cycle, const cc_u32f address)
+{
+	M68kBusAccessCommon(clownmdemu, callback_user_data, target_cycle);
+	return M68kReadByte(callback_user_data, address, target_cycle);
 }
 
 cc_u16f Z80ReadCallbackWithCycle(const void* const user_data, const cc_u16f address, const CycleMegaDrive target_cycle)
@@ -77,8 +91,7 @@ cc_u16f Z80ReadCallbackWithCycle(const void* const user_data, const cc_u16f addr
 			else
 			{
 				/* VDP (accessed through the 68k's bus). */
-				SyncM68k(clownmdemu, callback_user_data, target_cycle);
-				value = M68kReadByte(user_data, 0xC00000 + (address & 0x1F), target_cycle);
+				value = ReadFromM68kBus(clownmdemu, callback_user_data, target_cycle, 0xC00000 + (address & 0x1F));
 			}
 			break;
 
@@ -87,8 +100,7 @@ cc_u16f Z80ReadCallbackWithCycle(const void* const user_data, const cc_u16f addr
 		case 6: /* 0xC000 */
 		case 7: /* 0xE000 */
 			/* 68k ROM window (actually a window into the 68k's address space: you can access the PSG through it IIRC). */
-			SyncM68k(clownmdemu, callback_user_data, target_cycle);
-			value = M68kReadByte(user_data, (cc_u32f)clownmdemu->state.z80.bank * 0x8000 | address % 0x8000, target_cycle);
+			value = ReadFromM68kBus(clownmdemu, callback_user_data, target_cycle, (cc_u32f)clownmdemu->state.z80.bank * 0x8000 | address % 0x8000);
 			break;
 
 		default:
@@ -111,6 +123,12 @@ static void M68kWriteByte(const void* const user_data, const cc_u32f address, co
 	const cc_bool is_odd = (address & 1) != 0;
 
 	M68kWriteCallbackWithCycle(user_data, address / 2, !is_odd, is_odd, value << (is_odd ? 0 : 8), target_cycle);
+}
+
+static void WriteToM68kBus(ClownMDEmu* const clownmdemu, CPUCallbackUserData* const callback_user_data, const CycleMegaDrive target_cycle, const cc_u32f address, const cc_u16f value)
+{
+	M68kBusAccessCommon(clownmdemu, callback_user_data, target_cycle);
+	M68kWriteByte(callback_user_data, 0xC00000 + (address & 0x1F), value, target_cycle);
 }
 
 void Z80WriteCallbackWithCycle(const void* const user_data, const cc_u16f address, const cc_u16f value, const CycleMegaDrive target_cycle)
@@ -153,8 +171,7 @@ void Z80WriteCallbackWithCycle(const void* const user_data, const cc_u16f addres
 			else
 			{
 				/* VDP (accessed through the 68k's bus). */
-				SyncM68k(clownmdemu, callback_user_data, target_cycle);
-				M68kWriteByte(user_data, 0xC00000 + (address & 0x1F), value, target_cycle);
+				WriteToM68kBus(clownmdemu, callback_user_data, target_cycle, 0xC00000 + (address & 0x1F), value);
 			}
 
 			break;
@@ -170,8 +187,7 @@ void Z80WriteCallbackWithCycle(const void* const user_data, const cc_u16f addres
 
 			/* 68k ROM window (actually a window into the 68k's address space: you can access the PSG through it IIRC). */
 			/* TODO: Apparently the Z80 can access the IO ports and send a bus request to itself. */
-			SyncM68k(clownmdemu, callback_user_data, target_cycle);
-			M68kWriteByte(user_data,  (cc_u32f)clownmdemu->state.z80.bank * 0x8000 | address % 0x8000, value, target_cycle);
+			WriteToM68kBus(clownmdemu, callback_user_data, target_cycle, (cc_u32f)clownmdemu->state.z80.bank * 0x8000 | address % 0x8000, value);
 			break;
 
 		default:

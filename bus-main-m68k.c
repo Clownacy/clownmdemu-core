@@ -73,8 +73,9 @@ static void VDPDMATransferBeginCallback(void *const user_data, const cc_u32f tot
 	ClownMDEmu* const clownmdemu = callback_user_data->clownmdemu;
 	const CycleMegaDrive cycles_per_scanline = GetMegaDriveCyclesPerScanline(clownmdemu);
 
-	/* Delay emulated 68k to approximate DMA transfers hogging the CPU bus. */
-	clownmdemu->m68k.cycles_done += cycles_per_scanline.cycle / CLOWNMDEMU_M68K_CLOCK_DIVIDER / GetDMATransferBytesPerScanline(clownmdemu) * total_reads;
+	/* For the duration of the DMA transfer, the 68k's bus is in use by the VDP. This freezes the CPU. */
+	clownmdemu->state.vdp_dma_transfer_countdown = cycles_per_scanline.cycle / GetDMATransferBytesPerScanline(clownmdemu) * total_reads;
+	clownmdemu->state.m68k.frozen_by_dma_transfer = cc_true;
 }
 
 static cc_u16f VDPReadCallback(void* const user_data, const cc_u32f address, const cc_u32f target_cycle)
@@ -89,25 +90,63 @@ static void VDPKDebugCallback(void* const user_data, const char* const string)
 	LogMessage("KDEBUG: %s", string);
 }
 
-void SyncM68k(ClownMDEmu* const clownmdemu, CPUCallbackUserData* const other_state, const CycleMegaDrive target_cycle)
+/* TODO: Deduplicate all of this code with the Mega CD's IRQ3 code. */
+static void SyncM68kForReal(ClownMDEmu* const clownmdemu, const Clown68000_ReadWriteCallbacks* const m68k_read_write_callbacks, const CycleMegaDrive target_cycle)
 {
+	CPUCallbackUserData* const other_state = (CPUCallbackUserData*)m68k_read_write_callbacks->user_data;
+
 	const cc_u32f current_cycle = other_state->sync.m68k.current_cycle;
 
 	if (target_cycle.cycle > current_cycle)
 	{
-		const cc_u32f m68k_cycles_to_do = (target_cycle.cycle - current_cycle) / CLOWNMDEMU_M68K_CLOCK_DIVIDER;
+		if (clownmdemu->state.m68k.frozen_by_dma_transfer)
+		{
+			other_state->sync.m68k.current_cycle = target_cycle.cycle / CLOWNMDEMU_M68K_CLOCK_DIVIDER * CLOWNMDEMU_M68K_CLOCK_DIVIDER;
+		}
+		else
+		{
+			const cc_u32f m68k_cycles_to_do = (target_cycle.cycle - current_cycle) / CLOWNMDEMU_M68K_CLOCK_DIVIDER;
 
-		Clown68000_ReadWriteCallbacks m68k_read_write_callbacks;
+			other_state->sync.m68k.base_cycle = current_cycle;
+			other_state->sync.m68k.current_cycle = current_cycle + m68k_cycles_to_do * CLOWNMDEMU_M68K_CLOCK_DIVIDER;
 
-		m68k_read_write_callbacks.read_callback = M68kReadCallback;
-		m68k_read_write_callbacks.write_callback = M68kWriteCallback;
-		m68k_read_write_callbacks.user_data = other_state;
-
-		other_state->sync.m68k.base_cycle = current_cycle;
-		other_state->sync.m68k.current_cycle = current_cycle + m68k_cycles_to_do * CLOWNMDEMU_M68K_CLOCK_DIVIDER;
-
-		Clown68000_DoCycles(&clownmdemu->m68k, &m68k_read_write_callbacks, m68k_cycles_to_do);
+			Clown68000_DoCycles(&clownmdemu->m68k, m68k_read_write_callbacks, m68k_cycles_to_do);
+		}
 	}
+}
+
+static cc_u16f SyncM68kCallback(ClownMDEmu* const clownmdemu, void* const user_data)
+{
+	const Clown68000_ReadWriteCallbacks* const m68k_read_write_callbacks = (const Clown68000_ReadWriteCallbacks*)user_data;
+	CPUCallbackUserData* const other_state = (CPUCallbackUserData*)m68k_read_write_callbacks->user_data;
+	CycleMegaDrive current_cycle;
+
+	/* Update the 68000 and Z80 to this point in time. */
+	current_cycle.cycle = other_state->sync.vdp_dma_transfer.current_cycle;
+	SyncM68kForReal(clownmdemu, m68k_read_write_callbacks, current_cycle);
+	SyncZ80(clownmdemu, other_state, current_cycle);
+
+	/* Stop hogging the CPU bus. */
+	clownmdemu->state.m68k.frozen_by_dma_transfer = cc_false;
+	clownmdemu->state.z80.frozen_by_dma_transfer = cc_false;
+
+	return 0;
+}
+
+void SyncM68k(ClownMDEmu* const clownmdemu, CPUCallbackUserData* const other_state, const CycleMegaDrive target_cycle)
+{
+	Clown68000_ReadWriteCallbacks m68k_read_write_callbacks;
+
+	m68k_read_write_callbacks.read_callback = M68kReadCallback;
+	m68k_read_write_callbacks.write_callback = M68kWriteCallback;
+	m68k_read_write_callbacks.user_data = other_state;
+
+	/* In order to support the timer interrupt (IRQ3), we hijack this function to update an IRQ3 sync object instead. */
+	/* This sync object will raise interrupts whilst also synchronising the 68000. */
+	SyncCPUCommon(clownmdemu, &other_state->sync.vdp_dma_transfer, target_cycle.cycle, cc_false, SyncM68kCallback, &m68k_read_write_callbacks);
+
+	/* Now that we're done with IRQ3, finish synchronising the 68000. */
+	SyncM68kForReal(clownmdemu, &m68k_read_write_callbacks, target_cycle);
 }
 
 static cc_u32f GetBankedCartridgeAddress(const ClownMDEmu* const clownmdemu, const cc_u32f address)

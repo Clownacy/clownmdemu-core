@@ -92,16 +92,12 @@ cc_u32f SyncCommon(SyncState* const sync, const cc_u32f target_cycle, const cc_u
 
 void SyncCPUCommon(ClownMDEmu* const clownmdemu, SyncCPUState* const sync, const cc_u32f target_cycle, const cc_bool cpu_not_running, const SyncCPUCommonCallback callback, const void* const user_data)
 {
-	/* Store this in a local variable to make the upcoming code faster. */
-	cc_u16f countdown = *sync->cycle_countdown;
+	if (!cpu_not_running)
+	{
+		/* Store this in a local variable to make the upcoming code faster. */
+		cc_u16f countdown = *sync->cycle_countdown;
 
-	if (countdown == 0 || cpu_not_running)
-	{
-		sync->current_cycle = target_cycle;
-	}
-	else
-	{
-		while (sync->current_cycle < target_cycle)
+		while (countdown != 0 && sync->current_cycle < target_cycle)
 		{
 			const cc_u32f cycles_to_do = CC_MIN(countdown, target_cycle - sync->current_cycle);
 
@@ -116,6 +112,8 @@ void SyncCPUCommon(ClownMDEmu* const clownmdemu, SyncCPUState* const sync, const
 		/* Store this back in memory for later. */
 		*sync->cycle_countdown = countdown;
 	}
+
+	sync->current_cycle = CC_MAX(sync->current_cycle, target_cycle);
 }
 
 static void FMCallbackWrapper(ClownMDEmu* const clownmdemu, cc_s16l* const sample_buffer, const size_t total_frames)

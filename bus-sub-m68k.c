@@ -306,7 +306,8 @@ static void MegaCDBIOSCall(ClownMDEmu* const clownmdemu, const void* const user_
 	}
 }
 
-void SyncMCDM68kForReal(ClownMDEmu* const clownmdemu, const Clown68000_ReadWriteCallbacks* const m68k_read_write_callbacks, const CycleMegaCD target_cycle)
+/* TODO: Deduplicate all of this code with the Mega Drive's VDP DMA transfer code. */
+static void SyncMCDM68kForReal(ClownMDEmu* const clownmdemu, const Clown68000_ReadWriteCallbacks* const m68k_read_write_callbacks, const CycleMegaCD target_cycle)
 {
 	CPUCallbackUserData* const other_state = (CPUCallbackUserData*)m68k_read_write_callbacks->user_data;
 
