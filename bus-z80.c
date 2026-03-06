@@ -128,7 +128,7 @@ static void M68kWriteByte(const void* const user_data, const cc_u32f address, co
 static void WriteToM68kBus(ClownMDEmu* const clownmdemu, CPUCallbackUserData* const callback_user_data, const CycleMegaDrive target_cycle, const cc_u32f address, const cc_u16f value)
 {
 	M68kBusAccessCommon(clownmdemu, callback_user_data, target_cycle);
-	M68kWriteByte(callback_user_data, 0xC00000 + (address & 0x1F), value, target_cycle);
+	M68kWriteByte(callback_user_data, address, value, target_cycle);
 }
 
 void Z80WriteCallbackWithCycle(const void* const user_data, const cc_u16f address, const cc_u16f value, const CycleMegaDrive target_cycle)
