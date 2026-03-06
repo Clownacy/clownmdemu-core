@@ -1,27 +1,8 @@
 #include "controller-multitap-ea.h"
 
-typedef struct ControllerMultitapEA_ControllerUserData
+static cc_u8f ControllerMultitapEA_ControllerRead(ControllerMultitapEA* const multitap, const cc_u8f controller_index, const Controller_Callback callback, const void* const user_data)
 {
-	ControllerMultitapSega_Callback callback;
-	const void *user_data;
-	cc_u8f controller_index;
-} ControllerMultitapEA_ControllerUserData;
-
-static cc_bool ControllerMultitapEA_ControllerCallback(void* const user_data, const Controller_Button button)
-{
-	const ControllerMultitapEA_ControllerUserData* const controller_user_data = (const ControllerMultitapEA_ControllerUserData*)user_data;
-
-	return controller_user_data->callback((void*)controller_user_data->user_data, controller_user_data->controller_index, button);
-}
-
-static cc_u8f ControllerMultitapEA_ControllerRead(ControllerMultitapEA* const multitap, const cc_u8f controller_index, const ControllerMultitapSega_Callback callback, const void* const user_data)
-{
-	ControllerMultitapEA_ControllerUserData controller_user_data;
-	controller_user_data.callback = callback;
-	controller_user_data.user_data = user_data;
-	controller_user_data.controller_index = controller_index;
-
-	return Controller_Read(&multitap->controllers[controller_index], ControllerMultitapEA_ControllerCallback, &controller_user_data);
+	return Controller_Read(&multitap->controllers[controller_index], controller_index, callback, user_data);
 }
 
 static void ControllerMultitapEA_DoMicroseconds(ControllerMultitapEA* const multitap, const cc_u16f microseconds)
@@ -42,7 +23,7 @@ void ControllerMultitapEA_Initialise(ControllerMultitapEA* const multitap)
 	multitap->selected_controller = 0;
 }
 
-cc_u8f ControllerMultitapEA_ReadPort(ControllerMultitapEA* const multitap, const cc_u8f port_index, const cc_u16f microseconds, const ControllerMultitapSega_Callback callback, const void* const user_data)
+cc_u8f ControllerMultitapEA_ReadPort(ControllerMultitapEA* const multitap, const cc_u8f port_index, const cc_u16f microseconds, const Controller_Callback callback, const void* const user_data)
 {
 	switch (port_index)
 	{
@@ -78,7 +59,7 @@ void ControllerMultitapEA_WritePort(ControllerMultitapEA* const multitap, const 
 	}
 }
 
-cc_u8f ControllerMultitapEA_ReadController(ControllerMultitapEA* const multitap, const cc_u8f controller_index, const cc_u16f microseconds, const ControllerMultitapSega_Callback callback, const void* const user_data)
+cc_u8f ControllerMultitapEA_ReadController(ControllerMultitapEA* const multitap, const cc_u8f controller_index, const cc_u16f microseconds, const Controller_Callback callback, const void* const user_data)
 {
 	Controller_DoMicroseconds(&multitap->controllers[controller_index], microseconds);
 	return ControllerMultitapEA_ControllerRead(multitap, controller_index, callback, user_data);

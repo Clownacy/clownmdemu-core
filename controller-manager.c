@@ -12,7 +12,7 @@ void ControllerManager_Initialise(ControllerManager* const manager)
 		ControllerMultitapSega_Initialise(&manager->state.sega_multitaps[i]);
 }
 
-cc_u8f ControllerManager_Read(ControllerManager* const manager, const cc_u8f port_index, const cc_u16f microseconds, const ControllerManager_Callback callback, const void* const user_data)
+cc_u8f ControllerManager_Read(ControllerManager* const manager, const cc_u8f port_index, const cc_u16f microseconds, const Controller_Callback callback, const void* const user_data)
 {
 	assert(port_index < 2);
 

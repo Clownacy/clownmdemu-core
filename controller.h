@@ -20,7 +20,7 @@ typedef enum Controller_Button
 	CONTROLLER_BUTTON_TOTAL
 } Controller_Button;
 
-typedef cc_bool (*Controller_Callback)(void *user_data, Controller_Button button);
+typedef cc_bool (*Controller_Callback)(void *user_data, cc_u8f controller_index, Controller_Button button);
 
 typedef struct Controller
 {
@@ -30,7 +30,7 @@ typedef struct Controller
 } Controller;
 
 void Controller_Initialise(Controller *controller);
-cc_u8f Controller_Read(Controller *controller, Controller_Callback callback, const void *user_data);
+cc_u8f Controller_Read(Controller *controller, cc_u8f controller_index, Controller_Callback callback, const void *user_data);
 void Controller_Write(Controller *controller, cc_u8f value);
 void Controller_DoMicroseconds(Controller *controller, cc_u16f microseconds);
 
