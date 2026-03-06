@@ -141,11 +141,11 @@ void SyncM68k(ClownMDEmu* const clownmdemu, CPUCallbackUserData* const other_sta
 	m68k_read_write_callbacks.write_callback = M68kWriteCallback;
 	m68k_read_write_callbacks.user_data = other_state;
 
-	/* In order to support the timer interrupt (IRQ3), we hijack this function to update an IRQ3 sync object instead. */
-	/* This sync object will raise interrupts whilst also synchronising the 68000. */
+	/* To simulate the CPU being frozen and unfrozen by DMA transfers, we hijack this function to update a DMA sync object. */
+	/* This sync object will unfreeze the 68000 (and Z80) when it expires. */
 	SyncCPUCommon(clownmdemu, &other_state->sync.vdp_dma_transfer, target_cycle.cycle, cc_false, SyncM68kCallback, &m68k_read_write_callbacks);
 
-	/* Now that we're done with IRQ3, finish synchronising the 68000. */
+	/* Now that we're done with the DMA sync, finish synchronising the 68000. */
 	SyncM68kForReal(clownmdemu, &m68k_read_write_callbacks, target_cycle);
 }
 
