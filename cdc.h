@@ -27,6 +27,7 @@ typedef struct CDC_State
 	cc_u8l host_data_buffered_sector_index;
 	cc_u8l buffered_sectors_read_index, buffered_sectors_write_index, buffered_sectors_total;
 	cc_u8l device_destination;
+	cc_u8l hack_counter;
 	cc_bool host_data_target_sub_cpu, cdc_reading, host_data_bound;
 } CDC_State;
 
