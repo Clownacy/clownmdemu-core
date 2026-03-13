@@ -4,18 +4,18 @@
 #include <stddef.h>
 #include <string.h>
 
-#include "clowncommon/clowncommon.h"
+#include "../libraries/clowncommon/clowncommon.h"
+#include "../libraries/clown68000/source/interpreter/clown68000.h"
+#include "../libraries/clownz80/source/interpreter.h"
 
 #include "bus-main-m68k.h"
 #include "bus-sub-m68k.h"
 #include "bus-z80.h"
-#include "clown68000/interpreter/clown68000.h"
 #include "fm.h"
 #include "log.h"
 #include "low-pass-filter.h"
 #include "psg.h"
 #include "vdp.h"
-#include "clownz80/interpreter.h"
 
 #define MAX_ROM_SIZE (1024 * 1024 * 4) /* 4MiB */
 

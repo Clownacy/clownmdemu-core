@@ -1,7 +1,7 @@
 #ifndef CDC_H
 #define CDC_H
 
-#include "clowncommon/clowncommon.h"
+#include "../libraries/clowncommon/clowncommon.h"
 
 #define CDC_SECTOR_SIZE 0x800
 

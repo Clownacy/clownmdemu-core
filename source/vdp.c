@@ -13,7 +13,7 @@
 #include <stddef.h>
 #include <string.h>
 
-#include "clowncommon/clowncommon.h"
+#include "../libraries/clowncommon/clowncommon.h"
 
 #include "log.h"
 

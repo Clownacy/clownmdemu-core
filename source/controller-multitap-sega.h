@@ -1,7 +1,7 @@
 #ifndef CONTROLLER_MULTITAP_SEGA_H
 #define CONTROLLER_MULTITAP_SEGA_H
 
-#include "clowncommon/clowncommon.h"
+#include "../libraries/clowncommon/clowncommon.h"
 
 #include "controller.h"
 

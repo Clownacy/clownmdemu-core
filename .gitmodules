@@ -1,9 +1,9 @@
 [submodule "clowncommon"]
-	path = clowncommon
+	path = libraries/clowncommon
 	url = https://github.com/Clownacy/clowncommon
 [submodule "clown68000"]
-	path = clown68000
+	path = libraries/clown68000
 	url = https://github.com/Clownacy/clown68000
 [submodule "clownz80"]
-	path = clownz80
+	path = libraries/clownz80
 	url = https://github.com/Clownacy/clownz80

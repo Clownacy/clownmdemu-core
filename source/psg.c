@@ -9,7 +9,7 @@ https://www.smspower.org/Development/SN76489
 
 #include <math.h>
 
-#include "clowncommon/clowncommon.h"
+#include "../libraries/clowncommon/clowncommon.h"
 
 static const cc_s16l psg_volumes[0x10][2] = {
 	{0x1FFF, -0x1FFF},

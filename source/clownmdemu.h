@@ -4,11 +4,12 @@
 #include <stdarg.h>
 #include <stddef.h>
 
-#include "clowncommon/clowncommon.h"
+#include "../libraries/clowncommon/clowncommon.h"
+#include "../libraries/clown68000/source/interpreter/clown68000.h"
+#include "../libraries/clownz80/source/interpreter.h"
 
 #include "cdc.h"
 #include "cdda.h"
-#include "clown68000/interpreter/clown68000.h"
 #include "controller-manager.h"
 #include "fm.h"
 #include "io-port.h"
@@ -16,7 +17,6 @@
 #include "pcm.h"
 #include "psg.h"
 #include "vdp.h"
-#include "clownz80/interpreter.h"
 
 #ifdef __cplusplus
 extern "C" {

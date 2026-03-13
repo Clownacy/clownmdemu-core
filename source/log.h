@@ -3,7 +3,7 @@
 
 #include <stdarg.h>
 
-#include "clowncommon/clowncommon.h"
+#include "../libraries/clowncommon/clowncommon.h"
 
 #ifdef __cplusplus
 extern "C" {

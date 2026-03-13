@@ -1,7 +1,7 @@
 #ifndef FM_OPERATOR_H
 #define FM_OPERATOR_H
 
-#include "clowncommon/clowncommon.h"
+#include "../libraries/clowncommon/clowncommon.h"
 
 #include "fm-phase.h"
 

@@ -1,7 +1,7 @@
 #ifndef BUS_COMMON
 #define BUS_COMMON
 
-#include "clowncommon/clowncommon.h"
+#include "../libraries/clowncommon/clowncommon.h"
 
 #include "clownmdemu.h"
 #include "io-port.h"

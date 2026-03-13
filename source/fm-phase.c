@@ -2,7 +2,7 @@
 
 #include "fm-phase.h"
 
-#include "clowncommon/clowncommon.h"
+#include "../libraries/clowncommon/clowncommon.h"
 
 static cc_u32f RecalculatePhaseStep(const FM_Phase* const phase, const cc_u8f modulation, const cc_u8f modulation_sensitivity)
 {

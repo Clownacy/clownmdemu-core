@@ -2,7 +2,7 @@
 
 #include <assert.h>
 
-#include "clowncommon/clowncommon.h"
+#include "../libraries/clowncommon/clowncommon.h"
 
 static cc_u8f ComputeFeedbackDivisor(const cc_u8f value)
 {

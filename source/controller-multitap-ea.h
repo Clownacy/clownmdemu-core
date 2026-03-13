@@ -1,7 +1,7 @@
 #ifndef CONTROLLER_MULTITAP_EA_H
 #define CONTROLLER_MULTITAP_EA_H
 
-#include "clowncommon/clowncommon.h"
+#include "../libraries/clowncommon/clowncommon.h"
 
 #include "controller.h"
 

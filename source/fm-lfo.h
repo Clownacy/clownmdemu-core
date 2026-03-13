@@ -1,7 +1,7 @@
 #ifndef FM_LFO_H
 #define FM_LFO_H
 
-#include "clowncommon/clowncommon.h"
+#include "../libraries/clowncommon/clowncommon.h"
 
 typedef struct FM_LFO
 {

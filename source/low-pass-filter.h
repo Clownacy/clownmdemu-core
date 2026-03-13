@@ -3,7 +3,7 @@
 
 #include <stddef.h>
 
-#include "clowncommon/clowncommon.h"
+#include "../libraries/clowncommon/clowncommon.h"
 
 #define LOW_PASS_FILTER_FIXED_BASE (1 << 16)
 #define LOW_PASS_FILTER_FIXED_MULTIPLY(MULTIPLICANT, MULTIPLIER) ((MULTIPLICANT) * (cc_s32f)(MULTIPLIER) / LOW_PASS_FILTER_FIXED_BASE)

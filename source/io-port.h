@@ -1,7 +1,7 @@
 #ifndef IO_PORT_H
 #define IO_PORT_H
 
-#include "clowncommon/clowncommon.h"
+#include "../libraries/clowncommon/clowncommon.h"
 
 typedef cc_u8f (*IOPort_ReadCallback)(void *user_data, cc_u16f cycles);
 typedef void (*IOPort_WriteCallback)(void *user_data, cc_u8f value, cc_u16f cycles);

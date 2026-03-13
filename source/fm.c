@@ -111,7 +111,7 @@ The 9th DAC sample bit.
 
 #include <math.h>
 
-#include "clowncommon/clowncommon.h"
+#include "../libraries/clowncommon/clowncommon.h"
 
 #include "log.h"
 

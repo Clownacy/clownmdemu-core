@@ -3,7 +3,7 @@
 
 #include <stddef.h>
 
-#include "clowncommon/clowncommon.h"
+#include "../libraries/clowncommon/clowncommon.h"
 
 typedef size_t (*CDDA_AudioReadCallback)(void* user_data, cc_s16l* sample_buffer, size_t total_frames);
 
