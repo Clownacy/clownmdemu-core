@@ -520,7 +520,19 @@ static cc_u8f ReadPixelFromStampMap(ClownMDEmu_State* const state, const cc_u32f
 #define FILE_NAME_LENGTH 11
 #define FILE_NAME_BUFFER_LENGTH (FILE_NAME_LENGTH + 1 + 2 + 1 + 3 + 1)
 
-static void ReadFilename(const void* const user_data, char* const file_name_buffer, const cc_bool write_protected, const CycleMegaCD target_cycle)
+static cc_bool IsValidFilenameCharacter(const char character)
+{
+	/* Filenames could be malicious, such as "~/bin/sh" or "../something",
+	   so prevent that by allowing only trustworthy characters. */
+	/* Sega's developer documentation only mentions 0-9, A-Z, and '_' being valid. */
+	return
+		(character >= 'A' && character <= 'Z') ||
+		(character >= 'a' && character <= 'z') ||
+		(character >= '0' && character <= '9') ||
+		(character == '_');
+}
+
+static cc_bool ReadFilename(const void* const user_data, char* const file_name_buffer, const cc_bool write_protected, const CycleMegaCD target_cycle)
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 	const ClownMDEmu* const clownmdemu = callback_user_data->clownmdemu;
@@ -529,7 +541,14 @@ static void ReadFilename(const void* const user_data, char* const file_name_buff
 	cc_u8f i;
 
 	for (i = 0; i < FILE_NAME_LENGTH; ++i)
-		*file_name_pointer++ = MCDM68kReadByte(user_data, clownmdemu->mega_cd.m68k.address_registers[0] + i, target_cycle);
+	{
+		const char value = MCDM68kReadByte(user_data, clownmdemu->mega_cd.m68k.address_registers[0] + i, target_cycle);
+
+		if (!IsValidFilenameCharacter(value))
+			return cc_false;
+
+		*file_name_pointer++ = value;
+	}
 
 	if (write_protected)
 	{
@@ -544,6 +563,8 @@ static void ReadFilename(const void* const user_data, char* const file_name_buff
 	*file_name_pointer++ = 'm';
 
 	*file_name_pointer++ = '\0';
+
+	return cc_true;
 }
 
 static cc_bool OpenSaveFileForReading(const void* const user_data, const cc_bool write_protected, const CycleMegaCD target_cycle)
@@ -552,7 +573,9 @@ static cc_bool OpenSaveFileForReading(const void* const user_data, const cc_bool
 	const ClownMDEmu* const clownmdemu = callback_user_data->clownmdemu;
 	char file_name_buffer[FILE_NAME_BUFFER_LENGTH];
 
-	ReadFilename(user_data, file_name_buffer, write_protected, target_cycle);
+	if (!ReadFilename(user_data, file_name_buffer, write_protected, target_cycle))
+		return cc_false;
+
 	return clownmdemu->callbacks->save_file_opened_for_reading((void*)clownmdemu->callbacks->user_data, file_name_buffer);
 }
 
@@ -579,7 +602,9 @@ static cc_bool OpenSaveFileForWriting(const void* const user_data, const cc_bool
 	const ClownMDEmu* const clownmdemu = callback_user_data->clownmdemu;
 	char file_name_buffer[FILE_NAME_BUFFER_LENGTH];
 
-	ReadFilename(user_data, file_name_buffer, write_protected, target_cycle);
+	if (!ReadFilename(user_data, file_name_buffer, write_protected, target_cycle))
+		return cc_false;
+
 	return clownmdemu->callbacks->save_file_opened_for_writing((void*)clownmdemu->callbacks->user_data, file_name_buffer);
 }
 
@@ -589,7 +614,9 @@ static cc_bool RemoveSaveFile(const void* const user_data, const cc_bool write_p
 	const ClownMDEmu* const clownmdemu = callback_user_data->clownmdemu;
 	char file_name_buffer[FILE_NAME_BUFFER_LENGTH];
 
-	ReadFilename(user_data, file_name_buffer, write_protected, target_cycle);
+	if (!ReadFilename(user_data, file_name_buffer, write_protected, target_cycle))
+		return cc_false;
+
 	return clownmdemu->callbacks->save_file_removed((void*)clownmdemu->callbacks->user_data, file_name_buffer);
 }
 
@@ -609,7 +636,9 @@ static cc_bool GetSaveFileSize(const void* const user_data, const cc_bool write_
 	const ClownMDEmu* const clownmdemu = callback_user_data->clownmdemu;
 	char file_name_buffer[FILE_NAME_BUFFER_LENGTH];
 
-	ReadFilename(user_data, file_name_buffer, write_protected, target_cycle);
+	if (!ReadFilename(user_data, file_name_buffer, write_protected, target_cycle))
+		return cc_false;
+
 	return clownmdemu->callbacks->save_file_size_obtained((void*)clownmdemu->callbacks->user_data, file_name_buffer, file_size);
 }
 
