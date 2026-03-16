@@ -297,9 +297,6 @@ void ClownMDEmu_Iterate(ClownMDEmu* const clownmdemu)
 			/* Fire a H-Int if we've reached the requested line */
 			/* TODO: There is some strange behaviour surrounding how H-Int is asserted. */
 			/* https://gendev.spritesmind.net/forum/viewtopic.php?t=183 */
-			/* TODO: The interrupt should occur at the START of H-Blank, not the end. */
-			/* Lemmings 2 appears to rely on this so that the V-counter is 1 less than it would otherwise be, or else the game will not boot. */
-			/* http://gendev.spritesmind.net/forum/viewtopic.php?t=388&start=45 */
 			/* TODO: Timing info here: */
 			/* http://gendev.spritesmind.net/forum/viewtopic.php?p=8201#p8201 */
 			/* http://gendev.spritesmind.net/forum/viewtopic.php?p=8443#p8443 */

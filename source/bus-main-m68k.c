@@ -139,11 +139,11 @@ static cc_u16f GetHCounterValue(const ClownMDEmu* const clownmdemu, const CycleM
 		value /= 5 * 2;
 	}
 
-	value = (start + value) % 0x200;
+	value = (start + value) % range;
 
 	/* There's a 'gap' in the H-counter values, so handle that here. */
-	if (value > jump_from)
-		value = (value - jump_from + jump_to) % 0x200;
+	if (value >= jump_from)
+		value = (value + (jump_to - jump_from)) % 0x200;
 
 	return value;
 }
