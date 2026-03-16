@@ -21,6 +21,63 @@ static const cc_u16l megacd_boot_rom[] = {
 };
 
 /* Nemesis' HV counter tables are very important for understanding this H-counter stuff */
+/*
+Analog screen sections in relation to HCounter (H32 mode):
+-----------------------------------------------------------------
+| Screen section | HCounter  |Pixel| Pixel |Serial|Serial |MCLK |
+| (PAL/NTSC H32) |  value    |clock| clock |clock |clock  |ticks|
+|                |           |ticks|divider|ticks |divider|     |
+|----------------|-----------|-----|-------|------|-------|-----|
+|Left border     |0x00B-0x017|  13 |SCLK/2 |   26 |MCLK/5 | 130 |
+|----------------|-----------|-----|-------|------|-------|-----|
+|Active display  |0x018-0x117| 256 |SCLK/2 |  512 |MCLK/5 |2560 |
+|----------------|-----------|-----|-------|------|-------|-----|
+|Right border    |0x118-0x125|  14 |SCLK/2 |   28 |MCLK/5 | 140 |
+|----------------|-----------|-----|-------|------|-------|-----|
+|Front porch     |0x126-0x127|   9 |SCLK/2 |   18 |MCLK/5 |  90 |
+|(Right Blanking)|0x1D2-0x1D8|     |       |      |       |     |
+|----------------|-----------|-----|-------|------|-------|-----|
+|Horizontal sync |0x1D9-0x1F2|  26 |SCLK/2 |   52 |MCLK/5 | 260 |
+|----------------|-----------|-----|-------|------|-------|-----|
+|Back porch      |0x1F3-0x00A|  24 |SCLK/2 |   48 |MCLK/5 | 240 |
+|(Left Blanking) |           |     |       |      |       |     |
+|----------------|-----------|-----|-------|------|-------|-----|
+|TOTALS          |           | 342 |       |  684 |       |3420 |
+-----------------------------------------------------------------
+
+Analog screen sections in relation to HCounter (H40 mode):
+--------------------------------------------------------------------
+| Screen section |   HCounter    |Pixel| Pixel |EDCLK| EDCLK |MCLK |
+| (PAL/NTSC H40) |    value      |clock| clock |ticks|divider|ticks|
+|                |               |ticks|divider|     |       |     |
+|----------------|---------------|-----|-------|-----|-------|-----|
+|Left border     |0x00D-0x019    |  13 |EDCLK/2|  26 |MCLK/4 | 104 |
+|----------------|---------------|-----|-------|-----|-------|-----|
+|Active display  |0x01A-0x159    | 320 |EDCLK/2| 640 |MCLK/4 |2560 |
+|----------------|---------------|-----|-------|-----|-------|-----|
+|Right border    |0x15A-0x167    |  14 |EDCLK/2|  28 |MCLK/4 | 112 |
+|----------------|---------------|-----|-------|-----|-------|-----|
+|Front porch     |0x168-0x16C    |   9 |EDCLK/2|  18 |MCLK/4 |  72 |
+|(Right Blanking)|0x1C9-0x1CC    |     |       |     |       |     |
+|----------------|---------------|-----|-------|-----|-------|-----|
+|Horizontal sync |0x1CD.0-0x1D4.5| 7.5 |EDCLK/2|  15 |MCLK/5 |  75 |
+|                |0x1D4.5-0x1D5.5|   1 |EDCLK/2|   2 |MCLK/4 |   8 |
+|                |0x1D5.5-0x1DC.0| 7.5 |EDCLK/2|  15 |MCLK/5 |  75 |
+|                |0x1DD.0        |   1 |EDCLK/2|   2 |MCLK/4 |   8 |
+|                |0x1DE.0-0x1E5.5| 7.5 |EDCLK/2|  15 |MCLK/5 |  75 |
+|                |0x1E5.5-0x1E6.5|   1 |EDCLK/2|   2 |MCLK/4 |   8 |
+|                |0x1E6.5-0x1EC.0| 6.5 |EDCLK/2|  13 |MCLK/5 |  65 |
+|                |===============|=====|=======|=====|=======|=====|
+|        Subtotal|0x1CD-0x1EC    | (32)|       | (64)|       |(314)|
+|----------------|---------------|-----|-------|-----|-------|-----|
+|Back porch      |0x1ED          |   1 |EDCLK/2|   2 |MCLK/5 |  10 |
+|(Left Blanking) |0x1EE-0x00C    |  31 |EDCLK/2|  62 |MCLK/4 | 248 |
+|                |===============|=====|=======|=====|=======|=====|
+|        Subtotal|0x1ED-0x00C    | (32)|       | (64)|       |(258)|
+|----------------|---------------|-----|-------|-----|-------|-----|
+|TOTALS          |               | 420 |       | 840 |       |3420 |
+--------------------------------------------------------------------
+*/
 
 static cc_u16f GetHCounterValue(const ClownMDEmu* const clownmdemu, const CycleMegaDrive target_cycle)
 {
@@ -29,12 +86,60 @@ static cc_u16f GetHCounterValue(const ClownMDEmu* const clownmdemu, const CycleM
 	const cc_bool h40 = clownmdemu->vdp.state.h40_enabled;
 	const cc_u16f range = h40 ? 420 : 342;
 	const cc_u16f start = h40 ? 0x14E : 0x10A; /* Estimates */
-	const cc_u16f jump_from = h40 ? 0x16C : 0x127;
+	const cc_u16f jump_from = h40 ? 0x16D : 0x128;
 	const cc_u16f jump_to = h40 ? 0x1C9 : 0x1D2;
 
 	const cc_u16f cycles_per_scanline = GetMegaDriveCyclesPerFrame(clownmdemu).cycle / GetTelevisionVerticalResolution(clownmdemu);
 
-	cc_u16f value = (start + ((target_cycle.cycle % cycles_per_scanline) * range / cycles_per_scanline)) % 0x200;
+	cc_u16f value = target_cycle.cycle % cycles_per_scanline;
+
+	/* Convert from master cycles to VDP pixels. */
+	if (h40)
+	{
+		/* Big pain in the ass!!! */
+		/* TODO: This table is a headache: break it down to make more sense. */
+		static const cc_u16l cycles[][2] = {
+			/* Remember: 0x14E is the start! */
+			{((0x1CD - 0x14E) - (0x1C9 - 0x16D)/* Gap */) * 2, 4},
+			{15, 5},
+			{ 2, 4},
+			{15, 5},
+			{ 2, 4},
+			{15, 5},
+			{ 2, 4},
+			{13, 5},
+			{ 2, 5},
+			{62, 4},
+			{(0x14E - 0xD)  * 2, 4},
+			/* The left column should total 840. */
+		};
+
+		cc_u16f countdown = value;
+		cc_u8f i;
+
+		value = 0;
+
+		for (i = 0; ; ++i)
+		{
+			if (countdown < cycles[i][0] * cycles[i][1])
+			{
+				value += countdown / cycles[i][1];
+				break;
+			}
+
+			countdown -= cycles[i][0] * cycles[i][1];
+			value += cycles[i][0];
+		}
+
+		/* Convert from EDCLK ticks to pixels. */
+		value /= 2;
+	}
+	else
+	{
+		value /= 5 * 2;
+	}
+
+	value = (start + value) % 0x200;
 
 	/* There's a 'gap' in the H-counter values, so handle that here. */
 	if (value > jump_from)

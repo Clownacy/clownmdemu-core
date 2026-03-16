@@ -289,6 +289,7 @@ void ClownMDEmu_Iterate(ClownMDEmu* const clownmdemu)
 			clownmdemu->vdp.state.currently_in_vblank = cc_false;
 
 			/* Reload H-Int counter at the top of the screen, just like real hardware does. */
+			/* TODO: Try moving this to other scanlines, to see if any are more accurate. */
 			h_int_counter = clownmdemu->vdp.state.h_int_interval;
 		}
 		else if (v_counter < console_vertical_resolution)
