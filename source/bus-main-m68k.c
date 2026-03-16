@@ -20,25 +20,25 @@ static const cc_u16l megacd_boot_rom[] = {
 #include "mega-cd-boot-rom.c"
 };
 
+/* Nemesis' HV counter tables are very important for understanding this H-counter stuff */
+
 static cc_u16f GetHCounterValue(const ClownMDEmu* const clownmdemu, const CycleMegaDrive target_cycle)
 {
-	/* TODO: V30 and PAL and H32. */
-
 	/* TODO: This entire thing is a disgusting hack. */
 	/* Once the VDP emulator becames slot-based, this junk should be erased. */
+	const cc_bool h40 = clownmdemu->vdp.state.h40_enabled;
+	const cc_u16f range = h40 ? 420 : 342;
+	const cc_u16f start = h40 ? 0x1C9 : 0x1D2;
+
 	const cc_u16f cycles_per_scanline = GetMegaDriveCyclesPerFrame(clownmdemu).cycle / GetTelevisionVerticalResolution(clownmdemu);
 
-	/* Sourced from https://gendev.spritesmind.net/forum/viewtopic.php?t=3058. */
-	const cc_u16f maximum_value = 0x100 - 0x30;
-
-	return (target_cycle.cycle % cycles_per_scanline) * maximum_value / cycles_per_scanline;
+	return (start + ((target_cycle.cycle % cycles_per_scanline) * range / cycles_per_scanline)) % 0x200;
 }
 
 static cc_bool GetHBlankBit(const ClownMDEmu* const clownmdemu, const CycleMegaDrive target_cycle)
 {
-	/* TODO: V30 and PAL and H32. */
-	/* Sourced from https://plutiedev.com/mirror/kabuto-hardware-notes. */
-	return GetHCounterValue(clownmdemu, target_cycle) > 0xB2;
+	/* A bit of a cheat: the counter can never be 0x180, but the threshold always lies above it. */
+	return GetHCounterValue(clownmdemu, target_cycle) > 0x180;
 }
 
 static cc_bool MegaCDEnabled(const ClownMDEmu* const clownmdemu)
@@ -654,7 +654,7 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 				case 0xE / 2:
 				{
 					/* H/V COUNTER */
-					const cc_u8f h_counter = GetHCounterValue(clownmdemu, target_cycle);
+					const cc_u8f h_counter = GetHCounterValue(clownmdemu, target_cycle) >> 1;
 					const cc_u8f v_counter_raw = clownmdemu->state.current_scanline;
 
 					/* TODO: Apparently, in interlace mode 1, the lowest bit of the V-counter is set to the hidden ninth bit. */
