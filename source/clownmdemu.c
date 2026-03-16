@@ -230,7 +230,7 @@ void ClownMDEmu_Iterate(ClownMDEmu* const clownmdemu)
 		cpu_callback_user_data.sync.io_ports[i].current_cycle = 0;
 
 	/* We start at V-Int, to minimise input latency (games tend to read the control pads during V-Int). */
-	state->current_scanline = console_vertical_resolution + 1;
+	state->current_scanline = console_vertical_resolution;
 	clownmdemu->vdp.state.currently_in_vblank = cc_true;
 
 	/* Do V-Int. */
@@ -249,7 +249,8 @@ void ClownMDEmu_Iterate(ClownMDEmu* const clownmdemu)
 
 	++state->current_scanline;
 
-	for (; state->current_scanline < television_vertical_resolution; ++state->current_scanline)
+	/* See below for the reason for the '-1'. */
+	for (; state->current_scanline != television_vertical_resolution - 1; ++state->current_scanline)
 	{
 		current_mega_drive_cycle.cycle += cycles_per_scanline;
 		SyncM68k(clownmdemu, &cpu_callback_user_data, current_mega_drive_cycle);
@@ -270,10 +271,12 @@ void ClownMDEmu_Iterate(ClownMDEmu* const clownmdemu)
 	h_int_counter = clownmdemu->vdp.state.h_int_interval;
 
 	clownmdemu->vdp.state.currently_in_vblank = cc_false;
-	state->current_scanline = 0;
+	/* On a real Mega Drive, line -1 is treated as a display line rather than a blank line, presumably for sprite preprocessing purposes.
+	   A side-effect of this is that line -1 decrements the H-Int counter, which is relied upon by Lemmings 2, as it expects every other
+	   H-Int to occur on odd-numbered lines. */
+	state->current_scanline = -1;
 
-	/* '+1' because line 225 is a valid line to fire H-INT at, and V-INT apparently occurs at the end of it too. */
-	for (; state->current_scanline < console_vertical_resolution + 1; ++state->current_scanline)
+	for (; state->current_scanline != console_vertical_resolution; ++state->current_scanline)
 	{
 		const cc_u16f scanline = state->current_scanline;
 
@@ -306,14 +309,17 @@ void ClownMDEmu_Iterate(ClownMDEmu* const clownmdemu)
 
 		SyncM68k(clownmdemu, &cpu_callback_user_data, current_mega_drive_cycle);
 
-		if (clownmdemu->vdp.state.double_resolution_enabled)
+		if (scanline != (cc_u16l)-1)
 		{
-			VDP_RenderScanline(&clownmdemu->vdp, scanline * 2 + 0, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
-			VDP_RenderScanline(&clownmdemu->vdp, scanline * 2 + 1, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
-		}
-		else
-		{
-			VDP_RenderScanline(&clownmdemu->vdp, scanline, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
+			if (clownmdemu->vdp.state.double_resolution_enabled)
+			{
+				VDP_RenderScanline(&clownmdemu->vdp, scanline * 2 + 0, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
+				VDP_RenderScanline(&clownmdemu->vdp, scanline * 2 + 1, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
+			}
+			else
+			{
+				VDP_RenderScanline(&clownmdemu->vdp, scanline, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
+			}
 		}
 	}
 
