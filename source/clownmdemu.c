@@ -162,6 +162,7 @@ void ClownMDEmu_Initialise(ClownMDEmu* const clownmdemu, const ClownMDEmu_Initia
    https://gendev.spritesmind.net/forum/viewtopic.php?t=3058
    https://gendev.spritesmind.net/forum/viewtopic.php?t=768 */
 
+#if 0
 static cc_u16f CyclesUntilHorizontalSync(const ClownMDEmu* const clownmdemu)
 {
 	const cc_u16f h32_divider = 5;
@@ -194,6 +195,36 @@ static cc_u16f CyclesUntilHorizontalSync(const ClownMDEmu* const clownmdemu)
 		return raster_line;
 	}
 }
+#endif
+
+/*
+Nemesis' fantastic V-counter table (http://gendev.spritesmind.net/forum/viewtopic.php?p=35660#p35660):
+
+Analog screen sections in relation to VCounter:
+-------------------------------------------------------------------------------------------
+|           Video |NTSC             |NTSC             |PAL              |PAL              |
+|            Mode |H32/H40(RSx00/11)|H32/H40(RSx00/11)|H32/H40(RSx00/11)|H32/H40(RSx00/11)|
+|                 |V28     (M2=0)   |V30     (M2=1)   |V28     (M2=0)   |V30     (M2=1)   |
+|                 |Int none(LSMx=*0)|Int none(LSMx=*0)|Int none(LSMx=*0)|Int none(LSMx=*0)|
+|                 |------------------------------------------------------------------------
+|                 | VCounter  |Line | VCounter  |Line | VCounter  |Line | VCounter  |Line |
+| Screen section  |  value    |count|  value    |count|  value    |count|  value    |count|
+|-----------------|-----------|-----|-----------|-----|-----------|-----|-----------|-----|
+|Active display   |0x000-0x0DF| 224 |0x000-0x1FF| 240*|0x000-0x0DF| 224 |0x000-0x0EF| 240 |
+|-----------------|-----------|-----|-----------|-----|-----------|-----|-----------|-----|
+|Bottom border    |0x0E0-0x0E7|   8 |           |   0 |0x0E0-0x0FF|  32 |0x0F0-0x107|  24 |
+|-----------------|-----------|-----|-----------|-----|-----------|-----|-----------|-----|
+|Bottom blanking  |0x0E8-0x0EA|   3 |           |   0 |0x100-0x102|   3 |0x108-0x10A|   3 |
+|-----------------|-----------|-----|-----------|-----|-----------|-----|-----------|-----|
+|Vertical sync    |0x1E5-0x1E7|   3 |           |   0 |0x1CA-0x1CC|   3 |0x1D2-0x1D4|   3 |
+|-----------------|-----------|-----|-----------|-----|-----------|-----|-----------|-----|
+|Top blanking     |0x1E8-0x1F4|  13 |           |   0 |0x1CD-0x1D9|  13 |0x1D5-0x1E1|  13 |
+|-----------------|-----------|-----|-----------|-----|-----------|-----|-----------|-----|
+|Top border       |0x1F5-0x1FF|  11 |           |   0 |0x1DA-0x1FF|  38 |0x1E2-0x1FF|  30 |
+|-----------------|-----------|-----|-----------|-----|-----------|-----|-----------|-----|
+|TOTALS           |           | 262 |           | 240*|           | 313 |           | 313 |
+-------------------------------------------------------------------------------------------
+*/
 
 void ClownMDEmu_Iterate(ClownMDEmu* const clownmdemu)
 {
@@ -203,11 +234,13 @@ void ClownMDEmu_Iterate(ClownMDEmu* const clownmdemu)
 	const cc_u16f console_vertical_resolution = VDP_GetScreenHeightInTiles(&clownmdemu->vdp.state) * VDP_STANDARD_TILE_HEIGHT;
 	const CycleMegaDrive cycles_per_frame_mega_drive = GetMegaDriveCyclesPerFrame(clownmdemu);
 	const cc_u16f cycles_per_scanline = cycles_per_frame_mega_drive.cycle / television_vertical_resolution;
-	const cc_u16f cycles_until_horizontal_sync = CyclesUntilHorizontalSync(clownmdemu);
 	const CycleMegaCD cycles_per_frame_mega_cd = MakeCycleMegaCD(clownmdemu->configuration.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(CLOWNMDEMU_MCD_MASTER_CLOCK) : CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(CLOWNMDEMU_MCD_MASTER_CLOCK));
+	const cc_u8f bottom_border = (television_vertical_resolution - console_vertical_resolution - VDP_LINES_BOTTOM_BLANKING - VDP_LINES_VERTICAL_SYNC - VDP_LINES_TOP_BLANKING) / 8 * 4;
+	const cc_u16l starting_v_counter = 0 - (television_vertical_resolution - console_vertical_resolution - VDP_LINES_BOTTOM_BLANKING - bottom_border);
 
 	CycleMegaDrive current_mega_drive_cycle = MakeCycleMegaDrive(0);
 	CPUCallbackUserData cpu_callback_user_data;
+	cc_u16f scanline;
 	cc_u8f h_int_counter;
 	cc_u8f i;
 
@@ -229,9 +262,7 @@ void ClownMDEmu_Iterate(ClownMDEmu* const clownmdemu)
 	for (i = 0; i < CC_COUNT_OF(cpu_callback_user_data.sync.io_ports); ++i)
 		cpu_callback_user_data.sync.io_ports[i].current_cycle = 0;
 
-	/* We start at V-Int, to minimise input latency (games tend to read the control pads during V-Int). */
-	state->current_scanline = console_vertical_resolution;
-	clownmdemu->vdp.state.currently_in_vblank = cc_true;
+	/* We start at V-Int, to minimise input latency (games tend to read the control pads during V-Int). */;
 
 	/* Do V-Int. */
 	state->m68k.v_int_pending = cc_true;
@@ -240,80 +271,69 @@ void ClownMDEmu_Iterate(ClownMDEmu* const clownmdemu)
 	/* According to Charles MacDonald's gen-hw.txt, this occurs regardless of the 'v_int_enabled' setting. */
 	ClownZ80_Interrupt(&clownmdemu->z80, cc_true);
 
-	/* Assert the Z80 interrupt for a whole scanline. This has the side-effect of causing a second interrupt to occur if the handler exits quickly. */
-	/* TODO: According to Vladikcomper, this interrupt should be asserted for roughly 171 Z80 cycles. */
-	current_mega_drive_cycle.cycle += cycles_per_scanline;
-	SyncM68k(clownmdemu, &cpu_callback_user_data, current_mega_drive_cycle);
-	SyncZ80(clownmdemu, &cpu_callback_user_data, current_mega_drive_cycle);
-	ClownZ80_Interrupt(&clownmdemu->z80, cc_false);
+	state->current_scanline = starting_v_counter;
 
-	++state->current_scanline;
-
-	for (; state->current_scanline < television_vertical_resolution; ++state->current_scanline)
+	for (scanline = 0; scanline < television_vertical_resolution; ++scanline)
 	{
+		const cc_u16f v_counter = state->current_scanline;
+
+		if (v_counter == starting_v_counter + 1)
+		{
+			/* Assert the Z80 interrupt for a whole scanline. This has the side-effect of causing a second interrupt to occur if the handler exits quickly. */
+			/* TODO: According to Vladikcomper, this interrupt should be asserted for roughly 171 Z80 cycles. */
+			SyncZ80(clownmdemu, &cpu_callback_user_data, current_mega_drive_cycle);
+			ClownZ80_Interrupt(&clownmdemu->z80, cc_false);
+		}
+		else if (v_counter == (cc_u16l)-1)
+		{
+			clownmdemu->vdp.state.currently_in_vblank = cc_false;
+
+			/* Reload H-Int counter at the top of the screen, just like real hardware does. */
+			h_int_counter = clownmdemu->vdp.state.h_int_interval;
+		}
+		else if (v_counter < console_vertical_resolution)
+		{
+			/* Fire a H-Int if we've reached the requested line */
+			/* TODO: There is some strange behaviour surrounding how H-Int is asserted. */
+			/* https://gendev.spritesmind.net/forum/viewtopic.php?t=183 */
+			/* TODO: The interrupt should occur at the START of H-Blank, not the end. */
+			/* Lemmings 2 appears to rely on this so that the V-counter is 1 less than it would otherwise be, or else the game will not boot. */
+			/* http://gendev.spritesmind.net/forum/viewtopic.php?t=388&start=45 */
+			/* TODO: Timing info here: */
+			/* http://gendev.spritesmind.net/forum/viewtopic.php?p=8201#p8201 */
+			/* http://gendev.spritesmind.net/forum/viewtopic.php?p=8443#p8443 */
+			/* http://gendev.spritesmind.net/forum/viewtopic.php?t=3058 */
+			/* http://gendev.spritesmind.net/forum/viewtopic.php?t=519 */
+			if (h_int_counter-- == 0)
+			{
+				h_int_counter = clownmdemu->vdp.state.h_int_interval;
+
+				/* Do H-Int. */
+				state->m68k.h_int_pending = cc_true;
+				RaiseHorizontalInterruptIfNeeded(clownmdemu);
+			}
+
+			if (clownmdemu->vdp.state.double_resolution_enabled)
+			{
+				VDP_RenderScanline(&clownmdemu->vdp, v_counter * 2 + 0, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
+				VDP_RenderScanline(&clownmdemu->vdp, v_counter * 2 + 1, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
+			}
+			else
+			{
+				VDP_RenderScanline(&clownmdemu->vdp, v_counter, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
+			}
+		}
+		else if (v_counter == console_vertical_resolution)
+		{
+			clownmdemu->vdp.state.currently_in_vblank = cc_true;
+		}
+
 		current_mega_drive_cycle.cycle += cycles_per_scanline;
-		SyncM68k(clownmdemu, &cpu_callback_user_data, current_mega_drive_cycle);
-	}
-
-	/* Fire IRQ1 if needed. */
-	/* TODO: This is a hack. Look into when this interrupt should actually be done. */
-	if (state->mega_cd.irq.irq1_pending)
-	{
-		state->mega_cd.irq.irq1_pending = cc_false;
-		Clown68000_Interrupt(&clownmdemu->mega_cd.m68k, 1);
-	}
-
-	/* TODO: This should be done 75 times a second (in sync with the CDD interrupt), not 60! */
-	CDDA_UpdateFade(&clownmdemu->mega_cd.cdda);
-
-	/* Reload H-Int counter at the top of the screen, just like real hardware does. */
-	h_int_counter = clownmdemu->vdp.state.h_int_interval;
-
-	clownmdemu->vdp.state.currently_in_vblank = cc_false;
-	state->current_scanline = 0;
-
-	for (; state->current_scanline < console_vertical_resolution; ++state->current_scanline)
-	{
-		const cc_u16f scanline = state->current_scanline;
-
-		current_mega_drive_cycle.cycle += cycles_until_horizontal_sync;
 
 		/* Sync the 68k, since it's the one thing that can influence the VDP. */
 		SyncM68k(clownmdemu, &cpu_callback_user_data, current_mega_drive_cycle);
 
-		/* Fire a H-Int if we've reached the requested line */
-		/* TODO: There is some strange behaviour surrounding how H-Int is asserted. */
-		/* https://gendev.spritesmind.net/forum/viewtopic.php?t=183 */
-		/* TODO: The interrupt should occur at the START of H-Blank, not the end. */
-		/* Lemmings 2 appears to rely on this so that the V-counter is 1 less than it would otherwise be, or else the game will not boot. */
-		/* http://gendev.spritesmind.net/forum/viewtopic.php?t=388&start=45 */
-		/* TODO: Timing info here: */
-		/* http://gendev.spritesmind.net/forum/viewtopic.php?p=8201#p8201 */
-		/* http://gendev.spritesmind.net/forum/viewtopic.php?p=8443#p8443 */
-		/* http://gendev.spritesmind.net/forum/viewtopic.php?t=3058 */
-		/* http://gendev.spritesmind.net/forum/viewtopic.php?t=519 */
-		if (h_int_counter-- == 0)
-		{
-			h_int_counter = clownmdemu->vdp.state.h_int_interval;
-
-			/* Do H-Int. */
-			state->m68k.h_int_pending = cc_true;
-			RaiseHorizontalInterruptIfNeeded(clownmdemu);
-		}
-
-		current_mega_drive_cycle.cycle += cycles_per_scanline - cycles_until_horizontal_sync;
-
-		SyncM68k(clownmdemu, &cpu_callback_user_data, current_mega_drive_cycle);
-
-		if (clownmdemu->vdp.state.double_resolution_enabled)
-		{
-			VDP_RenderScanline(&clownmdemu->vdp, scanline * 2 + 0, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
-			VDP_RenderScanline(&clownmdemu->vdp, scanline * 2 + 1, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
-		}
-		else
-		{
-			VDP_RenderScanline(&clownmdemu->vdp, scanline, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
-		}
+		++state->current_scanline;
 	}
 
 	/* Update everything for the rest of the frame. */
@@ -326,6 +346,17 @@ void ClownMDEmu_Iterate(ClownMDEmu* const clownmdemu)
 	SyncCDDA(&cpu_callback_user_data, clownmdemu->configuration.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(44100) : CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(44100));
 	for (i = 0; i < CC_COUNT_OF(cpu_callback_user_data.sync.io_ports); ++i)
 		SyncIOPort(&cpu_callback_user_data, cycles_per_frame_mega_drive, i);
+
+	/* Fire IRQ1 if needed. */
+	/* TODO: This is a hack. Look into when this interrupt should actually be done. */
+	if (state->mega_cd.irq.irq1_pending)
+	{
+		state->mega_cd.irq.irq1_pending = cc_false;
+		Clown68000_Interrupt(&clownmdemu->mega_cd.m68k, 1);
+	}
+
+	/* TODO: This should be done 75 times a second (in sync with the CDD interrupt), not 60! */
+	CDDA_UpdateFade(&clownmdemu->mega_cd.cdda);
 }
 
 static cc_u16f ReadCartridgeWord(const ClownMDEmu* const clownmdemu, const cc_u32f address)

@@ -393,7 +393,7 @@ void VDP_Initialise(VDP* const vdp)
 
 	vdp->state.background_colour = 0;
 	vdp->state.h_int_interval = 0;
-	vdp->state.currently_in_vblank = cc_false;
+	vdp->state.currently_in_vblank = cc_true;
 	vdp->state.allow_sprite_masking = cc_false;
 
 	SetHScrollMode(&vdp->state, VDP_HSCROLL_MODE_FULL);
