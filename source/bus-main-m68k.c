@@ -648,7 +648,10 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 
 					break;
 
-				case 8 / 2:
+				case 0x8 / 2:
+				case 0xA / 2:
+				case 0xC / 2:
+				case 0xE / 2:
 				{
 					/* H/V COUNTER */
 					const cc_u8f h_counter = GetHCounterValue(clownmdemu, target_cycle);
