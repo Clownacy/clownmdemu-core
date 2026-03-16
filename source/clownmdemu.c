@@ -236,7 +236,7 @@ void ClownMDEmu_Iterate(ClownMDEmu* const clownmdemu)
 	const cc_u16f cycles_per_scanline = cycles_per_frame_mega_drive.cycle / television_vertical_resolution;
 	const CycleMegaCD cycles_per_frame_mega_cd = MakeCycleMegaCD(clownmdemu->configuration.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(CLOWNMDEMU_MCD_MASTER_CLOCK) : CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(CLOWNMDEMU_MCD_MASTER_CLOCK));
 	const cc_u8f bottom_border = (television_vertical_resolution - console_vertical_resolution - VDP_LINES_BOTTOM_BLANKING - VDP_LINES_VERTICAL_SYNC - VDP_LINES_TOP_BLANKING) / 8 * 4;
-	const cc_u16l starting_v_counter = 0 - (television_vertical_resolution - console_vertical_resolution - VDP_LINES_BOTTOM_BLANKING - bottom_border);
+	const cc_u16l v_counter_jump = 0 - (television_vertical_resolution - console_vertical_resolution - VDP_LINES_BOTTOM_BLANKING - bottom_border);
 
 	CycleMegaDrive current_mega_drive_cycle = MakeCycleMegaDrive(0);
 	CPUCallbackUserData cpu_callback_user_data;
@@ -271,13 +271,13 @@ void ClownMDEmu_Iterate(ClownMDEmu* const clownmdemu)
 	/* According to Charles MacDonald's gen-hw.txt, this occurs regardless of the 'v_int_enabled' setting. */
 	ClownZ80_Interrupt(&clownmdemu->z80, cc_true);
 
-	state->current_scanline = starting_v_counter;
+	state->current_scanline = console_vertical_resolution;
 
 	for (scanline = 0; scanline < television_vertical_resolution; ++scanline)
 	{
 		const cc_u16f v_counter = state->current_scanline;
 
-		if (v_counter == starting_v_counter + 1)
+		if (v_counter == console_vertical_resolution + 1)
 		{
 			/* Assert the Z80 interrupt for a whole scanline. This has the side-effect of causing a second interrupt to occur if the handler exits quickly. */
 			/* TODO: According to Vladikcomper, this interrupt should be asserted for roughly 171 Z80 cycles. */
@@ -332,6 +332,9 @@ void ClownMDEmu_Iterate(ClownMDEmu* const clownmdemu)
 		SyncM68k(clownmdemu, &cpu_callback_user_data, current_mega_drive_cycle);
 
 		++state->current_scanline;
+
+		if (state->current_scanline == console_vertical_resolution + bottom_border + VDP_LINES_BOTTOM_BLANKING)
+			state->current_scanline = v_counter_jump;
 	}
 
 	/* Update everything for the rest of the frame. */
