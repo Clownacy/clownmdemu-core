@@ -28,11 +28,19 @@ static cc_u16f GetHCounterValue(const ClownMDEmu* const clownmdemu, const CycleM
 	/* Once the VDP emulator becames slot-based, this junk should be erased. */
 	const cc_bool h40 = clownmdemu->vdp.state.h40_enabled;
 	const cc_u16f range = h40 ? 420 : 342;
-	const cc_u16f start = h40 ? 0x1C9 : 0x1D2;
+	const cc_u16f start = h40 ? 0x14E : 0x10A; /* Estimates */
+	const cc_u16f jump_from = h40 ? 0x16C : 0x127;
+	const cc_u16f jump_to = h40 ? 0x1C9 : 0x1D2;
 
 	const cc_u16f cycles_per_scanline = GetMegaDriveCyclesPerFrame(clownmdemu).cycle / GetTelevisionVerticalResolution(clownmdemu);
 
-	return (start + ((target_cycle.cycle % cycles_per_scanline) * range / cycles_per_scanline)) % 0x200;
+	cc_u16f value = (start + ((target_cycle.cycle % cycles_per_scanline) * range / cycles_per_scanline)) % 0x200;
+
+	/* There's a 'gap' in the H-counter values, so handle that here. */
+	if (value > jump_from)
+		value = (value - jump_from + jump_to) % 0x200;
+
+	return value;
 }
 
 static cc_bool GetHBlankBit(const ClownMDEmu* const clownmdemu, const CycleMegaDrive target_cycle)
