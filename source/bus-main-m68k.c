@@ -85,7 +85,7 @@ static cc_u16f GetHCounterValue(const ClownMDEmu* const clownmdemu, const CycleM
 	/* Once the VDP emulator becames slot-based, this junk should be erased. */
 	const cc_bool h40 = clownmdemu->vdp.state.h40_enabled;
 	const cc_u16f range = h40 ? 420 : 342;
-	const cc_u16f start = h40 ? 0x14E : 0x10A; /* Estimates */
+	const cc_u16f start = h40 ? 0x15A : 0x10A; /* The emulated scanline begins directly at the end of active display. */
 	const cc_u16f jump_from = h40 ? 0x16D : 0x128;
 	const cc_u16f jump_to = h40 ? 0x1C9 : 0x1D2;
 
@@ -99,8 +99,8 @@ static cc_u16f GetHCounterValue(const ClownMDEmu* const clownmdemu, const CycleM
 		/* Big pain in the ass!!! */
 		/* TODO: This table is a headache: break it down to make more sense. */
 		static const cc_u16l cycles[][2] = {
-			/* Remember: 0x14E is the start! */
-			{((0x1CD - 0x14E) - (0x1C9 - 0x16D)/* Gap */) * 2, 4},
+			/* Remember: 0x15A is the start! */
+			{((0x1CD - 0x15A) - (0x1C9 - 0x16D)) * 2, 4},
 			{15, 5},
 			{ 2, 4},
 			{15, 5},
@@ -110,7 +110,7 @@ static cc_u16f GetHCounterValue(const ClownMDEmu* const clownmdemu, const CycleM
 			{13, 5},
 			{ 2, 5},
 			{62, 4},
-			{(0x14E - 0xD)  * 2, 4},
+			{(0x15A - 0xD)  * 2, 4},
 			/* The left column should total 840. */
 		};
 
@@ -150,8 +150,15 @@ static cc_u16f GetHCounterValue(const ClownMDEmu* const clownmdemu, const CycleM
 
 static cc_bool GetHBlankBit(const ClownMDEmu* const clownmdemu, const CycleMegaDrive target_cycle)
 {
-	/* A bit of a cheat: the counter can never be 0x180, but the threshold always lies above it. */
-	return GetHCounterValue(clownmdemu, target_cycle) > 0x180;
+	const cc_u16f h_counter = GetHCounterValue(clownmdemu, target_cycle);
+	const cc_bool h40 = clownmdemu->vdp.state.h40_enabled;
+
+	/* Before left border or after active display. */
+	/* TODO: Use constants for this crap... */
+	if (h40)
+		return h_counter < 0xD || h_counter > 0x159;
+	else
+		return h_counter < 0xB || h_counter > 0x117;
 }
 
 static cc_bool MegaCDEnabled(const ClownMDEmu* const clownmdemu)
@@ -187,7 +194,7 @@ static void VDPDMATransferBeginCallback(void *const user_data, const cc_u32f tot
 	const CycleMegaDrive cycles_per_scanline = GetMegaDriveCyclesPerScanline(clownmdemu);
 
 	/* For the duration of the DMA transfer, the 68k's bus is in use by the VDP. This freezes the CPU. */
-	clownmdemu->state.vdp_dma_transfer_countdown = cycles_per_scanline.cycle / GetDMATransferBytesPerScanline(clownmdemu) * total_reads;
+	clownmdemu->state.vdp_dma_transfer_countdown = cycles_per_scanline.cycle * total_reads / GetDMATransferBytesPerScanline(clownmdemu);
 	clownmdemu->state.m68k.frozen_by_dma_transfer = cc_true;
 }
 

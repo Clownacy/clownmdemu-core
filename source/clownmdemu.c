@@ -263,8 +263,10 @@ void ClownMDEmu_Iterate(ClownMDEmu* const clownmdemu)
 		cpu_callback_user_data.sync.io_ports[i].current_cycle = 0;
 
 	/* We start at V-Int, to minimise input latency (games tend to read the control pads during V-Int). */;
+	clownmdemu->vdp.state.currently_in_vblank = cc_true;
 
 	/* Do V-Int. */
+	/* TODO: This SHOULD occur around H-scroll 0x1FF. */
 	state->m68k.v_int_pending = cc_true;
 	RaiseVerticalInterruptIfNeeded(clownmdemu);
 
@@ -310,7 +312,16 @@ void ClownMDEmu_Iterate(ClownMDEmu* const clownmdemu)
 				state->m68k.h_int_pending = cc_true;
 				RaiseHorizontalInterruptIfNeeded(clownmdemu);
 			}
+		}
 
+		current_mega_drive_cycle.cycle += cycles_per_scanline / 2;
+		/* Sync the 68k, since it's the one thing that can influence the VDP. */
+		SyncM68k(clownmdemu, &cpu_callback_user_data, current_mega_drive_cycle);
+
+		/* Render in the middle of the scanline, since fancy homebrew may fiddle with the display-on register at the edges of the screen. */
+		/* Devon's 'ronald.gen' is one such example, disabling the display near H-counter 0xA0 (which is on-screen). */
+		if (v_counter < console_vertical_resolution)
+		{
 			if (clownmdemu->vdp.state.double_resolution_enabled)
 			{
 				VDP_RenderScanline(&clownmdemu->vdp, v_counter * 2 + 0, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
@@ -321,14 +332,8 @@ void ClownMDEmu_Iterate(ClownMDEmu* const clownmdemu)
 				VDP_RenderScanline(&clownmdemu->vdp, v_counter, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
 			}
 		}
-		else if (v_counter == console_vertical_resolution)
-		{
-			clownmdemu->vdp.state.currently_in_vblank = cc_true;
-		}
 
-		current_mega_drive_cycle.cycle += cycles_per_scanline;
-
-		/* Sync the 68k, since it's the one thing that can influence the VDP. */
+		current_mega_drive_cycle.cycle += cycles_per_scanline / 2;
 		SyncM68k(clownmdemu, &cpu_callback_user_data, current_mega_drive_cycle);
 
 		++state->current_scanline;
