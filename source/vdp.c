@@ -1319,7 +1319,7 @@ void VDP_WriteControl(VDP* const vdp, const cc_u16f value, const VDP_ColourUpdat
 		{
 			/* TODO: Use this variable for the below loop? */
 			const cc_u32f total_reads = state->dma.length == 0 ? 0x10000 : state->dma.length;
-			dma_transfer_begin_callback((void*)read_callback_user_data, total_reads << (state->access.selected_buffer == VDP_ACCESS_VRAM));
+			dma_transfer_begin_callback((void*)read_callback_user_data, total_reads << (state->access.selected_buffer == VDP_ACCESS_VRAM && !state->extended_vram_enabled));
 		}
 
 		do
