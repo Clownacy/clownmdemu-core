@@ -20,6 +20,11 @@ static const cc_u16l megacd_boot_rom[] = {
 #include "mega-cd-boot-rom.c"
 };
 
+/* Super useful reference for HV counter and interrupt timings. */
+/* http://gendev.spritesmind.net/forum/viewtopic.php?p=35660#p35660 */
+/* https://gendev.spritesmind.net/forum/viewtopic.php?p=8201#p8201 */
+/* https://gendev.spritesmind.net/forum/viewtopic.php?t=787 */
+
 /* Nemesis' HV counter tables are very important for understanding this H-counter stuff */
 /*
 Analog screen sections in relation to HCounter (H32 mode):
