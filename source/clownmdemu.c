@@ -314,6 +314,8 @@ void ClownMDEmu_Iterate(ClownMDEmu* const clownmdemu)
 			}
 		}
 
+		VDP_BeginScanline(&clownmdemu->vdp);
+
 		current_mega_drive_cycle.cycle += cycles_per_scanline / 2;
 		/* Sync the 68k, since it's the one thing that can influence the VDP. */
 		SyncM68k(clownmdemu, &cpu_callback_user_data, current_mega_drive_cycle);
@@ -324,12 +326,12 @@ void ClownMDEmu_Iterate(ClownMDEmu* const clownmdemu)
 		{
 			if (clownmdemu->vdp.state.double_resolution_enabled)
 			{
-				VDP_RenderScanline(&clownmdemu->vdp, v_counter * 2 + 0, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
-				VDP_RenderScanline(&clownmdemu->vdp, v_counter * 2 + 1, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
+				VDP_EndScanline(&clownmdemu->vdp, v_counter * 2 + 0, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
+				VDP_EndScanline(&clownmdemu->vdp, v_counter * 2 + 1, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
 			}
 			else
 			{
-				VDP_RenderScanline(&clownmdemu->vdp, v_counter, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
+				VDP_EndScanline(&clownmdemu->vdp, v_counter, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
 			}
 		}
 

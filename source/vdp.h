@@ -185,6 +185,7 @@ typedef struct VDP_State
 	   of VSRAM, instead of the 40 words that earlier models have. */
 	/* TODO: Add a toggle for Model 1 and Model 2 behaviour. */
 	cc_u16l vsram[64];
+	cc_u16l vsram_cache[2];
 
 	cc_u8l sprite_table_cache[VDP_MAX_SCANLINE_WIDTH_IN_TILE_PAIRS * 4][4];
 
@@ -217,7 +218,8 @@ typedef void (*VDP_KDebugCallback)(void *user_data, const char *string);
 
 void VDP_Constant_Initialise(void);
 void VDP_Initialise(VDP *vdp);
-void VDP_RenderScanline(VDP *vdp, cc_u16f scanline, VDP_ScanlineRenderedCallback scanline_rendered_callback, const void *scanline_rendered_callback_user_data);
+void VDP_BeginScanline(VDP *vdp);
+void VDP_EndScanline(VDP *vdp, cc_u16f scanline, VDP_ScanlineRenderedCallback scanline_rendered_callback, const void *scanline_rendered_callback_user_data);
 
 cc_u16f VDP_ReadData(VDP *vdp);
 cc_u16f VDP_ReadControl(VDP *vdp);
