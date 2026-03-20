@@ -230,17 +230,16 @@ void ClownMDEmu_Iterate(ClownMDEmu* const clownmdemu)
 {
 	ClownMDEmu_State* const state = &clownmdemu->state;
 
-	const cc_u16f television_vertical_resolution = GetTelevisionVerticalResolution(clownmdemu);
-	const cc_u16f console_vertical_resolution = VDP_GetScreenHeightInTiles(&clownmdemu->vdp.state) * VDP_STANDARD_TILE_HEIGHT;
+	const cc_s16f television_vertical_resolution = GetTelevisionVerticalResolution(clownmdemu);
+	const cc_s16f console_vertical_resolution = VDP_GetScreenHeightInTiles(&clownmdemu->vdp.state) * VDP_STANDARD_TILE_HEIGHT;
 	const CycleMegaDrive cycles_per_frame_mega_drive = GetMegaDriveCyclesPerFrame(clownmdemu);
 	const cc_u16f cycles_per_scanline = cycles_per_frame_mega_drive.cycle / television_vertical_resolution;
 	const CycleMegaCD cycles_per_frame_mega_cd = MakeCycleMegaCD(clownmdemu->configuration.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(CLOWNMDEMU_MCD_MASTER_CLOCK) : CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(CLOWNMDEMU_MCD_MASTER_CLOCK));
-	const cc_u8f bottom_border = (television_vertical_resolution - console_vertical_resolution - VDP_LINES_BOTTOM_BLANKING - VDP_LINES_VERTICAL_SYNC - VDP_LINES_TOP_BLANKING) / 8 * 4;
-	const cc_u16l v_counter_jump = 0 - (television_vertical_resolution - console_vertical_resolution - VDP_LINES_BOTTOM_BLANKING - bottom_border);
+	const cc_s8f bottom_border = (television_vertical_resolution - console_vertical_resolution - VDP_LINES_BOTTOM_BLANKING - VDP_LINES_VERTICAL_SYNC - VDP_LINES_TOP_BLANKING) / 8 * 4;
 
 	CycleMegaDrive current_mega_drive_cycle = MakeCycleMegaDrive(0);
 	CPUCallbackUserData cpu_callback_user_data;
-	cc_u16f scanline;
+	cc_s16f scanline;
 	cc_u8f h_int_counter;
 	cc_u8f i;
 
@@ -262,14 +261,77 @@ void ClownMDEmu_Iterate(ClownMDEmu* const clownmdemu)
 	for (i = 0; i < CC_COUNT_OF(cpu_callback_user_data.sync.io_ports); ++i)
 		cpu_callback_user_data.sync.io_ports[i].current_cycle = 0;
 
-	/* We start at V-Int, to minimise input latency (games tend to read the control pads during V-Int). */;
-	state->current_scanline = console_vertical_resolution;
+	/* We start at V-Int, to minimise input latency (games tend to read the control pads during V-Int). */
+	scanline = console_vertical_resolution;
 
-	for (scanline = 0; scanline < television_vertical_resolution; ++scanline)
+	do 
 	{
-		const cc_u16f v_counter = state->current_scanline;
+		state->current_scanline = scanline;
 
-		if (v_counter < console_vertical_resolution)
+		if (scanline >= 0 && scanline < console_vertical_resolution)
+		{
+			VDP_BeginScanline(&clownmdemu->vdp);
+
+			current_mega_drive_cycle.cycle += cycles_per_scanline / 2;
+			/* Sync the 68k, since it's the one thing that can influence the VDP. */
+			SyncM68k(clownmdemu, &cpu_callback_user_data, current_mega_drive_cycle);
+
+			/* Render in the middle of the scanline, since fancy homebrew may fiddle with the display-on register at the edges of the screen. */
+			/* Devon's 'ronald.gen' is one such example, disabling the display near H-counter 0xA0 (which is on-screen). */
+			if (clownmdemu->vdp.state.double_resolution_enabled)
+			{
+				VDP_EndScanline(&clownmdemu->vdp, scanline * 2 + 0, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
+				VDP_EndScanline(&clownmdemu->vdp, scanline * 2 + 1, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
+			}
+			else
+			{
+				VDP_EndScanline(&clownmdemu->vdp, scanline, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
+			}
+
+			current_mega_drive_cycle.cycle += cycles_per_scanline / 2;
+			SyncM68k(clownmdemu, &cpu_callback_user_data, current_mega_drive_cycle);
+		}
+		else
+		{
+			if (scanline == -1)
+			{
+				clownmdemu->vdp.state.currently_in_vblank = cc_false;
+
+				/* Reload H-Int counter at the top of the screen, just like real hardware does. */
+				/* TODO: Try moving this to other scanlines, to see if any are more accurate. */
+				h_int_counter = clownmdemu->vdp.state.h_int_interval;
+			}
+			else if (scanline == console_vertical_resolution)
+			{
+				clownmdemu->vdp.state.currently_in_vblank = cc_true;
+
+				/* Do V-Int. */
+				/* TODO: This SHOULD occur around H-scroll 0x1FF. */
+				state->m68k.v_int_pending = cc_true;
+				RaiseVerticalInterruptIfNeeded(clownmdemu);
+
+				/* According to Charles MacDonald's gen-hw.txt, this occurs regardless of the 'v_int_enabled' setting. */
+				SyncZ80(clownmdemu, &cpu_callback_user_data, current_mega_drive_cycle);
+				ClownZ80_Interrupt(&clownmdemu->z80, cc_true);
+			}
+			else if (scanline == console_vertical_resolution + 1)
+			{
+				/* Assert the Z80 interrupt for a whole scanline. This has the side-effect of causing a second interrupt to occur if the handler exits quickly. */
+				/* TODO: According to Vladikcomper, this interrupt should be asserted for roughly 171 Z80 cycles. */
+				SyncZ80(clownmdemu, &cpu_callback_user_data, current_mega_drive_cycle);
+				ClownZ80_Interrupt(&clownmdemu->z80, cc_false);
+			}
+
+			current_mega_drive_cycle.cycle += cycles_per_scanline;
+			SyncM68k(clownmdemu, &cpu_callback_user_data, current_mega_drive_cycle);
+		}
+
+		/* Line -1 is treated as a display line on real Mega Drives:
+		   - It performs sprite pre-processing.
+		   - It decrements the H-Int counter.
+		   - H-Int can occur on it.
+		   - It displays proper graphics when the border-blanking is disabled. */
+		if (scanline >= -1 && scanline < console_vertical_resolution)
 		{
 			/* Fire a H-Int if we've reached the requested line */
 			/* TODO: There is some strange behaviour surrounding how H-Int is asserted. */
@@ -287,68 +349,13 @@ void ClownMDEmu_Iterate(ClownMDEmu* const clownmdemu)
 				state->m68k.h_int_pending = cc_true;
 				RaiseHorizontalInterruptIfNeeded(clownmdemu);
 			}
-
-			VDP_BeginScanline(&clownmdemu->vdp);
-
-			current_mega_drive_cycle.cycle += cycles_per_scanline / 2;
-			/* Sync the 68k, since it's the one thing that can influence the VDP. */
-			SyncM68k(clownmdemu, &cpu_callback_user_data, current_mega_drive_cycle);
-
-			/* Render in the middle of the scanline, since fancy homebrew may fiddle with the display-on register at the edges of the screen. */
-			/* Devon's 'ronald.gen' is one such example, disabling the display near H-counter 0xA0 (which is on-screen). */
-			if (clownmdemu->vdp.state.double_resolution_enabled)
-			{
-				VDP_EndScanline(&clownmdemu->vdp, v_counter * 2 + 0, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
-				VDP_EndScanline(&clownmdemu->vdp, v_counter * 2 + 1, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
-			}
-			else
-			{
-				VDP_EndScanline(&clownmdemu->vdp, v_counter, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
-			}
-
-			current_mega_drive_cycle.cycle += cycles_per_scanline / 2;
-			SyncM68k(clownmdemu, &cpu_callback_user_data, current_mega_drive_cycle);
-		}
-		else
-		{
-			if (v_counter == (cc_u16l)-1)
-			{
-				clownmdemu->vdp.state.currently_in_vblank = cc_false;
-
-				/* Reload H-Int counter at the top of the screen, just like real hardware does. */
-				/* TODO: Try moving this to other scanlines, to see if any are more accurate. */
-				h_int_counter = clownmdemu->vdp.state.h_int_interval;
-			}
-			else if (v_counter == console_vertical_resolution)
-			{
-				clownmdemu->vdp.state.currently_in_vblank = cc_true;
-
-				/* Do V-Int. */
-				/* TODO: This SHOULD occur around H-scroll 0x1FF. */
-				state->m68k.v_int_pending = cc_true;
-				RaiseVerticalInterruptIfNeeded(clownmdemu);
-
-				/* According to Charles MacDonald's gen-hw.txt, this occurs regardless of the 'v_int_enabled' setting. */
-				SyncZ80(clownmdemu, &cpu_callback_user_data, current_mega_drive_cycle);
-				ClownZ80_Interrupt(&clownmdemu->z80, cc_true);
-			}
-			else if (v_counter == console_vertical_resolution + 1)
-			{
-				/* Assert the Z80 interrupt for a whole scanline. This has the side-effect of causing a second interrupt to occur if the handler exits quickly. */
-				/* TODO: According to Vladikcomper, this interrupt should be asserted for roughly 171 Z80 cycles. */
-				SyncZ80(clownmdemu, &cpu_callback_user_data, current_mega_drive_cycle);
-				ClownZ80_Interrupt(&clownmdemu->z80, cc_false);
-			}
-
-			current_mega_drive_cycle.cycle += cycles_per_scanline;
-			SyncM68k(clownmdemu, &cpu_callback_user_data, current_mega_drive_cycle);
 		}
 
-		++state->current_scanline;
+		++scanline;
 
-		if (state->current_scanline == console_vertical_resolution + bottom_border + VDP_LINES_BOTTOM_BLANKING)
-			state->current_scanline = v_counter_jump;
-	}
+		if (scanline == console_vertical_resolution + bottom_border + VDP_LINES_BOTTOM_BLANKING)
+			scanline = -(television_vertical_resolution - console_vertical_resolution - VDP_LINES_BOTTOM_BLANKING - bottom_border);
+	} while (scanline != console_vertical_resolution);
 
 	/* Update everything for the rest of the frame. */
 	SyncM68k(clownmdemu, &cpu_callback_user_data, cycles_per_frame_mega_drive);
