@@ -308,7 +308,7 @@ void ClownMDEmu_Iterate(ClownMDEmu* const clownmdemu)
 				/* Do V-Int. */
 				/* TODO: This SHOULD occur around H-scroll 0x1FF. */
 				state->m68k.v_int_pending = cc_true;
-				RaiseVerticalInterruptIfNeeded(clownmdemu);
+				RaiseInterruptIfNeeded(clownmdemu);
 
 				/* According to Charles MacDonald's gen-hw.txt, this occurs regardless of the 'v_int_enabled' setting. */
 				SyncZ80(clownmdemu, &cpu_callback_user_data, current_mega_drive_cycle);
@@ -347,7 +347,7 @@ void ClownMDEmu_Iterate(ClownMDEmu* const clownmdemu)
 
 				/* Do H-Int. */
 				state->m68k.h_int_pending = cc_true;
-				RaiseHorizontalInterruptIfNeeded(clownmdemu);
+				RaiseInterruptIfNeeded(clownmdemu);
 			}
 		}
 
@@ -536,10 +536,12 @@ void ClownMDEmu_SoftReset(ClownMDEmu* const clownmdemu, const cc_bool cartridge_
 
 	m68k_read_write_callbacks.read_callback = M68kReadCallback;
 	m68k_read_write_callbacks.write_callback = M68kWriteCallback;
+	m68k_read_write_callbacks.interrupt_acknowledge_callback = M68kInterruptAcknowledgeCallback;
 	Clown68000_Reset(&clownmdemu->m68k, &m68k_read_write_callbacks);
 
 	m68k_read_write_callbacks.read_callback = MCDM68kReadCallback;
 	m68k_read_write_callbacks.write_callback = MCDM68kWriteCallback;
+	m68k_read_write_callbacks.interrupt_acknowledge_callback = MCDM68kInterruptAcknowledgeCallback;
 	Clown68000_Reset(&clownmdemu->mega_cd.m68k, &m68k_read_write_callbacks);
 }
 

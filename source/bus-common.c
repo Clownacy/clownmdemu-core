@@ -197,22 +197,10 @@ void SyncCDDA(CPUCallbackUserData* const other_state, const cc_u32f total_frames
 
 /* https://gendev.spritesmind.net/forum/viewtopic.php?t=3290 */
 
-void RaiseHorizontalInterruptIfNeeded(ClownMDEmu* const clownmdemu)
-{
-	if (clownmdemu->state.m68k.h_int_pending && clownmdemu->vdp.state.h_int_enabled)
-	{
-		clownmdemu->state.m68k.h_int_pending = cc_false;
-
-		Clown68000_Interrupt(&clownmdemu->m68k, 4);
-	}
-}
-
-void RaiseVerticalInterruptIfNeeded(ClownMDEmu* const clownmdemu)
+void RaiseInterruptIfNeeded(ClownMDEmu* const clownmdemu)
 {
 	if (clownmdemu->state.m68k.v_int_pending && clownmdemu->vdp.state.v_int_enabled)
-	{
-		clownmdemu->state.m68k.v_int_pending = cc_false;
-
 		Clown68000_Interrupt(&clownmdemu->m68k, 6);
-	}
+	else if (clownmdemu->state.m68k.h_int_pending && clownmdemu->vdp.state.h_int_enabled)
+		Clown68000_Interrupt(&clownmdemu->m68k, 4);
 }

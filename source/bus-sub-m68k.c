@@ -348,12 +348,20 @@ static cc_u16f SyncMCDM68kCallback(ClownMDEmu* const clownmdemu, void* const use
 	return clownmdemu->state.mega_cd.irq.irq3_countdown_master;
 }
 
+void MCDM68kInterruptAcknowledgeCallback(const void* const user_data)
+{
+	CPUCallbackUserData* const other_state = (CPUCallbackUserData*)user_data;
+
+	Clown68000_Interrupt(&other_state->clownmdemu->mega_cd.m68k, 0);
+}
+
 void SyncMCDM68k(ClownMDEmu* const clownmdemu, CPUCallbackUserData* const other_state, const CycleMegaCD target_cycle)
 {
 	Clown68000_ReadWriteCallbacks m68k_read_write_callbacks;
 
 	m68k_read_write_callbacks.read_callback = MCDM68kReadCallback;
 	m68k_read_write_callbacks.write_callback = MCDM68kWriteCallback;
+	m68k_read_write_callbacks.interrupt_acknowledge_callback = MCDM68kInterruptAcknowledgeCallback;
 	m68k_read_write_callbacks.user_data = other_state;
 
 	/* In order to support the timer interrupt (IRQ3), we hijack this function to update an IRQ3 sync object instead. */

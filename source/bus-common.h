@@ -128,7 +128,6 @@ void SyncPSG(CPUCallbackUserData *other_state, CycleMegaDrive target_cycle);
 void SyncPCM(CPUCallbackUserData *other_state, CycleMegaCD target_cycle);
 void SyncCDDA(CPUCallbackUserData *other_state, cc_u32f total_frames);
 
-void RaiseHorizontalInterruptIfNeeded(ClownMDEmu *clownmdemu);
-void RaiseVerticalInterruptIfNeeded(ClownMDEmu *clownmdemu);
+void RaiseInterruptIfNeeded(ClownMDEmu *clownmdemu);
 
 #endif /* BUS_COMMON */

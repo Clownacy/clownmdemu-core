@@ -258,12 +258,31 @@ static cc_u16f SyncM68kCallback(ClownMDEmu* const clownmdemu, void* const user_d
 	return 0;
 }
 
+void M68kInterruptAcknowledgeCallback(const void* const user_data)
+{
+	CPUCallbackUserData* const other_state = (CPUCallbackUserData*)user_data;
+	ClownMDEmu* const clownmdemu = other_state->clownmdemu;
+	ClownMDEmu_State* const state = &clownmdemu->state;
+
+	/* The 68000 does not report which interrupt it is acknowledging, leading to a
+	   bug where if H-Int and V-Int are enabled in quick succession, the Mega Drive
+	   will think the 68000 acknowledged the V-Int instead of the H-Int, causing
+	   V-Int to be missed and H-Int to be raised twice. */
+	if (state->m68k.v_int_pending)
+		state->m68k.v_int_pending = cc_false;
+	else if (state->m68k.h_int_pending)
+		state->m68k.h_int_pending = cc_false;
+
+	Clown68000_Interrupt(&clownmdemu->m68k, state->m68k.h_int_pending ? 4 : 0);
+}
+
 void SyncM68k(ClownMDEmu* const clownmdemu, CPUCallbackUserData* const other_state, const CycleMegaDrive target_cycle)
 {
 	Clown68000_ReadWriteCallbacks m68k_read_write_callbacks;
 
 	m68k_read_write_callbacks.read_callback = M68kReadCallback;
 	m68k_read_write_callbacks.write_callback = M68kWriteCallback;
+	m68k_read_write_callbacks.interrupt_acknowledge_callback = M68kInterruptAcknowledgeCallback;
 	m68k_read_write_callbacks.user_data = other_state;
 
 	/* To simulate the CPU being frozen and unfrozen by DMA transfers, we hijack this function to update a DMA sync object. */
@@ -1260,8 +1279,7 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 					VDP_WriteControl(&clownmdemu->vdp, value, frontend_callbacks->colour_updated, frontend_callbacks->user_data, VDPDMATransferBeginCallback, VDPReadCallback, callback_user_data, VDPKDebugCallback, NULL, target_cycle.cycle);
 
 					/* TODO: This should be done more faithfully once the CPU interpreters are bus-event-oriented. */
-					RaiseHorizontalInterruptIfNeeded(clownmdemu);
-					RaiseVerticalInterruptIfNeeded(clownmdemu);
+					RaiseInterruptIfNeeded(clownmdemu);
 					break;
 
 				case 8 / 2:

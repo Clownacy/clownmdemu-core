@@ -4,6 +4,7 @@
 #include "bus-common.h"
 
 /* TODO: Rename these to 'SubM68k'. */
+void MCDM68kInterruptAcknowledgeCallback(const void *user_data);
 void SyncMCDM68k(ClownMDEmu *clownmdemu, CPUCallbackUserData *other_state, CycleMegaCD target_cycle);
 cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte, CycleMegaCD target_cycle);
 cc_u16f MCDM68kReadCallback(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte, cc_u32f current_cycle);

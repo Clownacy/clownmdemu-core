@@ -3,6 +3,7 @@
 
 #include "bus-common.h"
 
+void M68kInterruptAcknowledgeCallback(const void *user_data);
 void SyncM68k(ClownMDEmu *clownmdemu, CPUCallbackUserData *other_state, CycleMegaDrive target_cycle);
 cc_u8f SyncIOPortAndRead(CPUCallbackUserData *callback_user_data, CycleMegaDrive target_cycle, cc_u16f joypad_index);
 void SyncIOPortAndWrite(CPUCallbackUserData *callback_user_data, CycleMegaDrive target_cycle, cc_u16f joypad_index, cc_u8f value);
