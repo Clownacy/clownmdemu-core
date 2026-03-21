@@ -268,9 +268,9 @@ void M68kInterruptAcknowledgeCallback(const void* const user_data)
 	   bug where if H-Int and V-Int are enabled in quick succession, the Mega Drive
 	   will think the 68000 acknowledged the V-Int instead of the H-Int, causing
 	   V-Int to be missed and H-Int to be raised twice. */
-	if (state->m68k.v_int_pending)
+	if (state->m68k.v_int_pending && clownmdemu->vdp.state.v_int_enabled)
 		state->m68k.v_int_pending = cc_false;
-	else if (state->m68k.h_int_pending)
+	else if (state->m68k.h_int_pending && clownmdemu->vdp.state.h_int_enabled)
 		state->m68k.h_int_pending = cc_false;
 
 	Clown68000_Interrupt(&clownmdemu->m68k, state->m68k.h_int_pending && clownmdemu->vdp.state.h_int_enabled ? 4 : 0);
