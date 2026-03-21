@@ -273,7 +273,7 @@ void M68kInterruptAcknowledgeCallback(const void* const user_data)
 	else if (state->m68k.h_int_pending)
 		state->m68k.h_int_pending = cc_false;
 
-	Clown68000_Interrupt(&clownmdemu->m68k, state->m68k.h_int_pending ? 4 : 0);
+	Clown68000_Interrupt(&clownmdemu->m68k, state->m68k.h_int_pending && clownmdemu->vdp.state.h_int_enabled ? 4 : 0);
 }
 
 void SyncM68k(ClownMDEmu* const clownmdemu, CPUCallbackUserData* const other_state, const CycleMegaDrive target_cycle)
