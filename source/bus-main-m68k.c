@@ -233,9 +233,7 @@ static void SyncM68kForReal(ClownMDEmu* const clownmdemu, const Clown68000_ReadW
 			const cc_u32f m68k_cycles_to_do = (target_cycle.cycle - current_cycle) / CLOWNMDEMU_M68K_CLOCK_DIVIDER;
 
 			other_state->sync.m68k.base_cycle = current_cycle;
-			other_state->sync.m68k.current_cycle = current_cycle + m68k_cycles_to_do * CLOWNMDEMU_M68K_CLOCK_DIVIDER;
-
-			Clown68000_DoCycles(&clownmdemu->m68k, m68k_read_write_callbacks, m68k_cycles_to_do);
+			other_state->sync.m68k.current_cycle = current_cycle + Clown68000_DoCycles(&clownmdemu->m68k, m68k_read_write_callbacks, m68k_cycles_to_do) * CLOWNMDEMU_M68K_CLOCK_DIVIDER;
 		}
 	}
 }
