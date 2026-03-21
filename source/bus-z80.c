@@ -39,7 +39,8 @@ void SyncZ80(ClownMDEmu* const clownmdemu, CPUCallbackUserData* const other_stat
 
 static void M68kBusAccessCommon(ClownMDEmu* const clownmdemu, CPUCallbackUserData* const callback_user_data, const CycleMegaDrive target_cycle)
 {
-	SyncM68k(clownmdemu, callback_user_data, target_cycle);
+	/* There is no need to synchronise with the 68k, since it is the one that caused the Z80 to be synchronised in the first place! */
+	/*SyncM68k(clownmdemu, callback_user_data, target_cycle);*/
 
 	/* If the 68k's bus is currently being used for a DMA transfer, then the Z80 will freeze until it is finished. */
 	clownmdemu->state.z80.frozen_by_dma_transfer = clownmdemu->state.m68k.frozen_by_dma_transfer;
