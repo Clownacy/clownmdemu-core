@@ -192,11 +192,17 @@ static cc_u16f GetDMATransferBytesPerScanline(ClownMDEmu* const clownmdemu)
 	}
 }
 
-static void VDPDMATransferBeginCallback(void *const user_data, const cc_u32f total_reads)
+static void VDPDMATransferBeginCallback(void *const user_data, const cc_u32f total_reads, const cc_u32f target_cycle)
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 	ClownMDEmu* const clownmdemu = callback_user_data->clownmdemu;
 	const CycleMegaDrive cycles_per_scanline = GetMegaDriveCyclesPerScanline(clownmdemu);
+
+	/* Make the 68k emulator loop bail as soon as possible, so that the CPU will freeze at a near-accurate time. */
+	*callback_user_data->m68k_terminate_early = cc_true;
+
+	/* Bring the Z80 up-to-date, before we lock its bus. */
+	SyncZ80(clownmdemu, callback_user_data, MakeCycleMegaDrive(target_cycle));
 
 	/* For the duration of the DMA transfer, the 68k's bus is in use by the VDP. This freezes the CPU. */
 	clownmdemu->state.vdp_dma_transfer_countdown = cycles_per_scanline.cycle * total_reads / GetDMATransferBytesPerScanline(clownmdemu);
@@ -205,7 +211,7 @@ static void VDPDMATransferBeginCallback(void *const user_data, const cc_u32f tot
 
 static cc_u16f VDPReadCallback(void* const user_data, const cc_u32f address, const cc_u32f target_cycle)
 {
-	return M68kReadCallbackWithCycleWithDMA(user_data, address / 2, cc_true, cc_true, MakeCycleMegaDrive(target_cycle), cc_true);
+	return M68kReadCallbackWithCycleWithDMA(user_data, address / 2, cc_true, cc_true, NULL, MakeCycleMegaDrive(target_cycle), cc_true);
 }
 
 static void VDPKDebugCallback(void* const user_data, const char* const string)
@@ -213,47 +219,6 @@ static void VDPKDebugCallback(void* const user_data, const char* const string)
 	(void)user_data;
 
 	LogMessage("KDEBUG: %s", string);
-}
-
-/* TODO: Deduplicate all of this code with the Mega CD's IRQ3 code. */
-static void SyncM68kForReal(ClownMDEmu* const clownmdemu, const Clown68000_ReadWriteCallbacks* const m68k_read_write_callbacks, const CycleMegaDrive target_cycle)
-{
-	CPUCallbackUserData* const other_state = (CPUCallbackUserData*)m68k_read_write_callbacks->user_data;
-
-	const cc_u32f current_cycle = other_state->sync.m68k.current_cycle;
-
-	if (target_cycle.cycle > current_cycle)
-	{
-		if (clownmdemu->state.m68k.frozen_by_dma_transfer)
-		{
-			other_state->sync.m68k.current_cycle = target_cycle.cycle / CLOWNMDEMU_M68K_CLOCK_DIVIDER * CLOWNMDEMU_M68K_CLOCK_DIVIDER;
-		}
-		else
-		{
-			const cc_u32f m68k_cycles_to_do = (target_cycle.cycle - current_cycle) / CLOWNMDEMU_M68K_CLOCK_DIVIDER;
-
-			other_state->sync.m68k.base_cycle = current_cycle;
-			other_state->sync.m68k.current_cycle = current_cycle + Clown68000_DoCycles(&clownmdemu->m68k, m68k_read_write_callbacks, m68k_cycles_to_do) * CLOWNMDEMU_M68K_CLOCK_DIVIDER;
-		}
-	}
-}
-
-static cc_u16f SyncM68kCallback(ClownMDEmu* const clownmdemu, void* const user_data)
-{
-	const Clown68000_ReadWriteCallbacks* const m68k_read_write_callbacks = (const Clown68000_ReadWriteCallbacks*)user_data;
-	CPUCallbackUserData* const other_state = (CPUCallbackUserData*)m68k_read_write_callbacks->user_data;
-	CycleMegaDrive current_cycle;
-
-	/* Update the 68000 and Z80 to this point in time. */
-	current_cycle.cycle = other_state->sync.vdp_dma_transfer.current_cycle;
-	SyncM68kForReal(clownmdemu, m68k_read_write_callbacks, current_cycle);
-	SyncZ80(clownmdemu, other_state, current_cycle);
-
-	/* Stop hogging the CPU bus. */
-	clownmdemu->state.m68k.frozen_by_dma_transfer = cc_false;
-	clownmdemu->state.z80.frozen_by_dma_transfer = cc_false;
-
-	return 0;
 }
 
 void M68kInterruptAcknowledgeCallback(const void* const user_data)
@@ -274,21 +239,68 @@ void M68kInterruptAcknowledgeCallback(const void* const user_data)
 	Clown68000_Interrupt(&clownmdemu->m68k, state->m68k.h_int_pending && clownmdemu->vdp.state.h_int_enabled ? 4 : 0);
 }
 
+static cc_u32f SyncM68kCallbackIterate(CPUCallbackUserData* const other_state, const cc_u32f total_cycles)
+{
+	ClownMDEmu* const clownmdemu = other_state->clownmdemu;
+
+	/* To simulate the CPU being frozen and unfrozen by DMA transfers, we hijack this function. */
+	if (clownmdemu->state.m68k.frozen_by_dma_transfer)
+	{
+		const cc_u32f cycles_to_do = CC_MIN(total_cycles, clownmdemu->state.vdp_dma_transfer_countdown);
+
+		clownmdemu->state.vdp_dma_transfer_countdown -= cycles_to_do;
+
+		if (clownmdemu->state.vdp_dma_transfer_countdown == 0)
+		{
+			/* Update the Z80 to this point in time. */
+			SyncZ80(clownmdemu, other_state, MakeCycleMegaDrive(other_state->sync.m68k.current_cycle + cycles_to_do));
+
+			/* Stop hogging the CPU bus. */
+			clownmdemu->state.m68k.frozen_by_dma_transfer = cc_false;
+			clownmdemu->state.z80.frozen_by_dma_transfer = cc_false;
+		}
+
+		return cycles_to_do;
+	}
+	else
+	{
+		Clown68000_ReadWriteCallbacks m68k_read_write_callbacks;
+
+		m68k_read_write_callbacks.read_callback = M68kReadCallback;
+		m68k_read_write_callbacks.write_callback = M68kWriteCallback;
+		m68k_read_write_callbacks.interrupt_acknowledge_callback = M68kInterruptAcknowledgeCallback;
+		m68k_read_write_callbacks.user_data = other_state;
+
+		return Clown68000_DoCycles(&clownmdemu->m68k, &m68k_read_write_callbacks, total_cycles / CLOWNMDEMU_M68K_CLOCK_DIVIDER) * CLOWNMDEMU_M68K_CLOCK_DIVIDER;
+	}
+}
+
+static cc_u32f SyncM68kCallback(void* const user_data, const cc_u32f total_cycles)
+{
+	CPUCallbackUserData* const other_state = (CPUCallbackUserData*)user_data;
+
+	cc_u32f total_cycles_done = 0;
+
+	do
+	{
+		const cc_u32f cycles_remaining = total_cycles - total_cycles_done;
+
+		const cc_u32f cycles_done = SyncM68kCallbackIterate(other_state, cycles_remaining);
+
+		if (cycles_done == 0)
+			break;
+
+		total_cycles_done += cycles_done;
+		other_state->sync.m68k.current_cycle += cycles_done;
+	}
+	while (total_cycles_done < total_cycles);
+
+	return total_cycles_done;
+}
+
 void SyncM68k(ClownMDEmu* const clownmdemu, CPUCallbackUserData* const other_state, const CycleMegaDrive target_cycle)
 {
-	Clown68000_ReadWriteCallbacks m68k_read_write_callbacks;
-
-	m68k_read_write_callbacks.read_callback = M68kReadCallback;
-	m68k_read_write_callbacks.write_callback = M68kWriteCallback;
-	m68k_read_write_callbacks.interrupt_acknowledge_callback = M68kInterruptAcknowledgeCallback;
-	m68k_read_write_callbacks.user_data = other_state;
-
-	/* To simulate the CPU being frozen and unfrozen by DMA transfers, we hijack this function to update a DMA sync object. */
-	/* This sync object will unfreeze the 68000 (and Z80) when it expires. */
-	SyncCPUCommon(clownmdemu, &other_state->sync.vdp_dma_transfer, target_cycle.cycle, cc_false, SyncM68kCallback, &m68k_read_write_callbacks);
-
-	/* Now that we're done with the DMA sync, finish synchronising the 68000. */
-	SyncM68kForReal(clownmdemu, &m68k_read_write_callbacks, target_cycle);
+	Sync_Update(&clownmdemu->state.sync.m68k, &other_state->sync.m68k, target_cycle.cycle, SyncM68kCallback, other_state);
 }
 
 static cc_u32f GetBankedCartridgeAddress(const ClownMDEmu* const clownmdemu, const cc_u32f address)
@@ -406,7 +418,7 @@ void SyncIOPortAndWrite(CPUCallbackUserData* const callback_user_data, const Cyc
 	IOPort_WriteData(&clownmdemu->state.io_ports[joypad_index], value, SyncCommon(&callback_user_data->sync.io_ports[joypad_index], target_cycle.cycle, CLOWNMDEMU_MASTER_CLOCK_NTSC / 1000000), write_callback, &parameters);
 }
 
-cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u32f address_word, const cc_bool do_high_byte, const cc_bool do_low_byte, const CycleMegaDrive target_cycle, const cc_bool is_vdp_dma)
+cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u32f address_word, const cc_bool do_high_byte, const cc_bool do_low_byte, cc_bool* const terminate_early, const CycleMegaDrive target_cycle, const cc_bool is_vdp_dma)
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 	ClownMDEmu* const clownmdemu = callback_user_data->clownmdemu;
@@ -414,6 +426,8 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 
 	/* TODO: Check if this is the correct value. */
 	cc_u16f value = 0;
+
+	callback_user_data->m68k_terminate_early = terminate_early;
 
 	switch (address / 0x200000)
 	{
@@ -835,19 +849,19 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 	return value;
 }
 
-cc_u16f M68kReadCallbackWithCycle(const void* const user_data, const cc_u32f address, const cc_bool do_high_byte, const cc_bool do_low_byte, const CycleMegaDrive target_cycle)
+cc_u16f M68kReadCallbackWithCycle(const void* const user_data, const cc_u32f address, const cc_bool do_high_byte, const cc_bool do_low_byte, cc_bool* const terminate_early, const CycleMegaDrive target_cycle)
 {
-	return M68kReadCallbackWithCycleWithDMA(user_data, address, do_high_byte, do_low_byte, target_cycle, cc_false);
+	return M68kReadCallbackWithCycleWithDMA(user_data, address, do_high_byte, do_low_byte, terminate_early, target_cycle, cc_false);
 }
 
-cc_u16f M68kReadCallback(const void* const user_data, const cc_u32f address, const cc_bool do_high_byte, const cc_bool do_low_byte, const cc_u32f current_cycle)
+cc_u16f M68kReadCallback(const void* const user_data, const cc_u32f address, const cc_bool do_high_byte, const cc_bool do_low_byte, const cc_u32f current_cycle, cc_bool* const terminate_early)
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 
-	return M68kReadCallbackWithCycleWithDMA(user_data, address, do_high_byte, do_low_byte, MakeCycleMegaDrive(callback_user_data->sync.m68k.base_cycle + current_cycle * CLOWNMDEMU_M68K_CLOCK_DIVIDER), cc_false);
+	return M68kReadCallbackWithCycleWithDMA(user_data, address, do_high_byte, do_low_byte, terminate_early, MakeCycleMegaDrive(callback_user_data->sync.m68k.current_cycle + current_cycle * CLOWNMDEMU_M68K_CLOCK_DIVIDER), cc_false);
 }
 
-void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f address_word, const cc_bool do_high_byte, const cc_bool do_low_byte, const cc_u16f value, const CycleMegaDrive target_cycle)
+void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f address_word, const cc_bool do_high_byte, const cc_bool do_low_byte, cc_bool* const terminate_early, const cc_u16f value, const CycleMegaDrive target_cycle)
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 	ClownMDEmu* const clownmdemu = callback_user_data->clownmdemu;
@@ -863,6 +877,8 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 		mask |= 0xFF00;
 	if (do_low_byte)
 		mask |= 0x00FF;
+
+	callback_user_data->m68k_terminate_early = terminate_early;
 
 	switch (address / 0x200000)
 	{
@@ -1292,7 +1308,6 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 					/* PSG */
 					if (do_low_byte)
 					{
-						SyncZ80(clownmdemu, callback_user_data, target_cycle);
 						SyncPSG(callback_user_data, target_cycle);
 
 						/* Alter the PSG's state */
@@ -1323,9 +1338,9 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 	}
 }
 
-void M68kWriteCallback(const void* const user_data, const cc_u32f address, const cc_bool do_high_byte, const cc_bool do_low_byte, const cc_u32f current_cycle, const cc_u16f value)
+void M68kWriteCallback(const void* const user_data, const cc_u32f address, const cc_bool do_high_byte, const cc_bool do_low_byte, const cc_u32f current_cycle, cc_bool* const terminate_early, const cc_u16f value)
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 
-	M68kWriteCallbackWithCycle(user_data, address, do_high_byte, do_low_byte, value, MakeCycleMegaDrive(callback_user_data->sync.m68k.base_cycle + current_cycle * CLOWNMDEMU_M68K_CLOCK_DIVIDER));
+	M68kWriteCallbackWithCycle(user_data, address, do_high_byte, do_low_byte, terminate_early, value, MakeCycleMegaDrive(callback_user_data->sync.m68k.current_cycle + current_cycle * CLOWNMDEMU_M68K_CLOCK_DIVIDER));
 }

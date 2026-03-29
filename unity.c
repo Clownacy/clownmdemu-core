@@ -20,5 +20,6 @@
 #include "source/low-pass-filter.c"
 #include "source/pcm.c"
 #include "source/psg.c"
+#include "source/sync.c"
 #include "source/vdp.c"
 #include "libraries/clownz80/unity.c"

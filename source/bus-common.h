@@ -5,6 +5,7 @@
 
 #include "clownmdemu.h"
 #include "io-port.h"
+#include "sync.h"
 
 /* The cycle counts are from here:
    https://gendev.spritesmind.net/forum/viewtopic.php?t=3058
@@ -68,6 +69,7 @@ typedef struct SyncCPUState
 {
 	cc_u32f current_cycle;
 	cc_u32l *cycle_countdown;
+	cc_bool terminate_early;
 } SyncCPUState;
 
 typedef struct SyncM68kState
@@ -81,7 +83,7 @@ typedef struct CPUCallbackUserData
 	ClownMDEmu *clownmdemu;
 	struct
 	{
-		SyncM68kState m68k;
+		Sync_Temporary m68k;
 		SyncCPUState z80;
 		SyncM68kState mcd_m68k;
 		SyncCPUState mcd_m68k_irq3;
@@ -91,6 +93,7 @@ typedef struct CPUCallbackUserData
 		SyncState pcm;
 		SyncState io_ports[3];
 	} sync;
+	cc_bool *m68k_terminate_early;
 } CPUCallbackUserData;
 
 typedef struct CycleMegaDrive

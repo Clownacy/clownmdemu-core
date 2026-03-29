@@ -97,6 +97,8 @@ void SyncCPUCommon(ClownMDEmu* const clownmdemu, SyncCPUState* const sync, const
 		/* Store this in a local variable to make the upcoming code faster. */
 		cc_u16f countdown = *sync->cycle_countdown;
 
+		sync->terminate_early = cc_false;
+
 		while (countdown != 0 && sync->current_cycle < target_cycle)
 		{
 			const cc_u32f cycles_to_do = CC_MIN(countdown, target_cycle - sync->current_cycle);
@@ -107,6 +109,9 @@ void SyncCPUCommon(ClownMDEmu* const clownmdemu, SyncCPUState* const sync, const
 
 			if (countdown == 0)
 				countdown = callback(clownmdemu, (void*)user_data);
+
+			if (sync->terminate_early)
+				break;
 		}
 
 		/* Store this back in memory for later. */

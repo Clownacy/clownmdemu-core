@@ -43,14 +43,18 @@ static void M68kBusAccessCommon(ClownMDEmu* const clownmdemu, CPUCallbackUserDat
 	/*SyncM68k(clownmdemu, callback_user_data, target_cycle);*/
 
 	/* If the 68k's bus is currently being used for a DMA transfer, then the Z80 will freeze until it is finished. */
-	clownmdemu->state.z80.frozen_by_dma_transfer = clownmdemu->state.m68k.frozen_by_dma_transfer;
+	if (clownmdemu->state.m68k.frozen_by_dma_transfer)
+	{
+		clownmdemu->state.z80.frozen_by_dma_transfer = cc_true;
+		callback_user_data->sync.z80.terminate_early = cc_true;
+	}
 }
 
 static cc_u16f M68kReadByte(const void* const user_data, const cc_u32f address, const CycleMegaDrive target_cycle)
 {
 	const cc_bool is_odd = (address & 1) != 0;
 
-	return (M68kReadCallbackWithCycle(user_data, address / 2, !is_odd, is_odd, target_cycle) >> (is_odd ? 0 : 8)) & 0xFF;
+	return (M68kReadCallbackWithCycle(user_data, address / 2, !is_odd, is_odd, NULL, target_cycle) >> (is_odd ? 0 : 8)) & 0xFF;
 }
 
 static cc_u16f ReadFromM68kBus(ClownMDEmu* const clownmdemu, CPUCallbackUserData* const callback_user_data, const CycleMegaDrive target_cycle, const cc_u32f address)
@@ -123,7 +127,7 @@ static void M68kWriteByte(const void* const user_data, const cc_u32f address, co
 {
 	const cc_bool is_odd = (address & 1) != 0;
 
-	M68kWriteCallbackWithCycle(user_data, address / 2, !is_odd, is_odd, value << (is_odd ? 0 : 8), target_cycle);
+	M68kWriteCallbackWithCycle(user_data, address / 2, !is_odd, is_odd, NULL, value << (is_odd ? 0 : 8), target_cycle);
 }
 
 static void WriteToM68kBus(ClownMDEmu* const clownmdemu, CPUCallbackUserData* const callback_user_data, const CycleMegaDrive target_cycle, const cc_u32f address, const cc_u16f value)

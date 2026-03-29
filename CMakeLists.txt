@@ -48,6 +48,8 @@ add_library(clownmdemu-core STATIC
 	"source/pcm.h"
 	"source/psg.c"
 	"source/psg.h"
+	"source/sync.c"
+	"source/sync.h"
 	"source/vdp.c"
 	"source/vdp.h"
 )

@@ -16,6 +16,7 @@
 #include "low-pass-filter.h"
 #include "pcm.h"
 #include "psg.h"
+#include "sync.h"
 #include "vdp.h"
 
 #ifdef __cplusplus
@@ -217,6 +218,11 @@ typedef struct ClownMDEmu_State
 		LowPassFilter_FirstOrder_State psg[1];
 		LowPassFilter_SecondOrder_State pcm[2];
 	} low_pass_filters;
+
+	struct
+	{
+		Sync_State m68k;
+	} sync;
 } ClownMDEmu_State;
 
 struct ClownMDEmu;
