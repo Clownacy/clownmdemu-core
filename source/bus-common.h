@@ -72,12 +72,6 @@ typedef struct SyncCPUState
 	cc_bool terminate_early;
 } SyncCPUState;
 
-typedef struct SyncM68kState
-{
-	cc_u32f current_cycle;
-	cc_u32f base_cycle;
-} SyncM68kState;
-
 typedef struct CPUCallbackUserData
 {
 	ClownMDEmu *clownmdemu;
@@ -85,7 +79,7 @@ typedef struct CPUCallbackUserData
 	{
 		Sync_Temporary m68k;
 		SyncCPUState z80;
-		SyncM68kState mcd_m68k;
+		Sync_Temporary mcd_m68k;
 		SyncCPUState mcd_m68k_irq3;
 		SyncCPUState vdp_dma_transfer;
 		SyncState fm;

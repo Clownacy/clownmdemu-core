@@ -221,7 +221,7 @@ typedef struct ClownMDEmu_State
 
 	struct
 	{
-		Sync_State m68k;
+		Sync_State m68k, mcd_m68k;
 	} sync;
 } ClownMDEmu_State;
 

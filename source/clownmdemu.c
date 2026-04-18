@@ -141,6 +141,7 @@ static void ClownMDEmu_State_Initialise(ClownMDEmu* const clownmdemu)
 	LowPassFilter_SecondOrder_Initialise(clownmdemu->state.low_pass_filters.pcm, CC_COUNT_OF(clownmdemu->state.low_pass_filters.pcm));
 
 	Sync_State_Initialise(&clownmdemu->state.sync.m68k);
+	Sync_State_Initialise(&clownmdemu->state.sync.mcd_m68k);
 }
 
 void ClownMDEmu_Initialise(ClownMDEmu* const clownmdemu, const ClownMDEmu_InitialConfiguration* const configuration, const ClownMDEmu_Callbacks* const callbacks)
@@ -250,8 +251,7 @@ void ClownMDEmu_Iterate(ClownMDEmu* const clownmdemu)
 	cpu_callback_user_data.sync.z80.current_cycle = 0;
 	/* TODO: This is awful; stop doing this. */
 	cpu_callback_user_data.sync.z80.cycle_countdown = &state->z80.cycle_countdown;
-	cpu_callback_user_data.sync.mcd_m68k.current_cycle = 0;
-	cpu_callback_user_data.sync.mcd_m68k.base_cycle = 0;
+	Sync_Temporary_Initialise(&cpu_callback_user_data.sync.mcd_m68k);
 	cpu_callback_user_data.sync.mcd_m68k_irq3.current_cycle = 0;
 	cpu_callback_user_data.sync.mcd_m68k_irq3.cycle_countdown = &state->mega_cd.irq.irq3_countdown;
 	cpu_callback_user_data.sync.vdp_dma_transfer.current_cycle = 0;
