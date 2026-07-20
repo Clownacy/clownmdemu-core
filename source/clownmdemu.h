@@ -106,6 +106,13 @@ typedef enum ClownMDEmu_CDDAMode
 	CLOWNMDEMU_CDDA_PLAY_REPEAT
 } ClownMDEmu_CDDAMode;
 
+typedef enum ClownMDEmu_SoundChip
+{
+	CLOWNMDEMU_SOUND_CHIP_FM_PORT0, /* YM2612 channels 1-3 and DAC */
+	CLOWNMDEMU_SOUND_CHIP_FM_PORT1, /* YM2612 channels 4-6 */
+	CLOWNMDEMU_SOUND_CHIP_PSG       /* SN76489 */
+} ClownMDEmu_SoundChip;
+
 typedef struct ClownMDEmu_Configuration
 {
 	ClownMDEmu_Region region;
@@ -253,6 +260,9 @@ typedef struct ClownMDEmu_Callbacks
 	void (*save_file_closed)(void *user_data);
 	cc_bool (*save_file_removed)(void *user_data, const char *filename);
 	cc_bool (*save_file_size_obtained)(void *user_data, const char *filename, size_t *size);
+
+	/* May be NULL. */
+	void (*sound_chip_written)(void *user_data, ClownMDEmu_SoundChip chip, cc_u8f address, cc_u8f data, cc_u32f cycle);
 } ClownMDEmu_Callbacks;
 
 typedef struct ClownMDEmu
@@ -461,7 +471,8 @@ namespace ClownMDEmuCXX
 			Callback_SaveFileWritten,
 			Callback_SaveFileClosed,
 			Callback_SaveFileRemoved,
-			Callback_SaveFileSizeObtained
+			Callback_SaveFileSizeObtained,
+			Callback_SoundChipWritten
 		};
 
 		static void Callback_ColourUpdated(void* const user_data, const cc_u16f index, const cc_u16f colour)
@@ -538,6 +549,11 @@ namespace ClownMDEmuCXX
 		static cc_bool Callback_SaveFileSizeObtained(void* const user_data, const char* const filename, std::size_t* const size)
 		{
 			return static_cast<Derived*>(static_cast<Emulator*>(user_data))->SaveFileSizeObtained(filename, size);
+		}
+
+		static void Callback_SoundChipWritten(void* const user_data, const ClownMDEmu_SoundChip chip, const cc_u8f address, const cc_u8f data, const cc_u32f cycle)
+		{
+			static_cast<Derived*>(static_cast<Emulator*>(user_data))->SoundChipWritten(chip, address, data, cycle);
 		}
 
 		/*************/
