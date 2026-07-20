@@ -1307,6 +1307,10 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 
 						/* Alter the PSG's state */
 						PSG_DoCommand(&clownmdemu->psg, low_byte);
+
+						/* Notify the frontend of the write. */
+						if (frontend_callbacks->sound_chip_written != NULL)
+							frontend_callbacks->sound_chip_written((void*)frontend_callbacks->user_data, CLOWNMDEMU_SOUND_CHIP_PSG, 0, low_byte, target_cycle.cycle);
 					}
 					break;
 
