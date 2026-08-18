@@ -969,10 +969,6 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 					{
 						LOG_MAIN_CPU_BUS_ERROR_0("Attempted to write to PRG-RAM while SUB-CPU has it");
 					}
-					else if (prg_ram_index < (cc_u32f)clownmdemu->state.mega_cd.prg_ram.write_protect * 0x200)
-					{
-						LOG_MAIN_CPU_BUS_ERROR_1("Attempted to write to write-protected portion of PRG-RAM (0x%" CC_PRIXFAST32 ")", prg_ram_index);
-					}
 					else
 					{
 						clownmdemu->state.mega_cd.prg_ram.buffer[prg_ram_index] &= ~mask;

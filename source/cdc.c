@@ -105,14 +105,17 @@ void CDC_Stop(CDC_State* const state)
 
 cc_bool CDC_Stat(CDC_State* const state, const CDC_SectorReadCallback callback, const void* const user_data)
 {
+	RefillSectorBuffer(state, callback, user_data);
+
 	/* Sonic CD relies on a delay to play audio during its FMVs. */
 	/* TODO: Emulate this delay properly, without a giant hack. */
-	state->hack_counter = (state->hack_counter + 1) % 6;
+	if (state->buffered_sectors_total == 0)
+	{
+		state->hack_counter = (state->hack_counter + 1) % 6;
 
-	if (state->hack_counter < 2)
-		return cc_false;
-
-	RefillSectorBuffer(state, callback, user_data);
+		if (state->hack_counter < 2)
+			return cc_false;
+	}
 
 	return state->buffered_sectors_total != 0;
 }
