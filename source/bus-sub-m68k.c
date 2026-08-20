@@ -68,6 +68,12 @@ static void MegaCDBIOSCall(ClownMDEmu* const clownmdemu, const void* const user_
 	   https://forums.sonicretro.org/index.php?posts/1052926/ */
 	const cc_u16f command = clownmdemu->mega_cd.m68k.data_registers[0] & 0xFFFF;
 
+	LogMessage("BIOS CALL: 0x%02" CC_PRIXFAST16 " (D0=0x%04" CC_PRIXFAST16 ", D1=0x%08" CC_PRIXLEAST32 ", A0=0x%08" CC_PRIXLEAST32 ")",
+		command,
+		clownmdemu->mega_cd.m68k.data_registers[0] & 0xFFFF,
+		clownmdemu->mega_cd.m68k.data_registers[1],
+		clownmdemu->mega_cd.m68k.address_registers[0]);
+
 	switch (command)
 	{
 		case 0x02:
@@ -82,6 +88,18 @@ static void MegaCDBIOSCall(ClownMDEmu* const clownmdemu, const void* const user_
 		case 0x04:
 			/* MSCPAUSEOFF */
 			CDDA_SetPaused(&clownmdemu->mega_cd.cdda, cc_false);
+			break;
+
+		case 0x10:
+			/* DRVINIT */
+			clownmdemu->mega_cd.cdd.loaded = clownmdemu->state.mega_cd.cd_inserted;
+
+			if (clownmdemu->state.mega_cd.cd_inserted)
+				clownmdemu->mega_cd.cdd.status = 0x00; /* CD_STOP: TOC read complete, ready */
+			else
+				clownmdemu->mega_cd.cdd.status = 0x0B; /* NO_DISC */
+
+			clownmdemu->mega_cd.m68k.status_register &= ~1;
 			break;
 
 		case 0x11:
@@ -125,6 +143,8 @@ static void MegaCDBIOSCall(ClownMDEmu* const clownmdemu, const void* const user_
 			const cc_u32f starting_sector = MCDM68kReadLongword(user_data, clownmdemu->mega_cd.m68k.address_registers[0] + 0, target_cycle);
 			const cc_u32f total_sectors = MCDM68kReadLongword(user_data, clownmdemu->mega_cd.m68k.address_registers[0] + 4, target_cycle);
 
+			LogMessage("  ROMREADN: starting_sector=0x%" CC_PRIXFAST32 " total_sectors=0x%" CC_PRIXFAST32, starting_sector, total_sectors);
+
 			/* TODO: What does 0 total sectors do to a real BIOS? */
 			ROMSEEK(clownmdemu, frontend_callbacks, starting_sector, total_sectors);
 			CDCSTART(clownmdemu, frontend_callbacks);
@@ -149,34 +169,56 @@ static void MegaCDBIOSCall(ClownMDEmu* const clownmdemu, const void* const user_
 			break;
 
 		case 0x81:
+		{
 			/* CDBSTAT */
-			/* TODO: Find the address that a real BIOS uses here. */
-			clownmdemu->mega_cd.m68k.address_registers[0] = 0x2800 * 2;
-			/* TODO: This is just a placeholder which is enough to get Popful Mail to boot. */
-			clownmdemu->state.mega_cd.prg_ram.buffer[0x2800 +  0] = 0x0100; /* bios_status */
-			clownmdemu->state.mega_cd.prg_ram.buffer[0x2800 +  1] = 0x0000; /* led */
-			clownmdemu->state.mega_cd.prg_ram.buffer[0x2800 +  2] = 0x0000; /* cdd_status */
-			clownmdemu->state.mega_cd.prg_ram.buffer[0x2800 +  3] = 0xFF02; /* Ditto (current song number) */
-			clownmdemu->state.mega_cd.prg_ram.buffer[0x2800 +  4] = 0xFFFF; /* Ditto */
-			clownmdemu->state.mega_cd.prg_ram.buffer[0x2800 +  5] = 0xFFFF; /* Ditto */
-			clownmdemu->state.mega_cd.prg_ram.buffer[0x2800 +  6] = 0xFFFF; /* Ditto */
-			clownmdemu->state.mega_cd.prg_ram.buffer[0x2800 +  7] = 0xFFFF; /* Ditto */
-			clownmdemu->state.mega_cd.prg_ram.buffer[0x2800 +  8] = 0x01FF; /* First and last song numbers */
-			clownmdemu->state.mega_cd.prg_ram.buffer[0x2800 +  9] = 0x0000; /* Ditto */
-			clownmdemu->state.mega_cd.prg_ram.buffer[0x2800 + 10] = 0x0000; /* Ditto */
-			clownmdemu->state.mega_cd.prg_ram.buffer[0x2800 + 11] = 0x0000; /* Ditto */
-			clownmdemu->state.mega_cd.prg_ram.buffer[0x2800 + 12] = 0x0000; /* Volume */
-			clownmdemu->state.mega_cd.prg_ram.buffer[0x2800 + 13] = 0x0000; /* Ditto */
-			clownmdemu->state.mega_cd.prg_ram.buffer[0x2800 + 14] = 0x0000; /* Header */
-			clownmdemu->state.mega_cd.prg_ram.buffer[0x2800 + 15] = 0x0000; /* Ditto */
+			const cc_u32f status_base = 0x2800;
+
+			clownmdemu->mega_cd.m68k.address_registers[0] = status_base * 2;
+
+			clownmdemu->state.mega_cd.prg_ram.buffer[status_base +  0] = 0x0100;
+			clownmdemu->state.mega_cd.prg_ram.buffer[status_base +  1] = 0x0000;
+			clownmdemu->state.mega_cd.prg_ram.buffer[status_base +  2] = ((cc_u16f)clownmdemu->mega_cd.cdd.status << 8) | 0x00;
+			clownmdemu->state.mega_cd.prg_ram.buffer[status_base +  3] = ((cc_u16f)clownmdemu->mega_cd.cdd.current_track << 8) | 0x02;
+			clownmdemu->state.mega_cd.prg_ram.buffer[status_base +  4] = ((cc_u16f)clownmdemu->mega_cd.cdd.current_m << 8) | 0x00;
+			clownmdemu->state.mega_cd.prg_ram.buffer[status_base +  5] = ((cc_u16f)clownmdemu->mega_cd.cdd.current_s << 8) | 0x00;
+			clownmdemu->state.mega_cd.prg_ram.buffer[status_base +  6] = ((cc_u16f)clownmdemu->mega_cd.cdd.current_f << 8) | 0x00;
+			clownmdemu->state.mega_cd.prg_ram.buffer[status_base +  7] = 0x00FF;
+			clownmdemu->state.mega_cd.prg_ram.buffer[status_base +  8] = ((cc_u16f)clownmdemu->mega_cd.cdd.first_track << 8) | (cc_u16f)clownmdemu->mega_cd.cdd.last_track;
+			clownmdemu->state.mega_cd.prg_ram.buffer[status_base +  9] = ((cc_u16f)clownmdemu->mega_cd.cdd.lead_out_m << 8) | 0x00;
+			clownmdemu->state.mega_cd.prg_ram.buffer[status_base + 10] = ((cc_u16f)clownmdemu->mega_cd.cdd.lead_out_s << 8) | 0x00;
+			clownmdemu->state.mega_cd.prg_ram.buffer[status_base + 11] = ((cc_u16f)clownmdemu->mega_cd.cdd.lead_out_f << 8) | 0x00;
+			clownmdemu->state.mega_cd.prg_ram.buffer[status_base + 12] = 0x0000;
+			clownmdemu->state.mega_cd.prg_ram.buffer[status_base + 13] = 0x0000;
+			clownmdemu->state.mega_cd.prg_ram.buffer[status_base + 14] = 0x0000;
+			clownmdemu->state.mega_cd.prg_ram.buffer[status_base + 15] = 0x0000;
 			break;
+		}
 
 		case 0x83:
+		{
 			/* CDBTOCREAD */
-			/* TODO: Complete this! */
-			clownmdemu->mega_cd.m68k.data_registers[0] = clownmdemu->mega_cd.m68k.data_registers[1] & 0xFF;
-			clownmdemu->mega_cd.m68k.data_registers[1]	= 0xFF;
+			const cc_u16f track_number = clownmdemu->mega_cd.m68k.data_registers[1] & 0xFF;
+			const cc_u32f toc_base = 0x2000;
+
+			clownmdemu->mega_cd.m68k.status_register &= ~1;
+
+			if (track_number == 0)
+			{
+				clownmdemu->state.mega_cd.prg_ram.buffer[toc_base + 0] = ((cc_u16f)clownmdemu->mega_cd.cdd.first_track << 8) | (cc_u16f)clownmdemu->mega_cd.cdd.last_track;
+				clownmdemu->state.mega_cd.prg_ram.buffer[toc_base + 1] = ((cc_u16f)clownmdemu->mega_cd.cdd.lead_out_m << 8) | (cc_u16f)clownmdemu->mega_cd.cdd.lead_out_s;
+				clownmdemu->state.mega_cd.prg_ram.buffer[toc_base + 2] = ((cc_u16f)clownmdemu->mega_cd.cdd.lead_out_f << 8) | 0x00;
+				clownmdemu->mega_cd.m68k.address_registers[0] = toc_base * 2;
+			}
+			else
+			{
+				clownmdemu->state.mega_cd.prg_ram.buffer[toc_base + 0] = 0x0002;
+				clownmdemu->state.mega_cd.prg_ram.buffer[toc_base + 1] = 0x0000;
+				clownmdemu->mega_cd.m68k.address_registers[0] = toc_base * 2;
+			}
+
+			clownmdemu->mega_cd.m68k.data_registers[0] = 0;
 			break;
+		}
 
 		case 0x85:
 		{
@@ -214,13 +256,19 @@ static void MegaCDBIOSCall(ClownMDEmu* const clownmdemu, const void* const user_
 			break;
 
 		case 0x8A:
+		{
 			/* CDCSTAT */
-			if (!CDC_Stat(&clownmdemu->mega_cd.cdc, frontend_callbacks->cd_sector_read, frontend_callbacks->user_data))
+			const cc_bool stat = CDC_Stat(&clownmdemu->mega_cd.cdc, frontend_callbacks->cd_sector_read, frontend_callbacks->user_data);
+
+			LogMessage("  CDCSTAT: sector_ready=%d", (int)stat);
+
+			if (!stat)
 				clownmdemu->mega_cd.m68k.status_register |= 1; /* Set carry flag to signal that a sector is not ready. */
 			else
 				clownmdemu->mega_cd.m68k.status_register &= ~1; /* Clear carry flag to signal that there's a sector ready. */
 
 			break;
+		}
 
 		case 0x8B:
 			/* CDCREAD */
@@ -972,7 +1020,7 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 	else if (address == 0xFF800C)
 	{
 		/* Stop watch */
-		LogMessage("SUB-CPU attempted to read from stop watch register at 0x%" CC_PRIXLEAST32, clownmdemu->mega_cd.m68k.program_counter);
+		value = clownmdemu->state.mega_cd.stop_watch;
 	}
 	else if (address == 0xFF800E)
 	{
@@ -1081,9 +1129,10 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 	if (/*address >= 0 &&*/ address < 0x80000)
 	{
 		/* PRG-RAM */
-		if (address < (cc_u32f)clownmdemu->state.mega_cd.prg_ram.write_protect * 0x200)
+		/* Write protection only applies to the first 128KB (GX: i & 0x0e == 0) */
+		if (address < 0x20000 && address < (cc_u32f)clownmdemu->state.mega_cd.prg_ram.write_protect * 0x200)
 		{
-			LogMessage("MAIN-CPU attempted to write to write-protected portion of PRG-RAM (0x%" CC_PRIXFAST32 ") at 0x%" CC_PRIXLEAST32, address, clownmdemu->mega_cd.m68k.program_counter);
+			LogMessage("SUB-CPU attempted to write to write-protected portion of PRG-RAM (0x%" CC_PRIXFAST32 ") at 0x%" CC_PRIXLEAST32, address, clownmdemu->mega_cd.m68k.program_counter);
 		}
 		else
 		{
@@ -1143,9 +1192,17 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 			}
 		}
 	}
+	else if (address == 0xFF8000)
+	{
+		/* Bus control */
+		/* TODO: Implement bus arbitration between MAIN-CPU and SUB-CPU. */
+	}
 	else if (address == 0xFF8002)
 	{
 		/* Memory mode / Write protect */
+		if (do_high_byte)
+			clownmdemu->state.mega_cd.prg_ram.write_protect = high_byte;
+
 		if (do_low_byte)
 		{
 			const cc_bool ret = (value & (1 << 0)) != 0;
@@ -1183,8 +1240,12 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 	}
 	else if (address == 0xFF800C)
 	{
-		/* Stop watch */
-		LogMessage("SUB-CPU attempted to write to stop watch register at 0x%" CC_PRIXLEAST32, clownmdemu->mega_cd.m68k.program_counter);
+		/* Stop watch - writing sets the counter value */
+		if (do_high_byte)
+			clownmdemu->state.mega_cd.stop_watch = (clownmdemu->state.mega_cd.stop_watch & 0x00FF) | ((cc_u16l)high_byte << 8);
+
+		if (do_low_byte)
+			clownmdemu->state.mega_cd.stop_watch = (clownmdemu->state.mega_cd.stop_watch & 0xFF00) | low_byte;
 	}
 	else if (address == 0xFF800E)
 	{

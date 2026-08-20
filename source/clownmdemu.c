@@ -59,6 +59,18 @@ static void ClownMDEmu_State_Initialise(ClownMDEmu* const clownmdemu)
 	CDDA_Initialise(&clownmdemu->mega_cd.cdda);
 	PCM_Initialise(&clownmdemu->mega_cd.pcm);
 
+	clownmdemu->mega_cd.cdd.status = 0x0B; /* NO_DISC: no disc inserted yet */
+	clownmdemu->mega_cd.cdd.current_track = 0x01;
+	clownmdemu->mega_cd.cdd.current_m = 0x00;
+	clownmdemu->mega_cd.cdd.current_s = 0x02;
+	clownmdemu->mega_cd.cdd.current_f = 0x00;
+	clownmdemu->mega_cd.cdd.first_track = 0x01;
+	clownmdemu->mega_cd.cdd.last_track = 0x01;
+	clownmdemu->mega_cd.cdd.lead_out_m = 0x00;
+	clownmdemu->mega_cd.cdd.lead_out_s = 0x02;
+	clownmdemu->mega_cd.cdd.lead_out_f = 0x00;
+	clownmdemu->mega_cd.cdd.loaded = cc_false;
+
 	/* M68K */
 	/* A real console does not retain its RAM contents between games, as RAM
 	   is cleared when the console is powered-off.
@@ -100,6 +112,7 @@ static void ClownMDEmu_State_Initialise(ClownMDEmu* const clownmdemu)
 	clownmdemu->state.mega_cd.m68k.reset_held = cc_true;
 
 	clownmdemu->state.mega_cd.prg_ram.bank = 0;
+	clownmdemu->state.mega_cd.prg_ram.write_protect = 0;
 
 	clownmdemu->state.mega_cd.word_ram.in_1m_mode = cc_false;
 	/* Page 24 of MEGA-CD HARDWARE MANUAL confirms this. */
@@ -134,6 +147,7 @@ static void ClownMDEmu_State_Initialise(ClownMDEmu* const clownmdemu)
 	clownmdemu->state.mega_cd.cd_inserted = cc_false;
 	clownmdemu->state.mega_cd.hblank_address = 0xFD0C; /* Points at the level 4 interrupt trampoline in WORK-RAM. */ /* TODO: Is this actually hardware-accurate? */
 	clownmdemu->state.mega_cd.delayed_dma_word = 0;
+	clownmdemu->state.mega_cd.stop_watch = 0;
 
 	/* Low-pass filters. */
 	LowPassFilter_FirstOrder_Initialise(clownmdemu->state.low_pass_filters.fm, CC_COUNT_OF(clownmdemu->state.low_pass_filters.fm));
@@ -351,6 +365,9 @@ void ClownMDEmu_Iterate(ClownMDEmu* const clownmdemu)
 				RaiseInterruptIfNeeded(clownmdemu);
 			}
 		}
+
+		/* Increment the stop watch counter once per scanline (~4.6µs per H-blank). */
+		++state->mega_cd.stop_watch;
 
 		++scanline;
 
