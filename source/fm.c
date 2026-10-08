@@ -307,14 +307,16 @@ void FM_DoData(FM* const fm, const cc_u8f data)
 	else
 	{
 		const cc_u16f slot_index = state->address & 3;
-		const cc_u16f channel_index = state->port + slot_index;
-		FM_ChannelMetadata* const channel_metadata = &state->channels[channel_index];
-		FM_Channel* const channel = &state->channels[channel_index].state;
 
 		/* There is no fourth channel per slot. */
 		/* TODO: See how real hardware handles this. */
 		if (slot_index != 3)
 		{
+			/* Only index the channel once it is known to exist: for slot 3 on the second port, the index would be past the end of the array. */
+			const cc_u16f channel_index = state->port + slot_index;
+			FM_ChannelMetadata* const channel_metadata = &state->channels[channel_index];
+			FM_Channel* const channel = &state->channels[channel_index].state;
+
 			if (state->address < 0xA0)
 			{
 				/* Per-operator. */
