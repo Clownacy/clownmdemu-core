@@ -1250,7 +1250,7 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 						/* TODO: Actually, the second bit only exists on devcarts? */
 						/* https://forums.sonicretro.org/index.php?posts/1096788/ */
 						if (do_low_byte && clownmdemu->state.external_ram.size != 0)
-							clownmdemu->state.external_ram.mapped_in = low_byte != 0;
+							clownmdemu->state.external_ram.mapped_in = (low_byte & 1) != 0; /* Bit 1 is write protection. */
 					}
 					else if (address >= 0xA130F2 && address <= 0xA13100)
 					{
