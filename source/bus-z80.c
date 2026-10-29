@@ -2,6 +2,8 @@
 
 #include <assert.h>
 
+#include "../libraries/clowncommon/clowncommon.h"
+
 #include "bus-main-m68k.h"
 #include "log.h"
 
@@ -68,52 +70,35 @@ cc_u16f Z80ReadCallbackWithCycle(const void* const user_data, const cc_u16f addr
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 	ClownMDEmu* const clownmdemu = callback_user_data->clownmdemu;
 
-	/* I suppose, on real hardware, in an open-bus situation, this would actually
-	   be a static variable that retains its value from the last call. */
-	cc_u16f value;
-
-	value = 0;
-
 	/* Layout verified by'gen-hw.txt'. */
 	switch (address / 0x2000)
 	{
+		default:
+			CC_UNREACHABLE;
+			/* Fallthrough */
 		case 0: /* 0x0000 */
 		case 1: /* 0x2000 */
-			value = clownmdemu->state.z80.ram[address % CC_COUNT_OF(clownmdemu->state.z80.ram)];
-			break;
+			return clownmdemu->state.z80.ram[address % CC_COUNT_OF(clownmdemu->state.z80.ram)];
 
 		case 2: /* 0x4000 */
 			/* YM2612 */
 			/* TODO: Model 1 Mega Drives only do this for 0x4000 (and not 0x4001, 0x4002, and 0x4003). Accessing other ports will return the old status, and only for a short time. See Nuked OPN2 for more details. */
-			value = SyncFM(callback_user_data, target_cycle);
-			break;
+			return SyncFM(callback_user_data, target_cycle);
 
 		case 3: /* 0x6000 */
 			if (address < 0x7F00)
-			{
-				value = 0xFF;
-			}
-			else
-			{
-				/* VDP (accessed through the 68k's bus). */
-				value = ReadFromM68kBus(clownmdemu, callback_user_data, target_cycle, 0xC00000 + (address & 0x1F));
-			}
-			break;
+				return 0xFF;
+
+			/* VDP (accessed through the 68k's bus). */
+			return ReadFromM68kBus(clownmdemu, callback_user_data, target_cycle, 0xC00000 + (address & 0x1F));
 
 		case 4: /* 0x8000 */
 		case 5: /* 0xA000 */
 		case 6: /* 0xC000 */
 		case 7: /* 0xE000 */
 			/* 68k ROM window (actually a window into the 68k's address space: you can access the PSG through it IIRC). */
-			value = ReadFromM68kBus(clownmdemu, callback_user_data, target_cycle, (cc_u32f)clownmdemu->state.z80.bank * 0x8000 | address % 0x8000);
-			break;
-
-		default:
-			LogMessage("Attempted to read invalid Z80 address 0x%" CC_PRIXFAST16 " at 0x%" CC_PRIXLEAST16, address, clownmdemu->z80.program_counter);
-			break;
+			return ReadFromM68kBus(clownmdemu, callback_user_data, target_cycle, (cc_u32f)clownmdemu->state.z80.bank * 0x8000 | address % 0x8000);
 	}
-
-	return value;
 }
 
 cc_u16f Z80ReadCallback(void* const user_data, const cc_u16f address)
@@ -144,6 +129,9 @@ void Z80WriteCallbackWithCycle(const void* const user_data, const cc_u16f addres
 	/* Layout verified by'gen-hw.txt'. */
 	switch (address / 0x2000)
 	{
+		default:
+			CC_UNREACHABLE;
+			/* Fallthrough */
 		case 0: /* 0x0000 */
 		case 1: /* 0x2000 */
 			clownmdemu->state.z80.ram[address % CC_COUNT_OF(clownmdemu->state.z80.ram)] = value;
@@ -201,10 +189,6 @@ void Z80WriteCallbackWithCycle(const void* const user_data, const cc_u16f addres
 			/* 68k ROM window (actually a window into the 68k's address space: you can access the PSG through it IIRC). */
 			/* TODO: Apparently the Z80 can access the IO ports and send a bus request to itself. */
 			WriteToM68kBus(clownmdemu, callback_user_data, target_cycle, (cc_u32f)clownmdemu->state.z80.bank * 0x8000 | address % 0x8000, value);
-			break;
-
-		default:
-			LogMessage("Attempted to write invalid Z80 address 0x%" CC_PRIXFAST16 " at 0x%" CC_PRIXLEAST16, address, clownmdemu->z80.program_counter);
 			break;
 	}
 }
