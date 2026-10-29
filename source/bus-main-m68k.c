@@ -595,26 +595,26 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 					/* TODO: The missing ports. */
 					/* TODO: Detect when this is accessed without obtaining the Z80 bus and log a warning. */
 					/* TODO: According to 'gen-hw.txt', these can be accessed by their high bytes too. */
-					switch (address)
+					switch (address / 2)
 					{
-						case 0xA10000:
+						case 0xA10000 / 2:
 							if (do_low_byte)
 								value |= ((clownmdemu->configuration.region == CLOWNMDEMU_REGION_OVERSEAS) << 7) | ((clownmdemu->configuration.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL) << 6) | (!MegaCDEnabled(clownmdemu) << 5);
 
 							break;
 
-						case 0xA10002:
-						case 0xA10004:
-						case 0xA10006:
+						case 0xA10002 / 2:
+						case 0xA10004 / 2:
+						case 0xA10006 / 2:
 							/* TODO: 'genhw.txt' mentions that even addresses should have valid data too? */
 							if (do_low_byte)
 								value = SyncIOPortAndRead(callback_user_data, target_cycle, (address - 0xA10002) / 2);
 
 							break;
 
-						case 0xA10008:
-						case 0xA1000A:
-						case 0xA1000C:
+						case 0xA10008 / 2:
+						case 0xA1000A / 2:
+						case 0xA1000C / 2:
 							if (do_low_byte)
 							{
 								const cc_u16f joypad_index = (address - 0xA10008) / 2;
@@ -632,39 +632,41 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 					break;
 
 				case 0xA11000 / 0x1000:
-					if (address == 0xA11000)
+					switch (address)
 					{
-						/* MEMORY MODE */
-						/* TODO */
-						/* https://gendev.spritesmind.net/forum/viewtopic.php?p=28843&sid=65d8f210be331ff257a43b4e3dddb7c3#p28843 */
-						/* According to this, this flag is only functional on earlier models, and effectively halves the 68k's speed when running from cartridge. */
-					}
-					else if (address == 0xA11100)
-					{
-						/* Z80 BUSREQ */
-						/* On real hardware, bus requests do not complete if a reset is being held. */
-						/* http://gendev.spritesmind.net/forum/viewtopic.php?f=2&t=2195 */
-						const cc_bool z80_bus_obtained = clownmdemu->state.z80.bus_requested && !clownmdemu->state.z80.reset_held;
+						case 0xA11000:
+							/* MEMORY MODE */
+							/* TODO */
+							/* https://gendev.spritesmind.net/forum/viewtopic.php?p=28843&sid=65d8f210be331ff257a43b4e3dddb7c3#p28843 */
+							/* According to this, this flag is only functional on earlier models, and effectively halves the 68k's speed when running from cartridge. */
+							break;
 
-						if (clownmdemu->state.z80.reset_held)
-							LOG_MAIN_CPU_BUS_ERROR_0("Z80 bus request will never end as long as the reset is asserted");
+						case 0xA11100:
+							/* Z80 BUSREQ */
+							/* On real hardware, bus requests do not complete if a reset is being held. */
+							/* http://gendev.spritesmind.net/forum/viewtopic.php?f=2&t=2195 */
+							const cc_bool z80_bus_obtained = clownmdemu->state.z80.bus_requested && !clownmdemu->state.z80.reset_held;
 
-						/* TODO: According to Charles MacDonald's gen-hw.txt, the upper byte is actually the upper byte
-							of the next instruction and the lower byte is just 0 (and the flag bit, of course). */
-						value = 0xFF ^ z80_bus_obtained;
-						value = value << 8 | value;
-					}
-					else if (address == 0xA11200)
-					{
-						/* Z80 RESET */
-						/* TODO: According to Charles MacDonald's gen-hw.txt, the upper byte is actually the upper byte
-							of the next instruction and the lower byte is just 0 (and the flag bit, of course). */
-						value = 0xFF ^ clownmdemu->state.z80.reset_held;
-						value = value << 8 | value;
-					}
-					else
-					{
-						LOG_MAIN_CPU_BUS_ERROR_1("Attempted to read invalid IO register address 0x%" CC_PRIXFAST32, address);
+							if (clownmdemu->state.z80.reset_held)
+								LOG_MAIN_CPU_BUS_ERROR_0("Z80 bus request will never end as long as the reset is asserted");
+
+							/* TODO: According to Charles MacDonald's gen-hw.txt, the upper byte is actually the upper byte
+								of the next instruction and the lower byte is just 0 (and the flag bit, of course). */
+							value = 0xFF ^ z80_bus_obtained;
+							value = value << 8 | value;
+							break;
+
+						case 0xA11200:
+							/* Z80 RESET */
+							/* TODO: According to Charles MacDonald's gen-hw.txt, the upper byte is actually the upper byte
+								of the next instruction and the lower byte is just 0 (and the flag bit, of course). */
+							value = 0xFF ^ clownmdemu->state.z80.reset_held;
+							value = value << 8 | value;
+							break;
+
+						default:
+							LOG_MAIN_CPU_BUS_ERROR_1("Attempted to read invalid IO register address 0x%" CC_PRIXFAST32, address);
+							break;
 					}
 
 					break;
@@ -674,69 +676,85 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 					if (!MegaCDEnabled(clownmdemu))
 						break;
 
-					if (address == 0xA12000)
+					switch (address / 2)
 					{
-						/* RESET, HALT */
-						value = ((cc_u16f)clownmdemu->state.mega_cd.irq.enabled[1] << 15) |
-							((cc_u16f)clownmdemu->state.mega_cd.m68k.bus_requested << 1) |
-							((cc_u16f)!clownmdemu->state.mega_cd.m68k.reset_held << 0);
-					}
-					else if (address == 0xA12002)
-					{
-						/* Memory mode / Write protect */
-						value = ((cc_u16f)clownmdemu->state.mega_cd.prg_ram.write_protect << 8) | ((cc_u16f)clownmdemu->state.mega_cd.prg_ram.bank << 6) | ((cc_u16f)clownmdemu->state.mega_cd.word_ram.in_1m_mode << 2) | ((cc_u16f)clownmdemu->state.mega_cd.word_ram.dmna << 1) | ((cc_u16f)clownmdemu->state.mega_cd.word_ram.ret << 0);
-					}
-					else if (address == 0xA12004)
-					{
-						/* CDC mode */
-						value = CDC_Mode(&clownmdemu->mega_cd.cdc, cc_false);
-					}
-					else if (address == 0xA12006)
-					{
-						/* H-INT vector */
-						value = clownmdemu->state.mega_cd.hblank_address;
-					}
-					else if (address == 0xA12008)
-					{
-						/* CDC host data */
-						value = CDC_HostData(&clownmdemu->mega_cd.cdc, cc_false);
-					}
-					else if (address == 0xA1200C)
-					{
-						/* Stop watch */
-						LOG_MAIN_CPU_BUS_ERROR_0("Attempted to read from stop watch register");
-					}
-					else if (address == 0xA1200E)
-					{
-						/* Communication flag */
-						SyncMCDM68k(clownmdemu, callback_user_data, CycleMegaDriveToMegaCD(clownmdemu, target_cycle));
-						value = clownmdemu->state.mega_cd.communication.flag;
-					}
-					else if (address >= 0xA12010 && address < 0xA12020)
-					{
-						/* Communication command */
-						SyncMCDM68k(clownmdemu, callback_user_data, CycleMegaDriveToMegaCD(clownmdemu, target_cycle));
-						value = clownmdemu->state.mega_cd.communication.command[(address - 0xA12010) / 2];
-					}
-					else if (address >= 0xA12020 && address < 0xA12030)
-					{
-						/* Communication status */
-						SyncMCDM68k(clownmdemu, callback_user_data, CycleMegaDriveToMegaCD(clownmdemu, target_cycle));
-						value = clownmdemu->state.mega_cd.communication.status[(address - 0xA12020) / 2];
-					}
-					else if (address == 0xA12030)
-					{
-						/* Timer W/INT3 */
-						LOG_MAIN_CPU_BUS_ERROR_0("Attempted to read from Timer W/INT3 register");
-					}
-					else if (address == 0xA12032)
-					{
-						/* Interrupt mask control */
-						LOG_MAIN_CPU_BUS_ERROR_0("Attempted to read from interrupt mask control register");
-					}
-					else
-					{
-						LOG_MAIN_CPU_BUS_ERROR_1("Attempted to read invalid Mega CD register address 0x%" CC_PRIXFAST32, address);
+						case 0xA12000 / 2:
+							/* RESET, HALT */
+							value = ((cc_u16f)clownmdemu->state.mega_cd.irq.enabled[1] << 15) |
+								((cc_u16f)clownmdemu->state.mega_cd.m68k.bus_requested << 1) |
+								((cc_u16f)!clownmdemu->state.mega_cd.m68k.reset_held << 0);
+							break;
+
+						case 0xA12002 / 2:
+							/* Memory mode / Write protect */
+							value = ((cc_u16f)clownmdemu->state.mega_cd.prg_ram.write_protect << 8) | ((cc_u16f)clownmdemu->state.mega_cd.prg_ram.bank << 6) | ((cc_u16f)clownmdemu->state.mega_cd.word_ram.in_1m_mode << 2) | ((cc_u16f)clownmdemu->state.mega_cd.word_ram.dmna << 1) | ((cc_u16f)clownmdemu->state.mega_cd.word_ram.ret << 0);
+							break;
+
+						case 0xA12004 / 2:
+							/* CDC mode */
+							value = CDC_Mode(&clownmdemu->mega_cd.cdc, cc_false);
+							break;
+
+						case 0xA12006 / 2:
+							/* H-INT vector */
+							value = clownmdemu->state.mega_cd.hblank_address;
+							break;
+
+						case 0xA12008 / 2:
+							/* CDC host data */
+							value = CDC_HostData(&clownmdemu->mega_cd.cdc, cc_false);
+							break;
+
+						case 0xA1200C / 2:
+							/* Stop watch */
+							LOG_MAIN_CPU_BUS_ERROR_0("Attempted to read from stop watch register");
+							break;
+
+						case 0xA1200E / 2:
+							/* Communication flag */
+							SyncMCDM68k(clownmdemu, callback_user_data, CycleMegaDriveToMegaCD(clownmdemu, target_cycle));
+							value = clownmdemu->state.mega_cd.communication.flag;
+							break;
+
+						case 0xA12010 / 2:
+						case 0xA12012 / 2:
+						case 0xA12014 / 2:
+						case 0xA12016 / 2:
+						case 0xA12018 / 2:
+						case 0xA1201A / 2:
+						case 0xA1201C / 2:
+						case 0xA1201E / 2:
+							/* Communication command */
+							SyncMCDM68k(clownmdemu, callback_user_data, CycleMegaDriveToMegaCD(clownmdemu, target_cycle));
+							value = clownmdemu->state.mega_cd.communication.command[(address - 0xA12010) / 2];
+							break;
+
+						case 0xA12020 / 2:
+						case 0xA12022 / 2:
+						case 0xA12024 / 2:
+						case 0xA12026 / 2:
+						case 0xA12028 / 2:
+						case 0xA1202A / 2:
+						case 0xA1202C / 2:
+						case 0xA1202E / 2:
+							/* Communication status */
+							SyncMCDM68k(clownmdemu, callback_user_data, CycleMegaDriveToMegaCD(clownmdemu, target_cycle));
+							value = clownmdemu->state.mega_cd.communication.status[(address - 0xA12020) / 2];
+							break;
+
+						case 0xA12030 / 2:
+							/* Timer W/INT3 */
+							LOG_MAIN_CPU_BUS_ERROR_0("Attempted to read from Timer W/INT3 register");
+							break;
+
+						case 0xA12032 / 2:
+							/* Interrupt mask control */
+							LOG_MAIN_CPU_BUS_ERROR_0("Attempted to read from interrupt mask control register");
+							break;
+
+						default:
+							LOG_MAIN_CPU_BUS_ERROR_1("Attempted to read invalid Mega CD register address 0x%" CC_PRIXFAST32, address);
+							break;
 					}
 
 					break;
@@ -1046,19 +1064,19 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 				case 0xA10000 / 0x1000:
 					/* I/O AREA */
 					/* TODO */
-					switch (address)
+					switch (address / 2)
 					{
-						case 0xA10002:
-						case 0xA10004:
-						case 0xA10006:
+						case 0xA10002 / 2:
+						case 0xA10004 / 2:
+						case 0xA10006 / 2:
 							if (do_low_byte)
 								SyncIOPortAndWrite(callback_user_data, target_cycle, (address - 0xA10002) / 2, low_byte);
 
 							break;
 
-						case 0xA10008:
-						case 0xA1000A:
-						case 0xA1000C:
+						case 0xA10008 / 2:
+						case 0xA1000A / 2:
+						case 0xA1000C / 2:
 							if (do_low_byte)
 							{
 								const cc_u16f joypad_index = (address - 0xA10008) / 2;
@@ -1076,45 +1094,49 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 					break;
 
 				case 0xA11000 / 0x1000:
-					if (address == 0xA11000)
+					switch (address)
 					{
-						/* MEMORY MODE */
-						/* TODO: Make setting this to DRAM mode make the cartridge writeable. */
-					}
-					else if (address == 0xA11100)
-					{
-						/* Z80 BUSREQ */
-						if (do_high_byte)
-						{
-							const cc_bool bus_request = (high_byte & 1) != 0;
+						case 0xA11000:
+							/* MEMORY MODE */
+							/* TODO: Make setting this to DRAM mode make the cartridge writeable. */
+							break;
 
-							if (clownmdemu->state.z80.bus_requested != bus_request)
-								SyncZ80(clownmdemu, callback_user_data, target_cycle);
-
-							clownmdemu->state.z80.bus_requested = bus_request;
-						}
-					}
-					else if (address == 0xA11200)
-					{
-						/* Z80 RESET */
-						if (do_high_byte)
-						{
-							const cc_bool new_reset_held = (high_byte & 1) == 0;
-
-							if (clownmdemu->state.z80.reset_held && !new_reset_held)
+						case 0xA11100:
+							/* Z80 BUSREQ */
+							if (do_high_byte)
 							{
-								SyncZ80(clownmdemu, callback_user_data, target_cycle);
-								ClownZ80_Reset(&clownmdemu->z80);
-								/* TODO: Add a proper reset function? */
-								FM_Initialise(&clownmdemu->fm);
+								const cc_bool bus_request = (high_byte & 1) != 0;
+
+								if (clownmdemu->state.z80.bus_requested != bus_request)
+									SyncZ80(clownmdemu, callback_user_data, target_cycle);
+
+								clownmdemu->state.z80.bus_requested = bus_request;
 							}
 
-							clownmdemu->state.z80.reset_held = new_reset_held;
-						}
-					}
-					else
-					{
-						LOG_MAIN_CPU_BUS_ERROR_1("Attempted to write invalid IO register address 0x%" CC_PRIXFAST32, address);
+							break;
+
+						case 0xA11200:
+							/* Z80 RESET */
+							if (do_high_byte)
+							{
+								const cc_bool new_reset_held = (high_byte & 1) == 0;
+
+								if (clownmdemu->state.z80.reset_held && !new_reset_held)
+								{
+									SyncZ80(clownmdemu, callback_user_data, target_cycle);
+									ClownZ80_Reset(&clownmdemu->z80);
+									/* TODO: Add a proper reset function? */
+									FM_Initialise(&clownmdemu->fm);
+								}
+
+								clownmdemu->state.z80.reset_held = new_reset_held;
+							}
+
+							break;
+
+						default:
+							LOG_MAIN_CPU_BUS_ERROR_1("Attempted to write invalid IO register address 0x%" CC_PRIXFAST32, address);
+							break;
 					}
 
 					break;
@@ -1124,122 +1146,142 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 					if (!MegaCDEnabled(clownmdemu))
 						break;
 
-					if (address == 0xA12000)
+					switch (address / 2)
 					{
-						/* RESET, HALT */
-						Clown68000_ReadWriteCallbacks m68k_read_write_callbacks;
-
-						const cc_bool interrupt = (high_byte & (1 << 0)) != 0;
-						const cc_bool bus_request = (low_byte & (1 << 1)) != 0;
-						const cc_bool reset = (low_byte & (1 << 0)) == 0;
-
-						m68k_read_write_callbacks.read_callback = MCDM68kReadCallback;
-						m68k_read_write_callbacks.write_callback = MCDM68kWriteCallback;
-						m68k_read_write_callbacks.user_data = callback_user_data;
-
-						if (clownmdemu->state.mega_cd.m68k.bus_requested != bus_request)
-							SyncMCDM68k(clownmdemu, callback_user_data, CycleMegaDriveToMegaCD(clownmdemu, target_cycle));
-
-						if (clownmdemu->state.mega_cd.m68k.reset_held && !reset)
+						case 0xA12000 / 2:
 						{
-							SyncMCDM68k(clownmdemu, callback_user_data, CycleMegaDriveToMegaCD(clownmdemu, target_cycle));
-							Clown68000_Reset(&clownmdemu->mega_cd.m68k, &m68k_read_write_callbacks);
-						}
+							/* RESET, HALT */
+							Clown68000_ReadWriteCallbacks m68k_read_write_callbacks;
 
-						if (interrupt && clownmdemu->state.mega_cd.irq.enabled[1])
-						{
-							SyncMCDM68k(clownmdemu, callback_user_data, CycleMegaDriveToMegaCD(clownmdemu, target_cycle));
-							Clown68000_Interrupt(&clownmdemu->mega_cd.m68k, 2);
-						}
+							const cc_bool interrupt = (high_byte & (1 << 0)) != 0;
+							const cc_bool bus_request = (low_byte & (1 << 1)) != 0;
+							const cc_bool reset = (low_byte & (1 << 0)) == 0;
 
-						clownmdemu->state.mega_cd.m68k.bus_requested = bus_request;
-						clownmdemu->state.mega_cd.m68k.reset_held = reset;
-					}
-					else if (address == 0xA12002)
-					{
-						/* Memory mode / Write protect */
-						/* TODO: Exact behaviour of DMNA and RET when toggling between 1M and 2M modes. */
-						/* https://gendev.spritesmind.net/forum/viewtopic.php?p=15269#p15269 */
-						if (do_high_byte)
-							clownmdemu->state.mega_cd.prg_ram.write_protect = high_byte;
+							m68k_read_write_callbacks.read_callback = MCDM68kReadCallback;
+							m68k_read_write_callbacks.write_callback = MCDM68kWriteCallback;
+							m68k_read_write_callbacks.user_data = callback_user_data;
 
-						if (do_low_byte)
-						{
-							const cc_bool dmna = (low_byte & (1 << 1)) != 0;
-
-							/* Contrary to the official documentation, the DMNA bit needs to be set to 0 to request a 1M bank swap. */
-							/* https://gendev.spritesmind.net/forum/viewtopic.php?p=16388#p16388 */
-							if (dmna != clownmdemu->state.mega_cd.word_ram.in_1m_mode)
-							{
+							if (clownmdemu->state.mega_cd.m68k.bus_requested != bus_request)
 								SyncMCDM68k(clownmdemu, callback_user_data, CycleMegaDriveToMegaCD(clownmdemu, target_cycle));
 
-								clownmdemu->state.mega_cd.word_ram.dmna = cc_true;
-
-								if (!clownmdemu->state.mega_cd.word_ram.in_1m_mode)
-									clownmdemu->state.mega_cd.word_ram.ret = cc_false;
+							if (clownmdemu->state.mega_cd.m68k.reset_held && !reset)
+							{
+								SyncMCDM68k(clownmdemu, callback_user_data, CycleMegaDriveToMegaCD(clownmdemu, target_cycle));
+								Clown68000_Reset(&clownmdemu->mega_cd.m68k, &m68k_read_write_callbacks);
 							}
 
-							clownmdemu->state.mega_cd.prg_ram.bank = (low_byte >> 6) & 3;
-						}
-					}
-					else if (address == 0xA12004)
-					{
-						/* CDC mode */
-						LOG_MAIN_CPU_BUS_ERROR_0("Attempted to write to CDC mode register");
-					}
-					else if (address == 0xA12006)
-					{
-						/* H-INT vector */
-						clownmdemu->state.mega_cd.hblank_address &= ~mask;
-						clownmdemu->state.mega_cd.hblank_address |= value & mask;
-					}
-					else if (address == 0xA12008)
-					{
-						/* CDC host data */
-						LOG_MAIN_CPU_BUS_ERROR_0("Attempted to write to CDC host data register");
-					}
-					else if (address == 0xA1200C)
-					{
-						/* Stop watch */
-						LOG_MAIN_CPU_BUS_ERROR_0("Attempted to write to stop watch register");
-					}
-					else if (address == 0xA1200E)
-					{
-						/* Communication flag */
-						if (do_high_byte)
-						{
-							SyncMCDM68k(clownmdemu, callback_user_data, CycleMegaDriveToMegaCD(clownmdemu, target_cycle));
-							clownmdemu->state.mega_cd.communication.flag = (clownmdemu->state.mega_cd.communication.flag & 0x00FF) | (value & 0xFF00);
+							if (interrupt && clownmdemu->state.mega_cd.irq.enabled[1])
+							{
+								SyncMCDM68k(clownmdemu, callback_user_data, CycleMegaDriveToMegaCD(clownmdemu, target_cycle));
+								Clown68000_Interrupt(&clownmdemu->mega_cd.m68k, 2);
+							}
+
+							clownmdemu->state.mega_cd.m68k.bus_requested = bus_request;
+							clownmdemu->state.mega_cd.m68k.reset_held = reset;
+							break;
 						}
 
-						if (do_low_byte)
-							LOG_MAIN_CPU_BUS_ERROR_0("Attempted to write to SUB-CPU's communication flag");
-					}
-					else if (address >= 0xA12010 && address < 0xA12020)
-					{
-						/* Communication command */
-						SyncMCDM68k(clownmdemu, callback_user_data, CycleMegaDriveToMegaCD(clownmdemu, target_cycle));
-						clownmdemu->state.mega_cd.communication.command[(address - 0xA12010) / 2] &= ~mask;
-						clownmdemu->state.mega_cd.communication.command[(address - 0xA12010) / 2] |= value & mask;
-					}
-					else if (address >= 0xA12020 && address < 0xA12030)
-					{
-						/* Communication status */
-						LOG_MAIN_CPU_BUS_ERROR_0("Attempted to write to SUB-CPU's communication status");
-					}
-					else if (address == 0xA12030)
-					{
-						/* Timer W/INT3 */
-						LOG_MAIN_CPU_BUS_ERROR_0("Attempted to write to Timer W/INT3 register");
-					}
-					else if (address == 0xA12032)
-					{
-						/* Interrupt mask control */
-						LOG_MAIN_CPU_BUS_ERROR_0("Attempted to write to interrupt mask control register");
-					}
-					else
-					{
-						LOG_MAIN_CPU_BUS_ERROR_1("Attempted to write invalid Mega CD register address 0x%" CC_PRIXFAST32, address);
+						case 0xA12002 / 2:
+							/* Memory mode / Write protect */
+							/* TODO: Exact behaviour of DMNA and RET when toggling between 1M and 2M modes. */
+							/* https://gendev.spritesmind.net/forum/viewtopic.php?p=15269#p15269 */
+							if (do_high_byte)
+								clownmdemu->state.mega_cd.prg_ram.write_protect = high_byte;
+
+							if (do_low_byte)
+							{
+								const cc_bool dmna = (low_byte & (1 << 1)) != 0;
+
+								/* Contrary to the official documentation, the DMNA bit needs to be set to 0 to request a 1M bank swap. */
+								/* https://gendev.spritesmind.net/forum/viewtopic.php?p=16388#p16388 */
+								if (dmna != clownmdemu->state.mega_cd.word_ram.in_1m_mode)
+								{
+									SyncMCDM68k(clownmdemu, callback_user_data, CycleMegaDriveToMegaCD(clownmdemu, target_cycle));
+
+									clownmdemu->state.mega_cd.word_ram.dmna = cc_true;
+
+									if (!clownmdemu->state.mega_cd.word_ram.in_1m_mode)
+										clownmdemu->state.mega_cd.word_ram.ret = cc_false;
+								}
+
+								clownmdemu->state.mega_cd.prg_ram.bank = (low_byte >> 6) & 3;
+							}
+
+							break;
+
+						case 0xA12004 / 2:
+							/* CDC mode */
+							LOG_MAIN_CPU_BUS_ERROR_0("Attempted to write to CDC mode register");
+							break;
+
+						case 0xA12006 / 2:
+							/* H-INT vector */
+							clownmdemu->state.mega_cd.hblank_address &= ~mask;
+							clownmdemu->state.mega_cd.hblank_address |= value & mask;
+							break;
+
+						case 0xA12008 / 2:
+							/* CDC host data */
+							LOG_MAIN_CPU_BUS_ERROR_0("Attempted to write to CDC host data register");
+							break;
+
+						case 0xA1200C / 2:
+							/* Stop watch */
+							LOG_MAIN_CPU_BUS_ERROR_0("Attempted to write to stop watch register");
+							break;
+
+						case 0xA1200E / 2:
+							/* Communication flag */
+							if (do_high_byte)
+							{
+								SyncMCDM68k(clownmdemu, callback_user_data, CycleMegaDriveToMegaCD(clownmdemu, target_cycle));
+								clownmdemu->state.mega_cd.communication.flag = (clownmdemu->state.mega_cd.communication.flag & 0x00FF) | (value & 0xFF00);
+							}
+
+							if (do_low_byte)
+								LOG_MAIN_CPU_BUS_ERROR_0("Attempted to write to SUB-CPU's communication flag");
+
+							break;
+
+						case 0xA12010 / 2:
+						case 0xA12012 / 2:
+						case 0xA12014 / 2:
+						case 0xA12016 / 2:
+						case 0xA12018 / 2:
+						case 0xA1201A / 2:
+						case 0xA1201C / 2:
+						case 0xA1201E / 2:
+							/* Communication command */
+							SyncMCDM68k(clownmdemu, callback_user_data, CycleMegaDriveToMegaCD(clownmdemu, target_cycle));
+							clownmdemu->state.mega_cd.communication.command[(address - 0xA12010) / 2] &= ~mask;
+							clownmdemu->state.mega_cd.communication.command[(address - 0xA12010) / 2] |= value & mask;
+							break;
+
+						case 0xA12020 / 2:
+						case 0xA12022 / 2:
+						case 0xA12024 / 2:
+						case 0xA12026 / 2:
+						case 0xA12028 / 2:
+						case 0xA1202A / 2:
+						case 0xA1202C / 2:
+						case 0xA1202E / 2:
+							/* Communication status */
+							LOG_MAIN_CPU_BUS_ERROR_0("Attempted to write to SUB-CPU's communication status");
+							break;
+
+						case 0xA12030 / 2:
+							/* Timer W/INT3 */
+							LOG_MAIN_CPU_BUS_ERROR_0("Attempted to write to Timer W/INT3 register");
+							break;
+
+						case 0xA12032 / 2:
+							/* Interrupt mask control */
+							LOG_MAIN_CPU_BUS_ERROR_0("Attempted to write to interrupt mask control register");
+							break;
+
+						default:
+							LOG_MAIN_CPU_BUS_ERROR_1("Attempted to write invalid Mega CD register address 0x%" CC_PRIXFAST32, address);
+							break;
 					}
 
 					break;
