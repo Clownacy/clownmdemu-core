@@ -544,24 +544,24 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 
 		case 0xA00000 / 0x200000:
 			/* IO region. */
-			switch (address / 0x1000)
+			switch ((address - 0xA00000) / 0x1000)
 			{
-				case 0xA00000 / 0x1000:
-				case 0xA01000 / 0x1000:
-				case 0xA02000 / 0x1000:
-				case 0xA03000 / 0x1000:
-				case 0xA04000 / 0x1000:
-				case 0xA05000 / 0x1000:
-				case 0xA06000 / 0x1000:
-				case 0xA07000 / 0x1000:
-				case 0xA08000 / 0x1000:
-				case 0xA09000 / 0x1000:
-				case 0xA0A000 / 0x1000:
-				case 0xA0B000 / 0x1000:
-				case 0xA0C000 / 0x1000:
-				case 0xA0D000 / 0x1000:
-				case 0xA0E000 / 0x1000:
-				case 0xA0F000 / 0x1000:
+				case (0xA00000 - 0xA00000) / 0x1000:
+				case (0xA01000 - 0xA00000) / 0x1000:
+				case (0xA02000 - 0xA00000) / 0x1000:
+				case (0xA03000 - 0xA00000) / 0x1000:
+				case (0xA04000 - 0xA00000) / 0x1000:
+				case (0xA05000 - 0xA00000) / 0x1000:
+				case (0xA06000 - 0xA00000) / 0x1000:
+				case (0xA07000 - 0xA00000) / 0x1000:
+				case (0xA08000 - 0xA00000) / 0x1000:
+				case (0xA09000 - 0xA00000) / 0x1000:
+				case (0xA0A000 - 0xA00000) / 0x1000:
+				case (0xA0B000 - 0xA00000) / 0x1000:
+				case (0xA0C000 - 0xA00000) / 0x1000:
+				case (0xA0D000 - 0xA00000) / 0x1000:
+				case (0xA0E000 - 0xA00000) / 0x1000:
+				case (0xA0F000 - 0xA00000) / 0x1000:
 					/* Z80 RAM and YM2612 */
 					if (!clownmdemu->state.z80.bus_requested)
 					{
@@ -590,31 +590,31 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 
 					break;
 
-				case 0xA10000 / 0x1000:
+				case (0xA10000 - 0xA00000) / 0x1000:
 					/* I/O AREA */
 					/* TODO: The missing ports. */
 					/* TODO: Detect when this is accessed without obtaining the Z80 bus and log a warning. */
 					/* TODO: According to 'gen-hw.txt', these can be accessed by their high bytes too. */
-					switch (address / 2)
+					switch (address_word - 0xA10000 / 2)
 					{
-						case 0xA10000 / 2:
+						case (0xA10000 - 0xA10000) / 2:
 							if (do_low_byte)
 								value |= ((clownmdemu->configuration.region == CLOWNMDEMU_REGION_OVERSEAS) << 7) | ((clownmdemu->configuration.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL) << 6) | (!MegaCDEnabled(clownmdemu) << 5);
 
 							break;
 
-						case 0xA10002 / 2:
-						case 0xA10004 / 2:
-						case 0xA10006 / 2:
+						case (0xA10002 - 0xA10000) / 2:
+						case (0xA10004 - 0xA10000) / 2:
+						case (0xA10006 - 0xA10000) / 2:
 							/* TODO: 'genhw.txt' mentions that even addresses should have valid data too? */
 							if (do_low_byte)
 								value = SyncIOPortAndRead(callback_user_data, target_cycle, (address - 0xA10002) / 2);
 
 							break;
 
-						case 0xA10008 / 2:
-						case 0xA1000A / 2:
-						case 0xA1000C / 2:
+						case (0xA10008 - 0xA10000) / 2:
+						case (0xA1000A - 0xA10000) / 2:
+						case (0xA1000C - 0xA10000) / 2:
 							if (do_low_byte)
 							{
 								const cc_u16f joypad_index = (address - 0xA10008) / 2;
@@ -631,7 +631,7 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 
 					break;
 
-				case 0xA11000 / 0x1000:
+				case (0xA11000 - 0xA00000) / 0x1000:
 					switch (address)
 					{
 						case 0xA11000:
@@ -671,83 +671,83 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 
 					break;
 
-				case 0xA12000 / 0x1000:
+				case (0xA12000 - 0xA00000) / 0x1000:
 					/* Mega CD registers. */
 					if (!MegaCDEnabled(clownmdemu))
 						break;
 
-					switch (address / 2)
+					switch (address_word - 0xA12000 / 2)
 					{
-						case 0xA12000 / 2:
+						case (0xA12000 - 0xA12000) / 2:
 							/* RESET, HALT */
 							value = ((cc_u16f)clownmdemu->state.mega_cd.irq.enabled[1] << 15) |
 								((cc_u16f)clownmdemu->state.mega_cd.m68k.bus_requested << 1) |
 								((cc_u16f)!clownmdemu->state.mega_cd.m68k.reset_held << 0);
 							break;
 
-						case 0xA12002 / 2:
+						case (0xA12002 - 0xA12000) / 2:
 							/* Memory mode / Write protect */
 							value = ((cc_u16f)clownmdemu->state.mega_cd.prg_ram.write_protect << 8) | ((cc_u16f)clownmdemu->state.mega_cd.prg_ram.bank << 6) | ((cc_u16f)clownmdemu->state.mega_cd.word_ram.in_1m_mode << 2) | ((cc_u16f)clownmdemu->state.mega_cd.word_ram.dmna << 1) | ((cc_u16f)clownmdemu->state.mega_cd.word_ram.ret << 0);
 							break;
 
-						case 0xA12004 / 2:
+						case (0xA12004 - 0xA12000) / 2:
 							/* CDC mode */
 							value = CDC_Mode(&clownmdemu->mega_cd.cdc, cc_false);
 							break;
 
-						case 0xA12006 / 2:
+						case (0xA12006 - 0xA12000) / 2:
 							/* H-INT vector */
 							value = clownmdemu->state.mega_cd.hblank_address;
 							break;
 
-						case 0xA12008 / 2:
+						case (0xA12008 - 0xA12000) / 2:
 							/* CDC host data */
 							value = CDC_HostData(&clownmdemu->mega_cd.cdc, cc_false);
 							break;
 
-						case 0xA1200C / 2:
+						case (0xA1200C - 0xA12000) / 2:
 							/* Stop watch */
 							LOG_MAIN_CPU_BUS_ERROR_0("Attempted to read from stop watch register");
 							break;
 
-						case 0xA1200E / 2:
+						case (0xA1200E - 0xA12000) / 2:
 							/* Communication flag */
 							SyncMCDM68k(clownmdemu, callback_user_data, CycleMegaDriveToMegaCD(clownmdemu, target_cycle));
 							value = clownmdemu->state.mega_cd.communication.flag;
 							break;
 
-						case 0xA12010 / 2:
-						case 0xA12012 / 2:
-						case 0xA12014 / 2:
-						case 0xA12016 / 2:
-						case 0xA12018 / 2:
-						case 0xA1201A / 2:
-						case 0xA1201C / 2:
-						case 0xA1201E / 2:
+						case (0xA12010 - 0xA12000) / 2:
+						case (0xA12012 - 0xA12000) / 2:
+						case (0xA12014 - 0xA12000) / 2:
+						case (0xA12016 - 0xA12000) / 2:
+						case (0xA12018 - 0xA12000) / 2:
+						case (0xA1201A - 0xA12000) / 2:
+						case (0xA1201C - 0xA12000) / 2:
+						case (0xA1201E - 0xA12000) / 2:
 							/* Communication command */
 							SyncMCDM68k(clownmdemu, callback_user_data, CycleMegaDriveToMegaCD(clownmdemu, target_cycle));
 							value = clownmdemu->state.mega_cd.communication.command[(address - 0xA12010) / 2];
 							break;
 
-						case 0xA12020 / 2:
-						case 0xA12022 / 2:
-						case 0xA12024 / 2:
-						case 0xA12026 / 2:
-						case 0xA12028 / 2:
-						case 0xA1202A / 2:
-						case 0xA1202C / 2:
-						case 0xA1202E / 2:
+						case (0xA12020 - 0xA12000) / 2:
+						case (0xA12022 - 0xA12000) / 2:
+						case (0xA12024 - 0xA12000) / 2:
+						case (0xA12026 - 0xA12000) / 2:
+						case (0xA12028 - 0xA12000) / 2:
+						case (0xA1202A - 0xA12000) / 2:
+						case (0xA1202C - 0xA12000) / 2:
+						case (0xA1202E - 0xA12000) / 2:
 							/* Communication status */
 							SyncMCDM68k(clownmdemu, callback_user_data, CycleMegaDriveToMegaCD(clownmdemu, target_cycle));
 							value = clownmdemu->state.mega_cd.communication.status[(address - 0xA12020) / 2];
 							break;
 
-						case 0xA12030 / 2:
+						case (0xA12030 - 0xA12000) / 2:
 							/* Timer W/INT3 */
 							LOG_MAIN_CPU_BUS_ERROR_0("Attempted to read from Timer W/INT3 register");
 							break;
 
-						case 0xA12032 / 2:
+						case (0xA12032 - 0xA12000) / 2:
 							/* Interrupt mask control */
 							LOG_MAIN_CPU_BUS_ERROR_0("Attempted to read from interrupt mask control register");
 							break;
@@ -759,7 +759,7 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 
 					break;
 
-				case 0xA13000 / 0x1000:
+				case (0xA13000 - 0xA00000) / 0x1000:
 					/* Cartridge registers. */
 					if (address == 0xA130F0)
 					{
@@ -1013,24 +1013,24 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 
 		case 0xA00000 / 0x200000:
 			/* IO region. */
-			switch (address / 0x1000)
+			switch ((address - 0xA00000) / 0x1000)
 			{
-				case 0xA00000 / 0x1000:
-				case 0xA01000 / 0x1000:
-				case 0xA02000 / 0x1000:
-				case 0xA03000 / 0x1000:
-				case 0xA04000 / 0x1000:
-				case 0xA05000 / 0x1000:
-				case 0xA06000 / 0x1000:
-				case 0xA07000 / 0x1000:
-				case 0xA08000 / 0x1000:
-				case 0xA09000 / 0x1000:
-				case 0xA0A000 / 0x1000:
-				case 0xA0B000 / 0x1000:
-				case 0xA0C000 / 0x1000:
-				case 0xA0D000 / 0x1000:
-				case 0xA0E000 / 0x1000:
-				case 0xA0F000 / 0x1000:
+				case (0xA00000 - 0xA00000) / 0x1000:
+				case (0xA01000 - 0xA00000) / 0x1000:
+				case (0xA02000 - 0xA00000) / 0x1000:
+				case (0xA03000 - 0xA00000) / 0x1000:
+				case (0xA04000 - 0xA00000) / 0x1000:
+				case (0xA05000 - 0xA00000) / 0x1000:
+				case (0xA06000 - 0xA00000) / 0x1000:
+				case (0xA07000 - 0xA00000) / 0x1000:
+				case (0xA08000 - 0xA00000) / 0x1000:
+				case (0xA09000 - 0xA00000) / 0x1000:
+				case (0xA0A000 - 0xA00000) / 0x1000:
+				case (0xA0B000 - 0xA00000) / 0x1000:
+				case (0xA0C000 - 0xA00000) / 0x1000:
+				case (0xA0D000 - 0xA00000) / 0x1000:
+				case (0xA0E000 - 0xA00000) / 0x1000:
+				case (0xA0F000 - 0xA00000) / 0x1000:
 					/* Z80 RAM and YM2612 */
 					if (!clownmdemu->state.z80.bus_requested)
 					{
@@ -1061,22 +1061,22 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 
 					break;
 
-				case 0xA10000 / 0x1000:
+				case (0xA10000 - 0xA00000) / 0x1000:
 					/* I/O AREA */
 					/* TODO */
-					switch (address / 2)
+					switch (address_word - 0xA10000 / 2)
 					{
-						case 0xA10002 / 2:
-						case 0xA10004 / 2:
-						case 0xA10006 / 2:
+						case (0xA10002 - 0xA10000) / 2:
+						case (0xA10004 - 0xA10000) / 2:
+						case (0xA10006 - 0xA10000) / 2:
 							if (do_low_byte)
 								SyncIOPortAndWrite(callback_user_data, target_cycle, (address - 0xA10002) / 2, low_byte);
 
 							break;
 
-						case 0xA10008 / 2:
-						case 0xA1000A / 2:
-						case 0xA1000C / 2:
+						case (0xA10008 - 0xA10000) / 2:
+						case (0xA1000A - 0xA10000) / 2:
+						case (0xA1000C - 0xA10000) / 2:
 							if (do_low_byte)
 							{
 								const cc_u16f joypad_index = (address - 0xA10008) / 2;
@@ -1093,7 +1093,7 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 
 					break;
 
-				case 0xA11000 / 0x1000:
+				case (0xA11000 - 0xA00000) / 0x1000:
 					switch (address)
 					{
 						case 0xA11000:
@@ -1141,14 +1141,14 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 
 					break;
 
-				case 0xA12000 / 0x1000:
+				case (0xA12000 - 0xA00000) / 0x1000:
 					/* Mega CD registers. */
 					if (!MegaCDEnabled(clownmdemu))
 						break;
 
-					switch (address / 2)
+					switch (address_word - 0xA12000 / 2)
 					{
-						case 0xA12000 / 2:
+						case (0xA12000 - 0xA12000) / 2:
 						{
 							/* RESET, HALT */
 							Clown68000_ReadWriteCallbacks m68k_read_write_callbacks;
@@ -1181,7 +1181,7 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 							break;
 						}
 
-						case 0xA12002 / 2:
+						case (0xA12002 - 0xA12000) / 2:
 							/* Memory mode / Write protect */
 							/* TODO: Exact behaviour of DMNA and RET when toggling between 1M and 2M modes. */
 							/* https://gendev.spritesmind.net/forum/viewtopic.php?p=15269#p15269 */
@@ -1209,28 +1209,28 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 
 							break;
 
-						case 0xA12004 / 2:
+						case (0xA12004 - 0xA12000) / 2:
 							/* CDC mode */
 							LOG_MAIN_CPU_BUS_ERROR_0("Attempted to write to CDC mode register");
 							break;
 
-						case 0xA12006 / 2:
+						case (0xA12006 - 0xA12000) / 2:
 							/* H-INT vector */
 							clownmdemu->state.mega_cd.hblank_address &= ~mask;
 							clownmdemu->state.mega_cd.hblank_address |= value & mask;
 							break;
 
-						case 0xA12008 / 2:
+						case (0xA12008 - 0xA12000) / 2:
 							/* CDC host data */
 							LOG_MAIN_CPU_BUS_ERROR_0("Attempted to write to CDC host data register");
 							break;
 
-						case 0xA1200C / 2:
+						case (0xA1200C - 0xA12000) / 2:
 							/* Stop watch */
 							LOG_MAIN_CPU_BUS_ERROR_0("Attempted to write to stop watch register");
 							break;
 
-						case 0xA1200E / 2:
+						case (0xA1200E - 0xA12000) / 2:
 							/* Communication flag */
 							if (do_high_byte)
 							{
@@ -1243,38 +1243,38 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 
 							break;
 
-						case 0xA12010 / 2:
-						case 0xA12012 / 2:
-						case 0xA12014 / 2:
-						case 0xA12016 / 2:
-						case 0xA12018 / 2:
-						case 0xA1201A / 2:
-						case 0xA1201C / 2:
-						case 0xA1201E / 2:
+						case (0xA12010 - 0xA12000) / 2:
+						case (0xA12012 - 0xA12000) / 2:
+						case (0xA12014 - 0xA12000) / 2:
+						case (0xA12016 - 0xA12000) / 2:
+						case (0xA12018 - 0xA12000) / 2:
+						case (0xA1201A - 0xA12000) / 2:
+						case (0xA1201C - 0xA12000) / 2:
+						case (0xA1201E - 0xA12000) / 2:
 							/* Communication command */
 							SyncMCDM68k(clownmdemu, callback_user_data, CycleMegaDriveToMegaCD(clownmdemu, target_cycle));
 							clownmdemu->state.mega_cd.communication.command[(address - 0xA12010) / 2] &= ~mask;
 							clownmdemu->state.mega_cd.communication.command[(address - 0xA12010) / 2] |= value & mask;
 							break;
 
-						case 0xA12020 / 2:
-						case 0xA12022 / 2:
-						case 0xA12024 / 2:
-						case 0xA12026 / 2:
-						case 0xA12028 / 2:
-						case 0xA1202A / 2:
-						case 0xA1202C / 2:
-						case 0xA1202E / 2:
+						case (0xA12020 - 0xA12000) / 2:
+						case (0xA12022 - 0xA12000) / 2:
+						case (0xA12024 - 0xA12000) / 2:
+						case (0xA12026 - 0xA12000) / 2:
+						case (0xA12028 - 0xA12000) / 2:
+						case (0xA1202A - 0xA12000) / 2:
+						case (0xA1202C - 0xA12000) / 2:
+						case (0xA1202E - 0xA12000) / 2:
 							/* Communication status */
 							LOG_MAIN_CPU_BUS_ERROR_0("Attempted to write to SUB-CPU's communication status");
 							break;
 
-						case 0xA12030 / 2:
+						case (0xA12030 - 0xA12000) / 2:
 							/* Timer W/INT3 */
 							LOG_MAIN_CPU_BUS_ERROR_0("Attempted to write to Timer W/INT3 register");
 							break;
 
-						case 0xA12032 / 2:
+						case (0xA12032 - 0xA12000) / 2:
 							/* Interrupt mask control */
 							LOG_MAIN_CPU_BUS_ERROR_0("Attempted to write to interrupt mask control register");
 							break;
@@ -1286,7 +1286,7 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 
 					break;
 
-				case 0xA13000 / 0x1000:
+				case (0xA13000 - 0xA00000) / 0x1000:
 					/* Cartridge registers. */
 					if (address == 0xA130F0)
 					{
