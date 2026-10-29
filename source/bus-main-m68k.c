@@ -766,7 +766,7 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 						/* External RAM control */
 						LOG_MAIN_CPU_BUS_ERROR_0("Attempted to read from external RAM control register");
 					}
-					else if (address >= 0xA130F2 && address <= 0xA13100)
+					else if (address >= 0xA130F2 && address < 0xA13100)
 					{
 						/* Cartridge bankswitching */
 						LOG_MAIN_CPU_BUS_ERROR_0("Attempted to read from cartridge bankswitch register");
@@ -1299,7 +1299,7 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 						if (do_low_byte && clownmdemu->state.external_ram.size != 0)
 							clownmdemu->state.external_ram.mapped_in = low_byte != 0;
 					}
-					else if (address >= 0xA130F2 && address <= 0xA13100)
+					else if (address >= 0xA130F2 && address < 0xA13100)
 					{
 						/* Cartridge bankswitching */
 						if (do_low_byte)
