@@ -218,8 +218,7 @@ static void WriteAndIncrement(VDP* const vdp, const cc_u16f value, const VDP_Col
 		}
 
 		default:
-			/* Should never happen. */
-			assert(0);
+			CC_UNREACHABLE;
 			/* Fallthrough */
 		case VDP_ACCESS_INVALID:
 		case VDP_ACCESS_VRAM_8BIT:
@@ -260,8 +259,7 @@ static cc_u16f ReadAndIncrement(VDP_State* const state)
 			break;
 
 		default:
-			/* Should never happen. */
-			assert(0);
+			CC_UNREACHABLE;
 			/* Fallthrough */
 		case VDP_ACCESS_INVALID:
 			LogMessage("VDP read attempted with invalid access mode specified (0x%" CC_PRIXFAST16 ")", state->access.code_register);
@@ -435,8 +433,7 @@ static cc_u16f GetVScrollValue(const VDP* const vdp, const cc_u8f plane_index, c
 	switch (state->vscroll_mode)
 	{
 		default:
-			/* Should never happen. */
-			assert(0);
+			CC_UNREACHABLE;
 			/* Fallthrough */
 		case VDP_VSCROLL_MODE_FULL:
 			return state->vsram_cache[plane_index];

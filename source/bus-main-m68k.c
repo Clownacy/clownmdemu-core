@@ -315,6 +315,9 @@ static cc_bool FrontendControllerCallback(void* const user_data, const cc_u8f co
 
 	switch (button)
 	{
+		default:
+			CC_UNREACHABLE;
+			/* Fallthrough */
 		case CONTROLLER_BUTTON_UP:
 			frontend_button = CLOWNMDEMU_BUTTON_UP;
 			break;
@@ -362,10 +365,6 @@ static cc_bool FrontendControllerCallback(void* const user_data, const cc_u8f co
 		case CONTROLLER_BUTTON_MODE:
 			frontend_button = CLOWNMDEMU_BUTTON_MODE;
 			break;
-
-		default:
-			assert(cc_false);
-			return cc_false;
 	}
 
 	return frontend_callbacks->input_requested((void*)frontend_callbacks->user_data, controller_index, frontend_button);

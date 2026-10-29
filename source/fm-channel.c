@@ -116,8 +116,7 @@ cc_u16f FM_Channel_GetSample(FM_Channel* const channel, const cc_u8f amplitude_m
 	switch (channel->algorithm)
 	{
 		default:
-			/* Should not happen. */
-			assert(0);
+			CC_UNREACHABLE;
 			/* Fallthrough */
 		case 0:
 			/* "Four serial connection mode". */
