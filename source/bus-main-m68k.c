@@ -425,6 +425,9 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 
 	switch (address / 0x200000)
 	{
+		default:
+			CC_UNREACHABLE;
+			/* Fallthrough */
 		case 0x000000 / 0x200000:
 		case 0x200000 / 0x200000:
 		case 0x400000 / 0x200000:
@@ -876,6 +879,9 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 
 	switch (address / 0x200000)
 	{
+		default:
+			CC_UNREACHABLE;
+			/* Fallthrough */
 		case 0x000000 / 0x200000:
 		case 0x200000 / 0x200000:
 		case 0x400000 / 0x200000:

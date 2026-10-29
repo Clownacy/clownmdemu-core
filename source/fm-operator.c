@@ -347,6 +347,9 @@ static void UpdateEnvelopeADSR(FM_Operator* const state)
 
 	switch (state->envelope_mode)
 	{
+		default:
+			CC_UNREACHABLE;
+			/* Fallthrough */
 		case FM_OPERATOR_ENVELOPE_MODE_ATTACK:
 			if (state->attenuation == 0)
 			{

@@ -803,6 +803,12 @@ static void RenderForegroundAndSpritePlanes(const VDP* const vdp, const cc_u16f 
 
 		switch (state->debug.forced_layer)
 		{
+			default:
+				CC_UNREACHABLE;
+				/* Fallthrough */
+			case 0:
+				break;
+
 			case 1:
 				RenderSpritePlane(plane_metapixels, sprite_metapixels, &blit_lookup.forced_layer, 0xFF, left_boundary_pixels, right_boundary_pixels);
 				break;
@@ -1034,7 +1040,12 @@ void VDP_WriteControl(VDP* const vdp, const cc_u16f value, const VDP_ColourUpdat
 				state->access.selected_buffer = VDP_ACCESS_VRAM_8BIT;
 				break;
 
-			default: /* Invalid */
+			default:
+				CC_UNREACHABLE;
+				/* Fallthrough */
+			case 3: /* Invalid */
+			case 5: /* Invalid */
+			case 7: /* Invalid */
 				state->access.selected_buffer = VDP_ACCESS_INVALID;
 				break;
 		}
@@ -1155,6 +1166,9 @@ void VDP_WriteControl(VDP* const vdp, const cc_u16f value, const VDP_ColourUpdat
 					   next frame it draw the odd-numbered lines. */
 					switch ((data >> 1) & 3)
 					{
+						default:
+							CC_UNREACHABLE;
+							/* Fallthrough */
 						case 0:
 							/* Regular '240p' mode: the 'Genesis Software Manual' seems to suggest that this
 							   mode only outputs the even-numbered lines, leaving the odd-numbered ones black. */
@@ -1208,6 +1222,9 @@ void VDP_WriteControl(VDP* const vdp, const cc_u16f value, const VDP_ColourUpdat
 
 					switch (data & 3)
 					{
+						default:
+							CC_UNREACHABLE;
+							/* Fallthrough */
 						case 0:
 							state->plane_width_shift = 5;
 							state->plane_height_bitmask &= 0x7F;
@@ -1304,6 +1321,15 @@ void VDP_WriteControl(VDP* const vdp, const cc_u16f value, const VDP_ColourUpdat
 				}
 
 				default:
+					CC_UNREACHABLE;
+					/* Fallthrough */
+				case 24:
+				case 25:
+				case 26:
+				case 27:
+				case 28:
+				case 29:
+				case 31:
 					/* Invalid */
 					LogMessage("Attempted to set invalid VDP register (0x%" CC_PRIXFAST16 ")", reg);
 					break;

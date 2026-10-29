@@ -18,6 +18,9 @@ cc_u8f ControllerManager_Read(ControllerManager* const manager, const cc_u8f por
 
 	switch (manager->configuration.protocol)
 	{
+		default:
+			CC_UNREACHABLE;
+			/* Fallthrough */
 		case CONTROLLER_MANAGER_PROTOCOL_STANDARD:
 			return ControllerMultitapEA_ReadController(&manager->state.ea_multitap, port_index, microseconds, callback, user_data);
 
@@ -38,6 +41,9 @@ void ControllerManager_Write(ControllerManager* const manager, const cc_u8f port
 
 	switch (manager->configuration.protocol)
 	{
+		default:
+			CC_UNREACHABLE;
+			/* Fallthrough */
 		case CONTROLLER_MANAGER_PROTOCOL_STANDARD:
 			ControllerMultitapEA_WriteController(&manager->state.ea_multitap, port_index, microseconds, value);
 			break;
