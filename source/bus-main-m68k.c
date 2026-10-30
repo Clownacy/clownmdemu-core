@@ -642,6 +642,7 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 							break;
 
 						case 0xA11100:
+						{
 							/* Z80 BUSREQ */
 							/* On real hardware, bus requests do not complete if a reset is being held. */
 							/* http://gendev.spritesmind.net/forum/viewtopic.php?f=2&t=2195 */
@@ -655,6 +656,7 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 							value = 0xFF ^ z80_bus_obtained;
 							value = value << 8 | value;
 							break;
+						}
 
 						case 0xA11200:
 							/* Z80 RESET */
