@@ -1293,13 +1293,13 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 					if (address == 0xA130F0)
 					{
 						/* External RAM control */
-						/* TODO: Apparently this is actually two bit-packed flags! */
+						/* There are two flags here: 'write-protected' (bit 1) and 'mapped-in' (bit 0). */
+						/* The former is only present in developer cartridges, so we do not bother checking for it. */
 						/* https://forums.sonicretro.org/index.php?posts/622087/ */
 						/* https://web.archive.org/web/20130731104452/http://emudocs.org/Genesis/ssf2.txt */
-						/* TODO: Actually, the second bit only exists on devcarts? */
 						/* https://forums.sonicretro.org/index.php?posts/1096788/ */
 						if (do_low_byte && clownmdemu->state.external_ram.size != 0)
-							clownmdemu->state.external_ram.mapped_in = low_byte != 0;
+							clownmdemu->state.external_ram.mapped_in = (low_byte & 1) != 0;
 					}
 					else if (address >= 0xA130F2 && address < 0xA13100)
 					{
