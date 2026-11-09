@@ -515,10 +515,11 @@ static const cc_u16l* GetStampMapAddress(ClownMDEmu_State* const state)
 
 static const cc_u16l* GetStampAddress(ClownMDEmu_State* const state, const cc_u16f index)
 {
+	/* When large stamps are enabled, indices are rounded down to the nearest large stamp, hence the wacky maths. */
 	if (state->mega_cd.rotation.large_stamp)
-		return state->mega_cd.word_ram.buffer + (index * SMALL_STAMP_SIZE_IN_WORDS);
-	else
 		return state->mega_cd.word_ram.buffer + (index / (LARGE_STAMP_SIZE_IN_WORDS / SMALL_STAMP_SIZE_IN_WORDS) * LARGE_STAMP_SIZE_IN_WORDS);
+	else
+		return state->mega_cd.word_ram.buffer + (index * SMALL_STAMP_SIZE_IN_WORDS);
 }
 
 static size_t PixelIndexFromImageBufferCoordinate(const cc_u16f x, const cc_u16f y, const size_t image_buffer_height)
